@@ -1,19 +1,22 @@
 <script>
+	import '../app.scss';
 	import Header from './Header.svelte';
 	import '../app.css';
 </script>
 
 <div class="app">
-	<Header />
+	<Header></Header>
 
 	<main>
-		<slot />
+		<slot></slot>
 	</main>
 
 	<footer>
 		<p>visit <a href="https://kit.svelte.dev">kit.svelte.dev</a> to learn SvelteKit</p>
 	</footer>
 </div>
+
+<slot></slot> 
 
 <style>
 	.app {
