@@ -1,4 +1,5 @@
 import type { Session, User } from '@supabase/supabase-js';
+import { base } from '$app/paths';
 import { supabase } from '$lib/supabase';
 
 export function createSession() {
@@ -30,7 +31,7 @@ export function createSession() {
 		const { error } = await supabase.auth.signInWithOtp({
 			email,
 			options: {
-				emailRedirectTo: `${window.location.origin}/app`
+				emailRedirectTo: `${window.location.origin}${base}/app`
 			}
 		});
 		if (error) throw error;
