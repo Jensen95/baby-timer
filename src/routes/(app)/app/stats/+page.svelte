@@ -39,7 +39,10 @@
 		(async () => {
 			try {
 				const families = await getUserFamilies(supabase);
-				if (families.length === 0) { loading = false; return; }
+				if (families.length === 0) {
+					loading = false;
+					return;
+				}
 
 				babies = await listBabies(supabase, families[0].id);
 				if (babies.length > 0) {
@@ -69,7 +72,10 @@
 						p_day: day
 					});
 					if (rpcError) throw rpcError;
-					const row = Array.isArray(data) && data.length > 0 ? data[0] : { feed_count: 0, feed_minutes: 0, sleep_count: 0, sleep_minutes: 0 };
+					const row =
+						Array.isArray(data) && data.length > 0
+							? data[0]
+							: { feed_count: 0, feed_minutes: 0, sleep_count: 0, sleep_minutes: 0 };
 					return {
 						date: day,
 						feedCount: row.feed_count ?? 0,
@@ -104,9 +110,7 @@
 		Math.round((summaries.reduce((acc, s) => acc + s.sleepMinutes, 0) / 60) * 10) / 10
 	);
 	let avgFeedingsPerDay = $derived(
-		summaries.length > 0
-			? Math.round((totalFeedings / summaries.length) * 10) / 10
-			: 0
+		summaries.length > 0 ? Math.round((totalFeedings / summaries.length) * 10) / 10 : 0
 	);
 </script>
 

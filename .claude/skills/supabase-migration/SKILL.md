@@ -1,9 +1,11 @@
 # Supabase Migration Skill
 
 ## Trigger
+
 Load when: creating a new database migration, modifying schema, adding tables/columns/policies.
 
 ## Creating a migration
+
 1. Create file: `supabase/migrations/YYYYMMDDHHMMSS_description.sql`
 2. Use timestamp format matching existing files
 3. After creating: regenerate types with:
@@ -14,6 +16,7 @@ Load when: creating a new database migration, modifying schema, adding tables/co
 4. If no local Supabase, manually update `src/lib/db/database.types.ts`
 
 ## Migration conventions
+
 - One concern per migration file
 - Always `enable row level security` on new tables
 - Use `auth.uid()` in RLS policies
@@ -21,6 +24,7 @@ Load when: creating a new database migration, modifying schema, adding tables/co
 - Generated columns: use `generated always as (...) stored` for computed values
 
 ## RLS pattern for family-scoped tables
+
 ```sql
 create policy "family member access"
   on public.some_table for all

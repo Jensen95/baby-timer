@@ -34,10 +34,7 @@
 
 		<div class="navbar-menu {menuOpen ? 'is-active' : ''}">
 			<div class="navbar-end">
-				<a
-					class="navbar-item {$page.url.pathname === '/app' ? 'is-active' : ''}"
-					href="/app"
-				>
+				<a class="navbar-item {$page.url.pathname === '/app' ? 'is-active' : ''}" href="/app">
 					Dashboard
 				</a>
 				<a

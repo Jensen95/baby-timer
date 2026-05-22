@@ -18,11 +18,7 @@ export async function startSleep(
 	return data;
 }
 
-export async function stopSleep(
-	client: Client,
-	id: string,
-	endedAt: Date
-): Promise<SleepSession> {
+export async function stopSleep(client: Client, id: string, endedAt: Date): Promise<SleepSession> {
 	const { data, error } = await (client as any)
 		.from('sleep_sessions' as const)
 		.update({ ended_at: endedAt.toISOString() })

@@ -8,7 +8,10 @@
 
 <svelte:head>
 	<title>Baby Timer — Track feeding & sleep</title>
-	<meta name="description" content="A simple family app for tracking baby feeding and sleep sessions in real time." />
+	<meta
+		name="description"
+		content="A simple family app for tracking baby feeding and sleep sessions in real time."
+	/>
 </svelte:head>
 
 <section class="hero is-primary is-medium">
@@ -35,8 +38,8 @@
 							<p class="is-size-2 mb-3">🍼</p>
 							<h3 class="title is-5">Feeding Timer</h3>
 							<p class="has-text-grey">
-								Track duration and which breast — left, right, or both.
-								Active sessions sync instantly across devices.
+								Track duration and which breast — left, right, or both. Active sessions sync
+								instantly across devices.
 							</p>
 						</div>
 					</div>
@@ -45,8 +48,8 @@
 							<p class="is-size-2 mb-3">😴</p>
 							<h3 class="title is-5">Sleep Timer</h3>
 							<p class="has-text-grey">
-								Log sleep sessions with head position — back, tummy, left, or right.
-								See total sleep at a glance.
+								Log sleep sessions with head position — back, tummy, left, or right. See total sleep
+								at a glance.
 							</p>
 						</div>
 					</div>
@@ -55,8 +58,8 @@
 							<p class="is-size-2 mb-3">👨‍👩‍👦</p>
 							<h3 class="title is-5">Family Sharing</h3>
 							<p class="has-text-grey">
-								Both parents see live updates. No manual syncing —
-								one parent starts a timer, the other sees it immediately.
+								Both parents see live updates. No manual syncing — one parent starts a timer, the
+								other sees it immediately.
 							</p>
 						</div>
 					</div>

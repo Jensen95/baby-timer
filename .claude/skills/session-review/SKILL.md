@@ -1,11 +1,13 @@
 # Session Review Skill
 
 ## Trigger phrases
+
 "review this session", "wrap up", "what did we do", "session summary"
 
 ## When invoked, do the following:
 
 1. Run quality checks:
+
    ```bash
    npm run check
    npm run lint
@@ -13,6 +15,7 @@
    ```
 
 2. Show git diff summary:
+
    ```bash
    git diff --stat HEAD
    ```
@@ -23,6 +26,7 @@
    - Suggested next steps based on the plan
 
 ## Improvement suggestions to consider
+
 - Are there untested pure functions in `src/lib/`?
 - Are Svelte 5 runes used (not legacy stores)?
 - Are all new tables in `supabase/migrations/` covered by RLS?

@@ -6,9 +6,7 @@ export function createBabyState() {
 	let selectedBabyId = $state<string | null>(null);
 	let loading = $state(false);
 
-	let selectedBaby = $derived(
-		babies.find((b) => b.id === selectedBabyId) ?? null
-	);
+	let selectedBaby = $derived(babies.find((b) => b.id === selectedBabyId) ?? null);
 
 	async function loadBabies(familyId: string) {
 		loading = true;
@@ -27,10 +25,18 @@ export function createBabyState() {
 	}
 
 	return {
-		get babies() { return babies; },
-		get selectedBaby() { return selectedBaby; },
-		get selectedBabyId() { return selectedBabyId; },
-		get loading() { return loading; },
+		get babies() {
+			return babies;
+		},
+		get selectedBaby() {
+			return selectedBaby;
+		},
+		get selectedBabyId() {
+			return selectedBabyId;
+		},
+		get loading() {
+			return loading;
+		},
 		loadBabies,
 		selectBaby
 	};

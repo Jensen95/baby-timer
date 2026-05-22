@@ -15,10 +15,7 @@ export async function listBabies(client: Client, familyId: string): Promise<Baby
 	return data;
 }
 
-export async function createBaby(
-	client: Client,
-	payload: Insert<'babies'>
-): Promise<Baby> {
+export async function createBaby(client: Client, payload: Insert<'babies'>): Promise<Baby> {
 	const { data, error } = await (client as any)
 		.from('babies' as const)
 		.insert([payload])
@@ -30,11 +27,7 @@ export async function createBaby(
 }
 
 export async function getBaby(client: Client, id: string): Promise<Baby | null> {
-	const { data, error } = await client
-		.from('babies')
-		.select('*')
-		.eq('id', id)
-		.maybeSingle();
+	const { data, error } = await client.from('babies').select('*').eq('id', id).maybeSingle();
 
 	if (error) throw error;
 	return data;

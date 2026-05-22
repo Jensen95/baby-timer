@@ -45,9 +45,10 @@ Deno.serve(async (req: Request) => {
 			continue;
 		}
 
-		const row = Array.isArray(summary) && summary.length > 0
-			? summary[0]
-			: { feed_count: 0, feed_minutes: 0, sleep_count: 0, sleep_minutes: 0 };
+		const row =
+			Array.isArray(summary) && summary.length > 0
+				? summary[0]
+				: { feed_count: 0, feed_minutes: 0, sleep_count: 0, sleep_minutes: 0 };
 
 		results.push({
 			babyId: baby.id,
@@ -61,7 +62,7 @@ Deno.serve(async (req: Request) => {
 
 		console.log(
 			`[${dayStr}] ${baby.name}: ${row.feed_count} feedings (${row.feed_minutes}min), ` +
-			`${row.sleep_count} sleeps (${row.sleep_minutes}min)`
+				`${row.sleep_count} sleeps (${row.sleep_minutes}min)`
 		);
 	}
 

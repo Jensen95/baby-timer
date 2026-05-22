@@ -27,17 +27,13 @@ export async function getUserFamilies(client: Client): Promise<Family[]> {
 }
 
 export async function createFamily(client: Client, name: string): Promise<Family> {
-	const { data, error } = await client
-		.rpc('create_family', { family_name: name } as any);
+	const { data, error } = await client.rpc('create_family', { family_name: name } as any);
 
 	if (error) throw error;
 	return data as Family;
 }
 
-export async function listFamilyMembers(
-	client: Client,
-	familyId: string
-): Promise<FamilyMember[]> {
+export async function listFamilyMembers(client: Client, familyId: string): Promise<FamilyMember[]> {
 	const { data, error } = await client
 		.from('family_members')
 		.select('*')

@@ -15,7 +15,9 @@ export function createSession() {
 		});
 
 		// Listen for auth state changes
-		const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
+		const {
+			data: { subscription }
+		} = supabase.auth.onAuthStateChange((_event, newSession) => {
 			session = newSession;
 			user = newSession?.user ?? null;
 			loading = false;
@@ -40,9 +42,15 @@ export function createSession() {
 	}
 
 	return {
-		get session() { return session; },
-		get user() { return user; },
-		get loading() { return loading; },
+		get session() {
+			return session;
+		},
+		get user() {
+			return user;
+		},
+		get loading() {
+			return loading;
+		},
 		signInWithMagicLink,
 		signOut
 	};
