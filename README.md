@@ -1,38 +1,85 @@
-# create-svelte
+# Baby Timer
 
-Everything you need to build a Svelte project, powered by [`create-svelte`](https://github.com/sveltejs/kit/tree/main/packages/create-svelte).
+A family app for tracking baby feeding and sleep sessions in real time.
 
-## Creating a project
+## Features
 
-If you're seeing this, you've probably already done this step. Congrats!
+- **Feeding timer** — track duration + which breast (left/right/both)
+- **Sleep timer** — track duration + head position (back/tummy/left/right)
+- **Real-time sync** — both parents see live updates via Supabase Realtime
+- **Family sharing** — invite your partner, share baby data securely
+- **Session history** — browse past sessions
+- **Stats** — 7-day summary charts
+
+## Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Frontend | SvelteKit 2 + Svelte 5 (runes) |
+| Styling | Bulma CSS |
+| Backend | Supabase (PostgreSQL + Auth + Realtime + Edge Functions) |
+| Hosting | GitHub Pages (static SPA) |
+| CI/CD | GitHub Actions |
+
+## Getting started
+
+### Prerequisites
+
+- Node.js 20+
+- A [Supabase](https://supabase.com) project (free tier works)
+- [Supabase CLI](https://supabase.com/docs/guides/cli) for migrations
+
+### Setup
+
+1. Clone the repo
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+3. Create a `.env.local` file:
+   ```
+   PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+   PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+   ```
+4. Push database migrations:
+   ```bash
+   supabase db push
+   ```
+5. Start the dev server:
+   ```bash
+   npm run dev
+   ```
+
+### Deploy to GitHub Pages
+
+1. Fork this repo
+2. Add repository secrets in GitHub Settings → Secrets:
+   - `PUBLIC_SUPABASE_URL`
+   - `PUBLIC_SUPABASE_ANON_KEY`
+3. Enable GitHub Pages in Settings → Pages → Source: GitHub Actions
+4. Push to `main` — the deploy workflow runs automatically
+
+## Development
 
 ```bash
-# create a new project in the current directory
-npm create svelte@latest
-
-# create a new project in my-app
-npm create svelte@latest my-app
+npm run dev          # dev server
+npm run check        # TypeScript + Svelte type check
+npm run lint         # ESLint + Prettier
+npm run test:unit    # Vitest unit tests (36 tests)
+npm run build        # Static build
 ```
 
-## Developing
-
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+## Database migrations
 
 ```bash
-npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
+supabase db push                                              # Apply migrations
+supabase gen types typescript --local > src/lib/db/database.types.ts  # Regen types
 ```
 
-## Building
+## Architecture
 
-To create a production version of your app:
-
-```bash
-npm run build
-```
-
-You can preview the production build with `npm run preview`.
-
-> To deploy your app, you may need to install an [adapter](https://kit.svelte.dev/docs/adapters) for your target environment.
+See [CLAUDE.md](CLAUDE.md) for full developer documentation including:
+- Route structure
+- Where business logic lives
+- Database conventions and RLS patterns
+- Testing philosophy

@@ -32,6 +32,10 @@
 	}
 </script>
 
+<svelte:head>
+	<title>Sign in — Baby Timer</title>
+</svelte:head>
+
 <section class="section">
 	<div class="container">
 		<div class="columns is-centered">
