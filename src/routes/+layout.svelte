@@ -3,6 +3,7 @@
 	import { setContext } from 'svelte';
 	import { createSession } from '$lib/auth/session.svelte';
 	import { SESSION_KEY } from '$lib/auth/context';
+	import Nav from '$lib/components/Nav.svelte';
 
 	const session = createSession();
 	setContext(SESSION_KEY, session);
@@ -11,6 +12,9 @@
 </script>
 
 <div class="app">
+	{#if session.user}
+		<Nav />
+	{/if}
 	<main>
 		{@render children()}
 	</main>
