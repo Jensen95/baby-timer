@@ -18,15 +18,17 @@
 	let selectedBabyId = $state<string | null>(null);
 	let loading = $state(true);
 	let error = $state<string | null>(null);
-	let sessions = $state<Array<{
-		id: string;
-		type: 'feeding' | 'sleep';
-		side: string;
-		startedAt: Date;
-		endedAt: Date | null;
-		durationSeconds: number | null;
-		note: string | null;
-	}>>([]);
+	let sessions = $state<
+		Array<{
+			id: string;
+			type: 'feeding' | 'sleep';
+			side: string;
+			startedAt: Date;
+			endedAt: Date | null;
+			durationSeconds: number | null;
+			note: string | null;
+		}>
+	>([]);
 
 	$effect(() => {
 		const userId = session.user?.id;

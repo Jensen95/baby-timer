@@ -4,7 +4,12 @@
 	import type { SessionStore } from '$lib/auth/context';
 	import { supabase } from '$lib/supabase';
 	import { createTimer } from '$lib/timer/timer.svelte';
-	import { startFeeding, stopFeeding, getActiveFeedingSession, listFeedingSessions } from '$lib/db/feeding';
+	import {
+		startFeeding,
+		stopFeeding,
+		getActiveFeedingSession,
+		listFeedingSessions
+	} from '$lib/db/feeding';
 	import { startSleep, stopSleep, getActiveSleepSession, listSleepSessions } from '$lib/db/sleep';
 	import { listBabies } from '$lib/db/babies';
 	import { getUserFamilies } from '$lib/db/family';
@@ -33,15 +38,17 @@
 	let activeSleepSession = $state<SleepSession | null>(null);
 
 	// Recent sessions for the list
-	let recentSessions = $state<Array<{
-		id: string;
-		type: 'feeding' | 'sleep';
-		side: string;
-		startedAt: Date;
-		endedAt: Date | null;
-		durationSeconds: number | null;
-		note: string | null;
-	}>>([]);
+	let recentSessions = $state<
+		Array<{
+			id: string;
+			type: 'feeding' | 'sleep';
+			side: string;
+			startedAt: Date;
+			endedAt: Date | null;
+			durationSeconds: number | null;
+			note: string | null;
+		}>
+	>([]);
 
 	// Timer state (client-side clock, synced from DB on load)
 	const feedingTimer = createTimer();
@@ -94,17 +101,33 @@
 			.channel(`sessions:${selectedBabyId}`)
 			.on(
 				'postgres_changes',
-				{ event: '*', schema: 'public', table: 'feeding_sessions', filter: `baby_id=eq.${selectedBabyId}` },
-				() => { loadSessionsForBaby(selectedBabyId!); }
+				{
+					event: '*',
+					schema: 'public',
+					table: 'feeding_sessions',
+					filter: `baby_id=eq.${selectedBabyId}`
+				},
+				() => {
+					loadSessionsForBaby(selectedBabyId!);
+				}
 			)
 			.on(
 				'postgres_changes',
-				{ event: '*', schema: 'public', table: 'sleep_sessions', filter: `baby_id=eq.${selectedBabyId}` },
-				() => { loadSessionsForBaby(selectedBabyId!); }
+				{
+					event: '*',
+					schema: 'public',
+					table: 'sleep_sessions',
+					filter: `baby_id=eq.${selectedBabyId}`
+				},
+				() => {
+					loadSessionsForBaby(selectedBabyId!);
+				}
 			)
 			.subscribe();
 
-		return () => { supabase.removeChannel(channel); };
+		return () => {
+			supabase.removeChannel(channel);
+		};
 	});
 
 	async function loadSessionsForBaby(babyId: string) {
@@ -213,20 +236,17 @@
 	<div class="container">
 		{#if pageLoading}
 			<progress class="progress is-primary" max="100">Loading</progress>
-
 		{:else if error}
 			<div class="notification is-danger">
 				<button class="delete" onclick={() => (error = null)}></button>
 				{error}
 			</div>
-
 		{:else if babies.length === 0}
 			<div class="has-text-centered py-6">
 				<h2 class="title is-4">Welcome to Baby Timer!</h2>
 				<p class="subtitle">Add a baby to get started.</p>
 				<a href="/app/babies" class="button is-primary">Add Baby</a>
 			</div>
-
 		{:else}
 			{#if babies.length > 1}
 				<div class="field mb-4">

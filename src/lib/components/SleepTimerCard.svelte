@@ -20,8 +20,7 @@
 		onsidechange: (side: HeadSide) => void;
 	}
 
-	let { running, elapsed, side, disabled = false, onstart, onstop, onsidechange }: Props =
-		$props();
+	let { running, elapsed, side, disabled = false, onstart, onstop, onsidechange }: Props = $props();
 </script>
 
 <div class="box">

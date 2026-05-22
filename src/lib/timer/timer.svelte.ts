@@ -9,9 +9,7 @@ export function createTimer() {
 	let running = $state(false);
 	let now = $state(Date.now());
 
-	let elapsed = $derived(
-		running && startedAt ? Math.floor((now - startedAt.getTime()) / 1000) : 0
-	);
+	let elapsed = $derived(running && startedAt ? Math.floor((now - startedAt.getTime()) / 1000) : 0);
 
 	let intervalId: ReturnType<typeof setInterval> | null = null;
 

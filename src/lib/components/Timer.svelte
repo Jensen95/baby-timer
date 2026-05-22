@@ -20,13 +20,9 @@
 	</div>
 	<div class="timer-controls has-text-centered mt-3">
 		{#if running}
-			<button class="button is-danger is-large" onclick={onstop} {disabled}>
-				Stop
-			</button>
+			<button class="button is-danger is-large" onclick={onstop} {disabled}> Stop </button>
 		{:else}
-			<button class="button is-success is-large" onclick={onstart} {disabled}>
-				Start
-			</button>
+			<button class="button is-success is-large" onclick={onstart} {disabled}> Start </button>
 		{/if}
 	</div>
 </div>

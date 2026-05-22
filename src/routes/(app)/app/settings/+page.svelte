@@ -55,7 +55,13 @@
 				<div class="field">
 					<label class="label" for="email">Email</label>
 					<div class="control">
-						<input id="email" class="input" type="email" value={session.user?.email ?? ''} disabled />
+						<input
+							id="email"
+							class="input"
+							type="email"
+							value={session.user?.email ?? ''}
+							disabled
+						/>
 					</div>
 				</div>
 

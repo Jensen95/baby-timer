@@ -13,13 +13,13 @@ A family app for tracking baby feeding and sleep sessions in real time.
 
 ## Stack
 
-| Layer | Technology |
-|-------|-----------|
-| Frontend | SvelteKit 2 + Svelte 5 (runes) |
-| Styling | Bulma CSS |
-| Backend | Supabase (PostgreSQL + Auth + Realtime + Edge Functions) |
-| Hosting | GitHub Pages (static SPA) |
-| CI/CD | GitHub Actions |
+| Layer    | Technology                                               |
+| -------- | -------------------------------------------------------- |
+| Frontend | SvelteKit 2 + Svelte 5 (runes)                           |
+| Styling  | Bulma CSS                                                |
+| Backend  | Supabase (PostgreSQL + Auth + Realtime + Edge Functions) |
+| Hosting  | GitHub Pages (static SPA)                                |
+| CI/CD    | GitHub Actions                                           |
 
 ## Getting started
 
@@ -79,6 +79,7 @@ supabase gen types typescript --local > src/lib/db/database.types.ts  # Regen ty
 ## Architecture
 
 See [CLAUDE.md](CLAUDE.md) for full developer documentation including:
+
 - Route structure
 - Where business logic lives
 - Database conventions and RLS patterns
