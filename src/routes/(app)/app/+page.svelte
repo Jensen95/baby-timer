@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
+	import { base } from '$app/paths';
 	import { SESSION_KEY } from '$lib/auth/context';
 	import type { SessionStore } from '$lib/auth/context';
 	import { supabase } from '$lib/supabase';
@@ -245,7 +246,7 @@
 			<div class="has-text-centered py-6">
 				<h2 class="title is-4">Welcome to Baby Timer!</h2>
 				<p class="subtitle">Add a baby to get started.</p>
-				<a href="/app/babies" class="button is-primary">Add Baby</a>
+				<a href="{base}/app/babies" class="button is-primary">Add Baby</a>
 			</div>
 		{:else}
 			{#if babies.length > 1}

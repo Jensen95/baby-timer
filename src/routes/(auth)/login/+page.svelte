@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
 	import { goto } from '$app/navigation';
+	import { base } from '$app/paths';
 	import { SESSION_KEY } from '$lib/auth/context';
 	import type { SessionStore } from '$lib/auth/context';
 
@@ -13,7 +14,7 @@
 
 	$effect(() => {
 		if (session.user) {
-			goto('/app');
+			goto(`${base}/app`);
 		}
 	});
 

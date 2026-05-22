@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
+	import { base } from '$app/paths';
 	import { SESSION_KEY } from '$lib/auth/context';
 	import type { SessionStore } from '$lib/auth/context';
 	import { supabase } from '$lib/supabase';
@@ -98,7 +99,7 @@
 
 		<div class="box mt-4">
 			<h2 class="subtitle is-6">Account</h2>
-			<a href="/logout" class="button is-light is-fullwidth">Sign out</a>
+			<a href="{base}/logout" class="button is-light is-fullwidth">Sign out</a>
 		</div>
 	</div>
 </section>

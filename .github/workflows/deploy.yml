@@ -34,6 +34,7 @@ jobs:
         env:
           PUBLIC_SUPABASE_URL: ${{ secrets.PUBLIC_SUPABASE_URL }}
           PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.PUBLIC_SUPABASE_ANON_KEY }}
+          BASE_PATH: /baby-timer
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v5

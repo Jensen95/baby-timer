@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/stores';
+	import { base } from '$app/paths';
 
 	interface Props {
 		familyName?: string;
@@ -12,7 +13,7 @@
 <nav class="navbar is-primary" aria-label="main navigation">
 	<div class="container">
 		<div class="navbar-brand">
-			<a class="navbar-item has-text-weight-bold" href="/app">
+			<a class="navbar-item has-text-weight-bold" href="{base}/app">
 				Baby Timer
 				{#if familyName}
 					<span class="tag is-light ml-2">{familyName}</span>
@@ -34,35 +35,46 @@
 
 		<div class="navbar-menu {menuOpen ? 'is-active' : ''}">
 			<div class="navbar-end">
-				<a class="navbar-item {$page.url.pathname === '/app' ? 'is-active' : ''}" href="/app">
+				<a
+					class="navbar-item {$page.url.pathname === `${base}/app` ? 'is-active' : ''}"
+					href="{base}/app"
+				>
 					Dashboard
 				</a>
 				<a
-					class="navbar-item {$page.url.pathname.startsWith('/app/history') ? 'is-active' : ''}"
-					href="/app/history"
+					class="navbar-item {$page.url.pathname.startsWith(`${base}/app/history`)
+						? 'is-active'
+						: ''}"
+					href="{base}/app/history"
 				>
 					History
 				</a>
 				<a
-					class="navbar-item {$page.url.pathname.startsWith('/app/stats') ? 'is-active' : ''}"
-					href="/app/stats"
+					class="navbar-item {$page.url.pathname.startsWith(`${base}/app/stats`)
+						? 'is-active'
+						: ''}"
+					href="{base}/app/stats"
 				>
 					Stats
 				</a>
 				<a
-					class="navbar-item {$page.url.pathname.startsWith('/app/babies') ? 'is-active' : ''}"
-					href="/app/babies"
+					class="navbar-item {$page.url.pathname.startsWith(`${base}/app/babies`)
+						? 'is-active'
+						: ''}"
+					href="{base}/app/babies"
 				>
 					Babies
 				</a>
 				<a
-					class="navbar-item {$page.url.pathname.startsWith('/app/family') ? 'is-active' : ''}"
-					href="/app/family"
+					class="navbar-item {$page.url.pathname.startsWith(`${base}/app/family`)
+						? 'is-active'
+						: ''}"
+					href="{base}/app/family"
 				>
 					Family
 				</a>
 				<div class="navbar-item">
-					<a class="button is-light is-small" href="/logout">Sign out</a>
+					<a class="button is-light is-small" href="{base}/logout">Sign out</a>
 				</div>
 			</div>
 		</div>
