@@ -20,7 +20,7 @@
 			.eq('id', session.user.id)
 			.maybeSingle()
 			.then(({ data }: { data: { display_name: string | null } | null }) => {
-				if (data?.display_name) displayName = data.display_name;
+				displayName = data?.display_name ?? session.user?.user_metadata.display_name ?? '';
 			});
 	});
 
@@ -31,12 +31,20 @@
 		saved = false;
 		error = null;
 		try {
+			const normalizedDisplayName = displayName.trim();
 			const { error: updateError } = await (supabase as any)
 				.from('profiles')
-				.update({ display_name: displayName })
-				.eq('id', session.user.id);
+				.upsert(
+					{ id: session.user.id, display_name: normalizedDisplayName || null },
+					{ onConflict: 'id' }
+				);
 
 			if (updateError) throw updateError;
+			const { error: authError } = await supabase.auth.updateUser({
+				data: { display_name: normalizedDisplayName || null }
+			});
+			if (authError) throw authError;
+			displayName = normalizedDisplayName;
 			saved = true;
 			setTimeout(() => (saved = false), 3000);
 		} catch (e) {
@@ -50,6 +58,7 @@
 <section class="section">
 	<div class="container" style="max-width: 480px">
 		<h1 class="title">Settings</h1>
+		<p class="subtitle is-6 has-text-grey">Set the name shown around the app for your account.</p>
 
 		<div class="box">
 			<form onsubmit={handleSave}>

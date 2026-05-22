@@ -73,6 +73,14 @@
 				>
 					Family
 				</a>
+				<a
+					class="navbar-item {$page.url.pathname.startsWith(`${base}/app/settings`)
+						? 'is-active'
+						: ''}"
+					href="{base}/app/settings"
+				>
+					Settings
+				</a>
 				<div class="navbar-item">
 					<a class="button is-light is-small" href="{base}/logout">Sign out</a>
 				</div>

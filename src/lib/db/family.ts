@@ -1,9 +1,17 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { Database, Insert, Tables } from './database.types';
+import type { Database, Tables } from './database.types';
 
 type Client = SupabaseClient<Database>;
 export type Family = Tables<'families'>;
 export type FamilyMember = Tables<'family_members'>;
+type ListFamilyMemberDetailsArgs =
+	Database['public']['Functions']['list_family_members_with_profiles']['Args'];
+type AddFamilyMemberByEmailArgs =
+	Database['public']['Functions']['add_family_member_by_email']['Args'];
+export type FamilyMemberDetails = FamilyMember & {
+	display_name: string | null;
+	email: string | null;
+};
 
 export async function getFamily(client: Client, familyId: string): Promise<Family | null> {
 	const { data, error } = await client
@@ -44,6 +52,19 @@ export async function listFamilyMembers(client: Client, familyId: string): Promi
 	return data ?? [];
 }
 
+export async function listFamilyMemberDetails(
+	client: Client,
+	familyId: string
+): Promise<FamilyMemberDetails[]> {
+	const args: ListFamilyMemberDetailsArgs = {
+		target_family_id: familyId
+	};
+	const { data, error } = await client.rpc('list_family_members_with_profiles', args as never);
+
+	if (error) throw error;
+	return data ?? [];
+}
+
 export async function inviteMember(
 	client: Client,
 	familyId: string,
@@ -57,6 +78,21 @@ export async function inviteMember(
 
 	if (error) throw error;
 	return data;
+}
+
+export async function inviteMemberByEmail(
+	client: Client,
+	familyId: string,
+	email: string
+): Promise<FamilyMember> {
+	const args: AddFamilyMemberByEmailArgs = {
+		target_family_id: familyId,
+		target_email: email
+	};
+	const { data, error } = await client.rpc('add_family_member_by_email', args as never);
+
+	if (error) throw error;
+	return data as FamilyMember;
 }
 
 export async function removeMember(

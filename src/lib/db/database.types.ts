@@ -173,6 +173,27 @@ export type Database = {
 					created_at: string;
 				};
 			};
+			add_family_member_by_email: {
+				Args: { target_family_id: string; target_email: string };
+				Returns: {
+					family_id: string;
+					user_id: string;
+					role: 'owner' | 'member';
+					invited_at: string;
+					joined_at: string | null;
+				};
+			};
+			list_family_members_with_profiles: {
+				Args: { target_family_id: string };
+				Returns: Array<{
+					user_id: string;
+					role: 'owner' | 'member';
+					invited_at: string;
+					joined_at: string | null;
+					display_name: string | null;
+					email: string | null;
+				}>;
+			};
 		};
 		Enums: {
 			breast_side: 'left' | 'right' | 'both';

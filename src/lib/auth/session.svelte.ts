@@ -27,11 +27,19 @@ export function createSession() {
 		return () => subscription.unsubscribe();
 	});
 
-	async function signInWithMagicLink(email: string) {
+	async function signInWithMagicLink(email: string, displayName = '') {
+		const normalizedDisplayName = displayName.trim();
 		const { error } = await supabase.auth.signInWithOtp({
 			email,
 			options: {
-				emailRedirectTo: `${window.location.origin}${base}/app`
+				emailRedirectTo: `${window.location.origin}${base}/app`,
+				...(normalizedDisplayName
+					? {
+							data: {
+								display_name: normalizedDisplayName
+							}
+						}
+					: {})
 			}
 		});
 		if (error) throw error;
