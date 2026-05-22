@@ -5,22 +5,29 @@
 	import { supabase } from '$lib/supabase';
 	import {
 		getUserFamilies,
-		listFamilyMembers,
+		listFamilyMemberDetails,
 		createFamily,
-		type FamilyMember
+		inviteMemberByEmail,
+		type FamilyMemberDetails
 	} from '$lib/db/family';
 
 	const session = getContext<SessionStore>(SESSION_KEY);
 
-	let familyName = $state('');
-	let members = $state<FamilyMember[]>([]);
+	let members = $state<FamilyMemberDetails[]>([]);
 	let familyId = $state<string | null>(null);
 	let currentFamilyName = $state('');
 	let loading = $state(true);
 	let error = $state<string | null>(null);
+	let success = $state<string | null>(null);
 	let showCreateForm = $state(false);
 	let newFamilyName = $state('');
 	let saving = $state(false);
+	let inviteEmail = $state('');
+	let inviting = $state(false);
+
+	let isOwner = $derived(
+		members.some((member) => member.user_id === session.user?.id && member.role === 'owner')
+	);
 
 	$effect(() => {
 		const userId = session.user?.id;
@@ -32,7 +39,7 @@
 				if (families.length > 0) {
 					familyId = families[0].id;
 					currentFamilyName = families[0].name;
-					members = await listFamilyMembers(supabase, familyId);
+					members = await listFamilyMemberDetails(supabase, familyId);
 				}
 			} catch (e) {
 				error = e instanceof Error ? e.message : 'Failed to load';
@@ -46,17 +53,37 @@
 		e.preventDefault();
 		if (!newFamilyName.trim()) return;
 		saving = true;
+		error = null;
+		success = null;
 		try {
 			const family = await createFamily(supabase, newFamilyName.trim());
 			familyId = family.id;
 			currentFamilyName = family.name;
-			members = await listFamilyMembers(supabase, family.id);
+			members = await listFamilyMemberDetails(supabase, family.id);
 			showCreateForm = false;
 			newFamilyName = '';
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Failed to create family';
 		} finally {
 			saving = false;
+		}
+	}
+
+	async function handleInviteMember(e: Event) {
+		e.preventDefault();
+		if (!familyId || !inviteEmail.trim()) return;
+		inviting = true;
+		error = null;
+		success = null;
+		try {
+			await inviteMemberByEmail(supabase, familyId, inviteEmail.trim());
+			members = await listFamilyMemberDetails(supabase, familyId);
+			success = `Added ${inviteEmail.trim()} to the family.`;
+			inviteEmail = '';
+		} catch (e) {
+			error = e instanceof Error ? e.message : 'Failed to add family member';
+		} finally {
+			inviting = false;
 		}
 	}
 </script>
@@ -67,8 +94,19 @@
 
 		{#if error}
 			<div class="notification is-danger is-light">
-				<button class="delete" onclick={() => (error = null)}></button>
+				<button class="delete" aria-label="Dismiss error" onclick={() => (error = null)}></button>
 				{error}
+			</div>
+		{/if}
+
+		{#if success}
+			<div class="notification is-success is-light">
+				<button
+					class="delete"
+					aria-label="Dismiss success message"
+					onclick={() => (success = null)}
+				></button>
+				{success}
 			</div>
 		{/if}
 
@@ -114,9 +152,21 @@
 			<h2 class="subtitle is-5">Members ({members.length})</h2>
 			{#each members as member (member.user_id)}
 				<div class="box py-3">
-					<div class="level is-mobile">
+					<div class="level">
 						<div class="level-left">
-							<p class="level-item">{member.user_id}</p>
+							<div class="level-item">
+								<div>
+									<p class="has-text-weight-semibold">
+										{member.display_name || member.email || member.user_id}
+										{#if member.user_id === session.user?.id}
+											<span class="tag is-light ml-2">You</span>
+										{/if}
+									</p>
+									{#if member.display_name && member.email}
+										<p class="is-size-7 has-text-grey">{member.email}</p>
+									{/if}
+								</div>
+							</div>
 						</div>
 						<div class="level-right">
 							<span class="tag {member.role === 'owner' ? 'is-primary' : 'is-light'} level-item">
@@ -127,12 +177,36 @@
 				</div>
 			{/each}
 
-			<div class="notification is-info is-light mt-4">
-				<p>
-					To invite someone, share your Supabase project URL and have them sign up. Invite system
-					coming soon.
-				</p>
-			</div>
+			{#if isOwner}
+				<div class="box mt-4">
+					<h2 class="subtitle is-5">Add family member</h2>
+					<form onsubmit={handleInviteMember}>
+						<div class="field">
+							<label class="label" for="invite-email">Email</label>
+							<div class="control">
+								<input
+									id="invite-email"
+									class="input"
+									type="email"
+									bind:value={inviteEmail}
+									placeholder="partner@example.com"
+									required
+								/>
+							</div>
+							<p class="help">
+								They need to sign in once before you can add them by email.
+							</p>
+						</div>
+						<div class="field">
+							<div class="control">
+								<button class="button is-primary" type="submit" disabled={inviting}>
+									{inviting ? 'Adding...' : 'Add member'}
+								</button>
+							</div>
+						</div>
+					</form>
+				</div>
+			{/if}
 		{/if}
 	</div>
 </section>

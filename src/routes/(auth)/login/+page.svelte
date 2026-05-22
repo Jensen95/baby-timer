@@ -8,6 +8,7 @@
 	const session = getContext<SessionStore>(SESSION_KEY);
 
 	let email = $state('');
+	let displayName = $state('');
 	let sent = $state(false);
 	let error = $state('');
 	let loading = $state(false);
@@ -23,7 +24,7 @@
 		loading = true;
 		error = '';
 		try {
-			await session.signInWithMagicLink(email);
+			await session.signInWithMagicLink(email, displayName);
 			sent = true;
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Something went wrong';
@@ -50,6 +51,20 @@
 						</div>
 					{:else}
 						<form onsubmit={handleSubmit}>
+							<div class="field">
+								<label class="label" for="display-name">Your name</label>
+								<div class="control">
+									<input
+										id="display-name"
+										class="input"
+										type="text"
+										placeholder="Alex"
+										bind:value={displayName}
+									/>
+								</div>
+								<p class="help">Optional, but it helps your family recognize you.</p>
+							</div>
+
 							<div class="field">
 								<label class="label" for="email">Email</label>
 								<div class="control">
