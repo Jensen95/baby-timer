@@ -1,0 +1,17 @@
+-- Daily summary cron job
+-- Requires pg_cron + pg_net extensions in Supabase
+-- Enable them in: Dashboard → Database → Extensions
+-- Then run this migration or use Supabase Dashboard → Edge Functions → Schedule
+--
+-- select cron.schedule(
+--   'daily-baby-summary',
+--   '0 6 * * *',
+--   $$
+--     select
+--       net.http_post(
+--         url := current_setting('app.edge_functions_url') || '/daily-summary',
+--         headers := '{"Content-Type": "application/json"}'::jsonb,
+--         body := '{}'::jsonb
+--       )
+--     $$
+-- );

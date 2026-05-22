@@ -1,1 +1,7 @@
 project_id = "baby-timer"
+
+[functions.daily-summary]
+verify_jwt = false
+
+[functions.send-invite]
+verify_jwt = false
