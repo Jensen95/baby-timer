@@ -71,14 +71,15 @@
 
 	async function handleInviteMember(e: Event) {
 		e.preventDefault();
-		if (!familyId || !inviteEmail.trim()) return;
+		const normalizedInviteEmail = inviteEmail.trim();
+		if (!familyId || !normalizedInviteEmail) return;
 		inviting = true;
 		error = null;
 		success = null;
 		try {
-			await inviteMemberByEmail(supabase, familyId, inviteEmail.trim());
+			await inviteMemberByEmail(supabase, familyId, normalizedInviteEmail);
 			members = await listFamilyMemberDetails(supabase, familyId);
-			success = `Added ${inviteEmail.trim()} to the family.`;
+			success = `Added ${normalizedInviteEmail} to the family.`;
 			inviteEmail = '';
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Failed to add family member';
@@ -149,7 +150,7 @@
 			<h2 class="subtitle is-5">Members ({members.length})</h2>
 			{#each members as member (member.user_id)}
 				<div class="box py-3">
-					<div class="level">
+					<div class="level is-mobile">
 						<div class="level-left">
 							<div class="level-item">
 								<div>
