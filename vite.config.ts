@@ -5,14 +5,7 @@ export default defineConfig({
 	plugins: [sveltekit()],
 
 	test: {
-		include: ['src/**/*.{test,spec}.{js,ts}']
-	},
-
-	css: {
-		preprocessorOptions: {
-			scss: {
-				additionalData: '@use "src/variables.scss" as *;'
-			}
-		}
+		include: ['src/**/*.{test,spec}.{js,ts}'],
+		environment: 'jsdom'
 	}
 });
