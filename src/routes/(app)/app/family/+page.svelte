@@ -10,6 +10,7 @@
 		inviteMemberByEmail,
 		type FamilyMemberDetails
 	} from '$lib/db/family';
+	import { getLocalFamily, putLocalFamily } from '$lib/db/local-family';
 
 	const session = getContext<SessionStore>(SESSION_KEY);
 
@@ -31,15 +32,26 @@
 
 	$effect(() => {
 		const userId = session.user?.id;
-		if (!userId) return;
+		if (!userId) {
+			loading = false;
+			return;
+		}
 
 		(async () => {
 			try {
-				const families = await getUserFamilies(supabase);
-				if (families.length > 0) {
-					familyId = families[0].id;
-					currentFamilyName = families[0].name;
+				let localFamily = await getLocalFamily();
+				if (localFamily) {
+					familyId = localFamily.id;
+					currentFamilyName = localFamily.name;
 					members = await listFamilyMemberDetails(supabase, familyId);
+				} else {
+					const families = await getUserFamilies(supabase);
+					if (families.length > 0) {
+						familyId = families[0].id;
+						currentFamilyName = families[0].name;
+						await putLocalFamily({ id: families[0].id, name: families[0].name, created_at: families[0].created_at });
+						members = await listFamilyMemberDetails(supabase, familyId);
+					}
 				}
 			} catch (e) {
 				error = e instanceof Error ? e.message : 'Failed to load';
@@ -59,6 +71,7 @@
 			const family = await createFamily(supabase, newFamilyName.trim());
 			familyId = family.id;
 			currentFamilyName = family.name;
+			await putLocalFamily({ id: family.id, name: family.name, created_at: family.created_at });
 			members = await listFamilyMemberDetails(supabase, family.id);
 			showCreateForm = false;
 			newFamilyName = '';
@@ -110,6 +123,10 @@
 
 		{#if loading}
 			<progress class="progress is-primary" max="100">Loading</progress>
+		{:else if !session.user}
+			<div class="has-text-centered py-6">
+				<p class="has-text-grey mb-4">Sign in to manage your family.</p>
+			</div>
 		{:else if !familyId}
 			<div class="has-text-centered py-6">
 				<p class="has-text-grey mb-4">You're not in a family yet.</p>

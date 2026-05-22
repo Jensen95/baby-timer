@@ -8,17 +8,26 @@ export function createSession() {
 	let loading = $state(true);
 
 	$effect(() => {
-		// Initialize from existing session
 		supabase.auth.getSession().then(({ data }) => {
 			session = data.session;
 			user = data.session?.user ?? null;
 			loading = false;
 		});
 
-		// Listen for auth state changes
 		const {
 			data: { subscription }
 		} = supabase.auth.onAuthStateChange((_event, newSession) => {
+			const wasSignedOut = !session;
+			const isNowSignedIn = !!newSession?.user;
+
+			if (wasSignedOut && isNowSignedIn && typeof window !== 'undefined') {
+				window.dispatchEvent(
+					new CustomEvent('baby-timer:signed-in', {
+						detail: { userId: newSession!.user.id }
+					})
+				);
+			}
+
 			session = newSession;
 			user = newSession?.user ?? null;
 			loading = false;
