@@ -1,0 +1,29 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/format-lint.sh"
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "allow": [
+      "Bash(git status)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(ls*)",
+      "Bash(find . *)",
+      "Bash(npm run check*)",
+      "Bash(npm run test*)",
+      "Bash(npm run lint*)",
+      "Bash(npm run build*)",
+      "Bash(cat *)"
+    ]
+  }
+}
