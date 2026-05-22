@@ -14,7 +14,6 @@
 
 	$effect(() => {
 		if (!session.user) return;
-		displayName = session.user.user_metadata.display_name ?? '';
 		supabase
 			.from('profiles')
 			.select('display_name')
@@ -35,7 +34,10 @@
 			const normalizedDisplayName = displayName.trim();
 			const { error: updateError } = await (supabase as any)
 				.from('profiles')
-				.upsert({ id: session.user.id, display_name: normalizedDisplayName || null });
+				.upsert(
+					{ id: session.user.id, display_name: normalizedDisplayName || null },
+					{ onConflict: 'id' }
+				);
 
 			if (updateError) throw updateError;
 			const { error: authError } = await supabase.auth.updateUser({

@@ -4,6 +4,10 @@ import type { Database, Tables } from './database.types';
 type Client = SupabaseClient<Database>;
 export type Family = Tables<'families'>;
 export type FamilyMember = Tables<'family_members'>;
+type ListFamilyMemberDetailsArgs =
+	Database['public']['Functions']['list_family_members_with_profiles']['Args'];
+type AddFamilyMemberByEmailArgs =
+	Database['public']['Functions']['add_family_member_by_email']['Args'];
 export type FamilyMemberDetails = FamilyMember & {
 	display_name: string | null;
 	email: string | null;
@@ -52,9 +56,10 @@ export async function listFamilyMemberDetails(
 	client: Client,
 	familyId: string
 ): Promise<FamilyMemberDetails[]> {
-	const { data, error } = await client.rpc('list_family_members_with_profiles', {
+	const args: ListFamilyMemberDetailsArgs = {
 		target_family_id: familyId
-	} as any);
+	};
+	const { data, error } = await client.rpc('list_family_members_with_profiles', args as never);
 
 	if (error) throw error;
 	return data ?? [];
@@ -80,10 +85,11 @@ export async function inviteMemberByEmail(
 	familyId: string,
 	email: string
 ): Promise<FamilyMember> {
-	const { data, error } = await client.rpc('invite_family_member_by_email', {
+	const args: AddFamilyMemberByEmailArgs = {
 		target_family_id: familyId,
 		target_email: email
-	} as any);
+	};
+	const { data, error } = await client.rpc('add_family_member_by_email', args as never);
 
 	if (error) throw error;
 	return data as FamilyMember;

@@ -32,7 +32,7 @@ as $$
   order by coalesce(fm.joined_at, fm.invited_at), fm.invited_at, fm.user_id;
 $$;
 
-create or replace function public.invite_family_member_by_email(target_family_id uuid, target_email text)
+create or replace function public.add_family_member_by_email(target_family_id uuid, target_email text)
 returns public.family_members
 language plpgsql
 security definer

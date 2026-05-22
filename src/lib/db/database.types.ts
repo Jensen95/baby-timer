@@ -173,7 +173,7 @@ export type Database = {
 					created_at: string;
 				};
 			};
-			invite_family_member_by_email: {
+			add_family_member_by_email: {
 				Args: { target_family_id: string; target_email: string };
 				Returns: {
 					family_id: string;
