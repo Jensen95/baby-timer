@@ -10,11 +10,10 @@ node_modules
 .DS_Store
 Thumbs.db
 
-# Env
+# Environment files
 .env
-.env.*
-!.env.example
-!.env.test
+.env.local
+.env.*.local
 
 # Vite
 vite.config.js.timestamp-*
@@ -23,5 +22,7 @@ vite.config.ts.timestamp-*
 # Supabase local dev
 supabase/.branches
 supabase/.temp
-.env
-.env.local
+
+# Exceptions for env files
+!.env.example
+!.env.test

@@ -11,7 +11,8 @@
 		"lint": "prettier --check . && eslint .",
 		"format": "prettier --write .",
 		"test:integration": "playwright test",
-		"test:unit": "vitest"
+		"test:unit": "vitest",
+		"prepare": "husky"
 	},
 	"devDependencies": {
 		"@fontsource/fira-mono": "^5.0.0",
@@ -25,6 +26,8 @@
 		"eslint-config-prettier": "^9.1.0",
 		"eslint-plugin-svelte": "^2.36.0",
 		"globals": "^15.0.0",
+		"husky": "^9.1.7",
+		"lint-staged": "^17.0.5",
 		"prettier": "^3.1.1",
 		"prettier-plugin-svelte": "^3.1.2",
 		"sass": "^1.77.5",
@@ -38,5 +41,14 @@
 	"type": "module",
 	"dependencies": {
 		"@supabase/supabase-js": "^2.106.1"
+	},
+	"lint-staged": {
+		"*.{js,ts,svelte}": [
+			"eslint --fix",
+			"prettier --write"
+		],
+		"*.{css,scss,md,json,html}": [
+			"prettier --write"
+		]
 	}
 }
