@@ -1,12 +1,30 @@
-import type { PlaywrightTestConfig } from '@playwright/test';
+import { defineConfig, devices } from '@playwright/test';
 
-const config: PlaywrightTestConfig = {
+export default defineConfig({
 	webServer: {
 		command: 'npm run build && npm run preview',
-		port: 4173
+		port: 4173,
+		reuseExistingServer: !process.env.CI,
+		env: {
+			PUBLIC_SUPABASE_URL: process.env.PUBLIC_SUPABASE_URL ?? 'https://placeholder.supabase.co',
+			PUBLIC_SUPABASE_ANON_KEY: process.env.PUBLIC_SUPABASE_ANON_KEY ?? 'placeholder-key'
+		}
 	},
 	testDir: 'tests',
-	testMatch: /(.+\.)?(test|spec)\.[jt]s/
-};
-
-export default config;
+	testMatch: '**/*.test.ts',
+	fullyParallel: true,
+	forbidOnly: !!process.env.CI,
+	retries: process.env.CI ? 2 : 0,
+	workers: process.env.CI ? 1 : undefined,
+	reporter: 'list',
+	use: {
+		baseURL: 'http://localhost:4173',
+		trace: 'on-first-retry'
+	},
+	projects: [
+		{
+			name: 'chromium',
+			use: { ...devices['Desktop Chrome'] }
+		}
+	]
+});
