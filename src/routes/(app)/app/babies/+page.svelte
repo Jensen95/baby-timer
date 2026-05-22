@@ -93,7 +93,7 @@
 
 		{#if error}
 			<div class="notification is-danger is-light">
-				<button class="delete" onclick={() => (error = null)}></button>
+				<button class="delete" aria-label="Dismiss error" onclick={() => (error = null)}></button>
 				{error}
 			</div>
 		{/if}

@@ -242,7 +242,7 @@
 			<progress class="progress is-primary" max="100">Loading</progress>
 		{:else if error}
 			<div class="notification is-danger">
-				<button class="delete" onclick={() => (error = null)}></button>
+				<button class="delete" aria-label="Dismiss error" onclick={() => (error = null)}></button>
 				{error}
 			</div>
 		{:else if babies.length === 0}
