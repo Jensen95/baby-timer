@@ -101,10 +101,7 @@
 
 		{#if success}
 			<div class="notification is-success is-light">
-				<button
-					class="delete"
-					aria-label="Dismiss success message"
-					onclick={() => (success = null)}
+				<button class="delete" aria-label="Dismiss success message" onclick={() => (success = null)}
 				></button>
 				{success}
 			</div>
@@ -193,9 +190,7 @@
 									required
 								/>
 							</div>
-							<p class="help">
-								They need to sign in once before you can add them by email.
-							</p>
+							<p class="help">They need to sign in once before you can add them by email.</p>
 						</div>
 						<div class="field">
 							<div class="control">
