@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { getContext, setContext } from 'svelte';
 	import { goto } from '$app/navigation';
+	import { base } from '$app/paths';
 	import { SESSION_KEY } from '$lib/auth/context';
 	import type { SessionStore } from '$lib/auth/context';
 	import { createBabyState, BABY_STATE_KEY } from '$lib/state/baby.svelte';
@@ -13,7 +14,7 @@
 
 	$effect(() => {
 		if (!session.loading && !session.user) {
-			goto('/login');
+			goto(`${base}/login`);
 		}
 	});
 </script>

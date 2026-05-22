@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
+	import { base } from '$app/paths';
 	import { SESSION_KEY } from '$lib/auth/context';
 	import type { SessionStore } from '$lib/auth/context';
 
@@ -20,9 +21,9 @@
 			<h1 class="title is-1">Baby Timer</h1>
 			<p class="subtitle is-4">Track feeding and sleep — together, in real time</p>
 			{#if session.user}
-				<a href="/app" class="button is-white is-medium mt-4">Open Dashboard</a>
+				<a href="{base}/app" class="button is-white is-medium mt-4">Open Dashboard</a>
 			{:else}
-				<a href="/login" class="button is-white is-medium mt-4">Get Started →</a>
+				<a href="{base}/login" class="button is-white is-medium mt-4">Get Started →</a>
 			{/if}
 		</div>
 	</div>
