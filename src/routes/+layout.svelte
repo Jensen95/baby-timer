@@ -1,5 +1,11 @@
 <script lang="ts">
 	import '../app.scss';
+	import { setContext } from 'svelte';
+	import { createSession } from '$lib/auth/session.svelte';
+	import { SESSION_KEY } from '$lib/auth/context';
+
+	const session = createSession();
+	setContext(SESSION_KEY, session);
 
 	let { children } = $props();
 </script>
