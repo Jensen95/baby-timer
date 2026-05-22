@@ -23,6 +23,9 @@ vite.config.ts.timestamp-*
 supabase/.branches
 supabase/.temp
 
+# Claude Code agent worktrees
+.claude/worktrees/
+
 # Exceptions for env files
 !.env.example
 !.env.test
