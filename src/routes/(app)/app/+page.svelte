@@ -460,7 +460,12 @@
 
 {#if editingSession}
 	<div class="modal is-active">
-		<div class="modal-background" onclick={closeEditSessionModal}></div>
+		<button
+			class="modal-background"
+			type="button"
+			aria-label="Close edit session modal"
+			onclick={closeEditSessionModal}
+		></button>
 		<div class="modal-card">
 			<header class="modal-card-head">
 				<p class="modal-card-title">Edit Session</p>
@@ -514,7 +519,12 @@
 
 {#if pendingDeleteSession}
 	<div class="modal is-active">
-		<div class="modal-background" onclick={closeDeleteSessionModal}></div>
+		<button
+			class="modal-background"
+			type="button"
+			aria-label="Close delete session modal"
+			onclick={closeDeleteSessionModal}
+		></button>
 		<div class="modal-card">
 			<header class="modal-card-head">
 				<p class="modal-card-title">Delete Session</p>

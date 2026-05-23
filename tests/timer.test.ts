@@ -253,7 +253,7 @@ test.describe('Timer', () => {
 		await deleteButton.click();
 		const deleteModal = page.locator('.modal.is-active').filter({ hasText: 'Delete Session' });
 		await expect(deleteModal).toBeVisible();
-		await deleteModal.getByRole('button', { name: 'Delete' }).click();
+		await deleteModal.getByRole('button', { name: 'Delete', exact: true }).click();
 
 		await expect(page.locator('.session-entry')).toHaveCount(0);
 	});
