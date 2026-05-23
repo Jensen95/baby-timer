@@ -32,6 +32,13 @@
 		deleteBreastPumpLocal,
 		type LocalBreastPump
 	} from '$lib/db/local-breast-pump';
+	import {
+		listDiaperChangeSessionsLocal,
+		createDiaperChangeLocal,
+		updateDiaperChangeLocal,
+		deleteDiaperChangeLocal,
+		type LocalDiaperChange
+	} from '$lib/db/local-diaper-change';
 	import { listBabiesLocal, type LocalBaby } from '$lib/db/local-babies';
 	import { getLocalFamily, putLocalFamily } from '$lib/db/local-family';
 	import { getUserFamilies } from '$lib/db/family';
@@ -42,6 +49,7 @@
 	import type { FeedingSide } from '$lib/sessions/feeding';
 	import type { HeadSide } from '$lib/sessions/sleep';
 	import type { PumpSide } from '$lib/sessions/breast-pump';
+	import { buildDiaperChangePayload } from '$lib/sessions/diaper-change';
 
 	const session = getContext<SessionStore>(SESSION_KEY);
 	const sync = getContext<SyncEngineStore>(SYNC_KEY);
@@ -59,7 +67,7 @@
 	let recentSessions = $state<
 		Array<{
 			id: string;
-			type: 'feeding' | 'sleep' | 'breast_pump';
+			type: 'feeding' | 'sleep' | 'breast_pump' | 'diaper_change';
 			side: string;
 			startedAt: Date;
 			endedAt: Date | null;
@@ -86,12 +94,23 @@
 	let breastPumpSide = $state<PumpSide>('both');
 	let breastPumpYieldLeftMl = $state('');
 	let breastPumpYieldRightMl = $state('');
+	let diaperHasPoop = $state(false);
+	let diaperHasPee = $state(false);
 
 	let selectedBaby = $derived(babies.find((b) => b.id === selectedBabyId) ?? null);
 
 	const FEEDING_SIDES: FeedingSide[] = ['left', 'right', 'both'];
 	const SLEEP_SIDES: HeadSide[] = ['left', 'right', 'back', 'tummy', 'side'];
 	const PUMP_SIDES: PumpSide[] = ['left', 'right', 'both'];
+	const DIAPER_CONTENTS = ['poop', 'pee', 'both'] as const;
+
+	function formatDiaperContent(
+		hasPoop: boolean,
+		hasPee: boolean
+	): (typeof DIAPER_CONTENTS)[number] {
+		if (hasPoop && hasPee) return 'both';
+		return hasPoop ? 'poop' : 'pee';
+	}
 
 	$effect(() => {
 		(async () => {
@@ -136,15 +155,23 @@
 	});
 
 	async function loadSessionsForBaby(babyId: string) {
-		const [activeFeeding, activeSleep, activePump, feedingSessions, sleepSessions, pumpSessions] =
-			await Promise.all([
-				getActiveFeedingSessionLocal(babyId),
-				getActiveSleepSessionLocal(babyId),
-				getActiveBreastPumpSessionLocal(babyId),
-				listFeedingSessionsLocal(babyId, 20),
-				listSleepSessionsLocal(babyId, 20),
-				listBreastPumpSessionsLocal(babyId, 20)
-			]);
+		const [
+			activeFeeding,
+			activeSleep,
+			activePump,
+			feedingSessions,
+			sleepSessions,
+			pumpSessions,
+			diaperSessions
+		] = await Promise.all([
+			getActiveFeedingSessionLocal(babyId),
+			getActiveSleepSessionLocal(babyId),
+			getActiveBreastPumpSessionLocal(babyId),
+			listFeedingSessionsLocal(babyId, 20),
+			listSleepSessionsLocal(babyId, 20),
+			listBreastPumpSessionsLocal(babyId, 20),
+			listDiaperChangeSessionsLocal(babyId, 20)
+		]);
 
 		activeFeedingSession = activeFeeding;
 		activeSleepSession = activeSleep;
@@ -207,6 +234,17 @@
 					: null,
 				yieldLeftMl: s.yield_left_ml,
 				yieldRightMl: s.yield_right_ml,
+				note: s.note
+			})),
+			...diaperSessions.map((s) => ({
+				id: s.id,
+				type: 'diaper_change' as const,
+				side: formatDiaperContent(s.has_poop, s.has_pee),
+				startedAt: new Date(s.started_at),
+				endedAt: new Date(s.started_at),
+				durationSeconds: 0,
+				yieldLeftMl: null,
+				yieldRightMl: null,
 				note: s.note
 			}))
 		].sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime());
@@ -406,6 +444,44 @@
 		}
 	}
 
+	async function handleCreateDiaperChange() {
+		if (!selectedBabyId) return;
+		try {
+			const now = new Date();
+			if (!diaperHasPoop && !diaperHasPee) {
+				throw new Error('Please select poop, pee, or both');
+			}
+			const payload =
+				familyId !== null
+					? buildDiaperChangePayload({
+							babyId: selectedBabyId,
+							familyId,
+							changedAt: now,
+							hasPoop: diaperHasPoop,
+							hasPee: diaperHasPee
+						})
+					: null;
+			const localPayload: LocalDiaperChange = {
+				id: crypto.randomUUID(),
+				baby_id: selectedBabyId,
+				family_id: familyId,
+				started_at: payload?.started_at ?? now.toISOString(),
+				has_poop: payload?.has_poop ?? diaperHasPoop,
+				has_pee: payload?.has_pee ?? diaperHasPee,
+				note: payload?.note ?? null,
+				created_at: now.toISOString(),
+				_sync: 'pending'
+			};
+			await createDiaperChangeLocal(localPayload);
+			diaperHasPoop = false;
+			diaperHasPee = false;
+			await loadSessionsForBaby(selectedBabyId);
+			sync.syncNow();
+		} catch (e) {
+			error = e instanceof Error ? e.message : 'Failed to save diaper change';
+		}
+	}
+
 	function formatDateTimeInput(date: Date): string {
 		const pad = (value: number) => String(value).padStart(2, '0');
 		return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
@@ -441,7 +517,9 @@
 				? SLEEP_SIDES
 				: editingSession.type === 'breast_pump'
 					? PUMP_SIDES
-					: FEEDING_SIDES;
+					: editingSession.type === 'diaper_change'
+						? [...DIAPER_CONTENTS]
+						: FEEDING_SIDES;
 		const nextSide = editSide.trim().toLowerCase();
 		if (!allowedSides.includes(nextSide)) {
 			error = 'Invalid side selection';
@@ -482,13 +560,22 @@
 					yield_right_ml: parseOptionalYield(editYieldRightMl),
 					_sync: 'pending'
 				});
-			} else {
+			} else if (editingSession.type === 'sleep') {
 				await updateSleepLocal(editingSession.id, {
 					side: nextSide as HeadSide,
 					started_at: startedAt.toISOString(),
 					ended_at: endedAt ? endedAt.toISOString() : null,
 					_sync: 'pending'
 				});
+			} else if (editingSession.type === 'diaper_change') {
+				await updateDiaperChangeLocal(editingSession.id, {
+					started_at: startedAt.toISOString(),
+					has_poop: nextSide === 'poop' || nextSide === 'both',
+					has_pee: nextSide === 'pee' || nextSide === 'both',
+					_sync: 'pending'
+				});
+			} else {
+				throw new Error(`Unsupported session type: ${editingSession.type}`);
 			}
 			closeEditSessionModal();
 			await loadSessionsForBaby(selectedBabyId);
@@ -522,6 +609,8 @@
 					activeBreastPumpSession = null;
 					breastPumpTimer.reset();
 				}
+			} else if (pendingDeleteSession.type === 'diaper_change') {
+				await deleteDiaperChangeLocal(pendingDeleteSession.id);
 			} else {
 				await deleteSleepLocal(pendingDeleteSession.id);
 				if (activeSleepSession?.id === pendingDeleteSession.id) {
@@ -613,6 +702,29 @@
 						onyieldrightchange={(value) => (breastPumpYieldRightMl = value)}
 					/>
 				</div>
+				<div class="column">
+					<div class="box">
+						<h3 class="title is-6">Diaper Change</h3>
+						<div class="field">
+							<label class="checkbox mr-4">
+								<input type="checkbox" bind:checked={diaperHasPoop} />
+								Poop
+							</label>
+							<label class="checkbox">
+								<input type="checkbox" bind:checked={diaperHasPee} />
+								Pee
+							</label>
+						</div>
+						<button
+							class="button is-link is-light is-fullwidth"
+							type="button"
+							disabled={!selectedBabyId || (!diaperHasPoop && !diaperHasPee)}
+							onclick={handleCreateDiaperChange}
+						>
+							Log diaper change
+						</button>
+					</div>
+				</div>
 			</div>
 
 			<div class="mt-5">
@@ -647,7 +759,7 @@
 					<div class="control">
 						<div class="select is-fullwidth">
 							<select id="edit-session-side" bind:value={editSide}>
-								{#each editingSession.type === 'sleep' ? SLEEP_SIDES : editingSession.type === 'breast_pump' ? PUMP_SIDES : FEEDING_SIDES as sideOption}
+								{#each editingSession.type === 'sleep' ? SLEEP_SIDES : editingSession.type === 'breast_pump' ? PUMP_SIDES : editingSession.type === 'diaper_change' ? DIAPER_CONTENTS : FEEDING_SIDES as sideOption}
 									<option value={sideOption}>{sideOption}</option>
 								{/each}
 							</select>

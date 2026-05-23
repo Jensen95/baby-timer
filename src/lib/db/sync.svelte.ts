@@ -65,6 +65,20 @@ export function createSyncEngine() {
 				else anyError = true;
 			}
 
+			const pendingDiaperChanges = await db.diaper_change_sessions
+				.where('_sync')
+				.equals('pending')
+				.toArray();
+			for (const diaperChange of pendingDiaperChanges) {
+				if (!diaperChange.family_id) {
+					continue;
+				}
+				const { _sync, ...payload } = diaperChange;
+				const { error: err } = await supabase.from('diaper_change_sessions').upsert(payload as any);
+				if (!err) await db.diaper_change_sessions.update(diaperChange.id, { _sync: 'synced' });
+				else anyError = true;
+			}
+
 			if (anyError) {
 				error = 'Some rows failed to sync';
 			} else {
@@ -97,6 +111,16 @@ export function createSyncEngine() {
 		const guestPumps = await db.breast_pump_sessions.filter((s) => s.family_id === null).toArray();
 		for (const pump of guestPumps) {
 			await db.breast_pump_sessions.update(pump.id, { family_id: familyId, _sync: 'pending' });
+		}
+
+		const guestDiaperChanges = await db.diaper_change_sessions
+			.filter((s) => s.family_id === null)
+			.toArray();
+		for (const diaperChange of guestDiaperChanges) {
+			await db.diaper_change_sessions.update(diaperChange.id, {
+				family_id: familyId,
+				_sync: 'pending'
+			});
 		}
 
 		await syncNow();
