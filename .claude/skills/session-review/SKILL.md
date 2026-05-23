@@ -14,6 +14,7 @@ of the code. Examples:
 
 This is NOT a code-quality or pre-push check. If the user wants `check`/`lint`/`test`, a diff
 review, or a "are we ready to push" gate, that is the **pre-push** skill — use that instead.
+If the user wants to create or rewrite a skill file, that is the **skill-authoring** skill.
 
 ## Purpose
 

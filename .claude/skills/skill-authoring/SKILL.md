@@ -9,13 +9,16 @@ a skill file. Examples:
 - "I want a skill that", "make a skill for", "add to my skills"
 - "rewrite this skill", "the skill is wrong", "fix the skill"
 
+If the user wants to reflect on how the session went and capture learnings, that is the
+**session-review** skill — use that instead.
+
 ## Purpose
 
 A guide for creating well-scoped, correctly triggered, useful `.claude/skills/*/SKILL.md` files.
 The most common failure mode is writing steps before the purpose is clear — which leads to full
 rewrites. Always resolve purpose before structure.
 
-## When invoked, do the following
+## When invoked, do the following:
 
 ### 1. State the purpose in one sentence
 
@@ -40,7 +43,8 @@ with an existing skill's triggers, plan a cross-reference for both files.
 ### 3. Design the trigger section
 
 Triggers should be **intent-based**, not exact-phrase matching. Group by intent cluster. Always
-include a disambiguation line if another skill covers adjacent territory:
+include a disambiguation line if another skill covers adjacent territory. Use this template for
+the skill being written (not for this skill itself):
 
 ```markdown
 ## Trigger phrases
@@ -58,34 +62,38 @@ When unsure whether to load, prefer loading — skills are cheap to run.
 ### 4. Write the steps
 
 Each step must be **concrete and executable** — specify what to run, what to look for, what to
-decide. Avoid hand-wavy instructions like "reflect on X" or "consider Y" without telling the agent
-what to actually do.
+decide. Avoid hand-wavy instructions like "reflect on X" without telling the agent what to do.
 
-Bad: "Review the code for quality issues."
-Good: "Run `npm run check && npm run lint`. If either fails, show the exact error and fix it
-before proceeding."
+Bad: "Review the code for quality issues."  
+Good: "Run `npm run check && npm run lint`. If either fails, show the exact error and fix it before
+proceeding."
 
-### 5. Agent model selection
+### 5. Spawning sub-work
 
-When a skill involves spawning sub-agents, pick the model for the task complexity:
+When a step needs research, a second opinion, or parallel exploration, spawn agents via the
+`Agent` tool. Pick the model for the task:
 
-| Work type                                                                            | Model                |
-| ------------------------------------------------------------------------------------ | -------------------- |
-| Complex analysis, code review, architecture decisions, pressure-testing learnings    | **Opus**             |
-| Most coding tasks — implementation, debugging, refactoring, writing                  | **Sonnet** (default) |
-| Fast, simple, high-volume tasks — file lookups, formatting checks, grep, summarising | **Haiku**            |
+| Work type                                                            | Model                |
+| -------------------------------------------------------------------- | -------------------- |
+| Complex analysis, architecture decisions, pressure-testing learnings | **Opus**             |
+| Implementation, debugging, refactoring, writing                      | **Sonnet** (default) |
+| Fast lookups, grep, summarising, formatting checks                   | **Haiku**            |
 
-**Fan out in parallel whenever tasks are independent.** Send multiple agent tool calls in a single
-message. Sequential execution is only correct when one agent's output is another's input.
+**Fan out in parallel whenever tasks are independent.** Send multiple `Agent` tool calls in a
+single message. Sequential calls are only correct when one output feeds the next.
 
 ```
-# Good — parallel
-Agent(research auth flow, subagent_type=Explore)
-Agent(research sync engine, subagent_type=Explore)
+# Good — two independent Explore agents in one message
+Agent(subagent_type=Explore, prompt="find auth flow files")
+Agent(subagent_type=Explore, prompt="find sync engine files")
 
-# Bad — sequential when there is no dependency
-Agent(research auth flow) → wait → Agent(research sync engine)
+# Bad — sequential with no dependency
+Agent(...) → wait → Agent(...)
 ```
+
+For Opus consultation specifically (e.g. pressure-testing learnings), you can also shell out:
+`claude -p --model claude-opus-4-7 '...'` — see **session-review** step 3 for the canonical
+pattern.
 
 ### 6. File conventions
 
@@ -94,20 +102,20 @@ Match existing skill structure exactly:
 - **Location:** `.claude/skills/<kebab-name>/SKILL.md`
 - **Format:** plain markdown, no YAML frontmatter
 - **Sections (in order):** `# Title`, `## Trigger phrases`, `## Purpose`,
-  `## When invoked, do the following`, `## Constraints` (if needed)
+  `## When invoked, do the following:`, `## Constraints` (if needed)
 - **Style:** tabs for indentation, single quotes in code, 100-char line width
 - **Voice:** imperative, terse — instructions not explanations
 
-### 7. Add skill-authoring conventions
+### 7. Verify before showing the user
 
-After writing, verify:
+Before presenting the draft skill for confirmation:
 
-- [ ] Purpose is one sentence and has a clear NOT-scope
+- [ ] Purpose is one sentence with a clear NOT-scope
 - [ ] Trigger phrases are intent-based, not exact-match
-- [ ] Cross-references added to any skills with overlapping trigger vocabulary
-- [ ] Steps are concrete and executable (no hand-wavy verbs)
-- [ ] Agent model and parallelism guidance included if agents are used
-- [ ] File follows the naming and structure conventions above
+- [ ] Cross-references added in **both directions** for any overlapping skills
+- [ ] Every step is concrete and executable (no hand-wavy verbs)
+- [ ] Agent model and parallelism guidance included if agents are spawned
+- [ ] File follows naming, section order, and style conventions above
 
 ## Constraints
 
