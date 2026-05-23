@@ -16,9 +16,8 @@
 			if ('serviceWorker' in navigator) {
 				window.addEventListener('load', function () {
 					const basePath = '%sveltekit.assets%';
-					const swPath = basePath ? `${basePath}/sw.js` : '/sw.js';
-					const swScope = basePath ? `${basePath}/` : '/';
-					navigator.serviceWorker.register(swPath, { scope: swScope });
+					const swBase = basePath ? `${basePath}/` : '/';
+					navigator.serviceWorker.register(`${swBase}sw.js`, { scope: swBase });
 				});
 			}
 		</script>

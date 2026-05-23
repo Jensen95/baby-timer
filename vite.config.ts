@@ -3,11 +3,15 @@ import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
 const rawBasePath = (process.env.BASE_PATH ?? '').trim();
-const normalizedBasePath = rawBasePath === '/' ? '' : rawBasePath.replace(/\/$/, '');
-if (normalizedBasePath && !normalizedBasePath.startsWith('/')) {
+let basePath = '';
+if (rawBasePath === '/') {
+	basePath = '';
+} else if (rawBasePath) {
+	basePath = rawBasePath.replace(/\/$/, '');
+}
+if (basePath && !basePath.startsWith('/')) {
 	throw new Error('BASE_PATH must be empty or start with "/"');
 }
-const basePath = normalizedBasePath;
 const appPath = `${basePath}/app`;
 const appScope = `${basePath}/`;
 

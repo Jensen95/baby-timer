@@ -11,6 +11,7 @@
 		prompt: () => Promise<void>;
 		userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
 	}
+	type NavigatorWithStandalone = Navigator & { standalone?: boolean };
 
 	let installPrompt = $state<BeforeInstallPromptEvent | null>(null);
 	let installSupported = $state(false);
@@ -20,12 +21,14 @@
 	function updateStandaloneMode() {
 		standalone =
 			window.matchMedia('(display-mode: standalone)').matches ||
-			((window.navigator as Navigator & { standalone?: boolean }).standalone ?? false);
+			((window.navigator as NavigatorWithStandalone).standalone ?? false);
 	}
 
 	function isBeforeInstallPromptEvent(event: Event): event is BeforeInstallPromptEvent {
 		const candidate = event as Partial<BeforeInstallPromptEvent>;
-		return typeof candidate.prompt === 'function' && candidate.userChoice instanceof Promise;
+		return (
+			typeof candidate.prompt === 'function' && typeof candidate.userChoice?.then === 'function'
+		);
 	}
 
 	async function handleInstallClick() {
