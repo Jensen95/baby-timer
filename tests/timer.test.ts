@@ -144,7 +144,7 @@ test.describe('Timer', () => {
 		await expect(nav.getByText('History')).toBeVisible();
 		await expect(nav.getByText('Stats')).toBeVisible();
 		await expect(nav.getByText('Babies')).toBeVisible();
-		await expect(nav.getByText('Profile')).toBeVisible();
+		await expect(nav.getByText('Family')).toBeVisible();
 	});
 
 	test('bottom nav is hidden on desktop viewport', async ({ page }) => {

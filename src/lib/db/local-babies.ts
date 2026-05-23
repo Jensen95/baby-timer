@@ -4,7 +4,8 @@ export type { LocalBaby };
 
 export async function listBabiesLocal(familyId: string | null): Promise<LocalBaby[]> {
 	if (familyId === null) {
-		return db.babies.orderBy('created_at').toArray();
+		const all = await db.babies.toArray();
+		return all.sort((a, b) => a.created_at.localeCompare(b.created_at));
 	}
 	return db.babies.where('family_id').equals(familyId).sortBy('created_at');
 }

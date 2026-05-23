@@ -73,7 +73,7 @@ test.describe('Offline mode', () => {
 			// Open the add baby form and create a baby
 			await page.getByRole('button', { name: /\+ add baby/i }).click();
 			await page.getByLabel('Name').fill('Offline Baby');
-			await page.getByRole('button', { name: 'Add' }).click();
+			await page.getByRole('button', { name: 'Add', exact: true }).click();
 
 			// Go back to the dashboard
 			await page.goto('/app');
@@ -144,7 +144,7 @@ test.describe('Offline mode', () => {
 
 		// Fill in and submit the form
 		await page.getByLabel('Name').fill('Guest Baby');
-		await page.getByRole('button', { name: 'Add' }).click();
+		await page.getByRole('button', { name: 'Add', exact: true }).click();
 
 		// Baby should appear in the list
 		await expect(page.getByText('Guest Baby')).toBeVisible({ timeout: 3000 });
@@ -154,6 +154,13 @@ test.describe('Offline mode', () => {
 		await mockSupabaseUnauthenticated(page);
 		await page.goto('/app');
 		await page.waitForLoadState('networkidle');
+
+		// Wait for the service worker to be installed and activated
+		await page.evaluate(async () => {
+			if ('serviceWorker' in navigator) {
+				await navigator.serviceWorker.ready;
+			}
+		});
 
 		// Put the browser context fully offline
 		await context.setOffline(true);
