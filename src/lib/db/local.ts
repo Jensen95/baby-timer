@@ -25,7 +25,7 @@ export interface LocalSleep {
 	id: string;
 	baby_id: string;
 	family_id: string | null;
-	side: 'left' | 'right' | 'back' | 'tummy';
+	side: 'left' | 'right' | 'back' | 'tummy' | 'side';
 	started_at: string;
 	ended_at: string | null;
 	note: string | null;

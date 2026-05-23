@@ -45,7 +45,7 @@
 	let editEndedAt = $state('');
 
 	const FEEDING_SIDES: FeedingSide[] = ['left', 'right', 'both'];
-	const SLEEP_SIDES: HeadSide[] = ['left', 'right', 'back', 'tummy'];
+	const SLEEP_SIDES: HeadSide[] = ['left', 'right', 'back', 'tummy', 'side'];
 
 	$effect(() => {
 		(async () => {

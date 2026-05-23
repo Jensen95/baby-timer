@@ -223,6 +223,23 @@ test.describe('Timer', () => {
 		await expect(page.locator('.session-type').first()).toContainText('right');
 	});
 
+	test('sleep timer supports side sleeping option', async ({ page }) => {
+		await mockSupabaseUnauthenticated(page);
+		await page.goto('/app');
+		await page.waitForLoadState('networkidle');
+
+		await seedBaby(page);
+		await page.reload();
+		await page.waitForLoadState('networkidle');
+
+		const sleepCard = page.locator('.timer-card').filter({ hasText: 'Sleep' }).first();
+		await sleepCard.getByRole('button', { name: 'Side sleeping' }).click();
+		await sleepCard.locator('.timer-btn--start').click();
+		await sleepCard.locator('.timer-btn--stop').click();
+
+		await expect(page.locator('.session-type').first()).toContainText('side');
+	});
+
 	test('session can be edited and deleted from recent sessions', async ({ page }) => {
 		await mockSupabaseUnauthenticated(page);
 		await page.goto('/app');

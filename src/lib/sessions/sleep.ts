@@ -1,6 +1,6 @@
 import type { Insert } from '$lib/db/database.types';
 
-export type HeadSide = 'left' | 'right' | 'back' | 'tummy';
+export type HeadSide = 'left' | 'right' | 'back' | 'tummy' | 'side';
 
 export interface SleepFormState {
 	babyId: string;
@@ -26,5 +26,11 @@ export function buildSleepPayload(form: SleepFormState): Insert<'sleep_sessions'
 }
 
 export function isValidHeadSide(value: unknown): value is HeadSide {
-	return value === 'left' || value === 'right' || value === 'back' || value === 'tummy';
+	return (
+		value === 'left' ||
+		value === 'right' ||
+		value === 'back' ||
+		value === 'tummy' ||
+		value === 'side'
+	);
 }
