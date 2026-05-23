@@ -1,8 +1,8 @@
-@use '@fontsource/nunito/400.css';
-@use '@fontsource/nunito/600.css';
-@use '@fontsource/nunito/700.css';
-@use '@fontsource/nunito/800.css';
-@use 'bulma/css/bulma.min.css';
+@use '@fontsource/nunito/400.css' as *;
+@use '@fontsource/nunito/600.css' as *;
+@use '@fontsource/nunito/700.css' as *;
+@use '@fontsource/nunito/800.css' as *;
+@use 'bulma/css/bulma.min.css' as *;
 @use 'variables';
 
 :root {
