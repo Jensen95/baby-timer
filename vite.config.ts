@@ -10,6 +10,7 @@ if (basePath && !basePath.startsWith('/')) {
 }
 const appPath = `${basePath}/app`;
 const appScope = `${basePath}/`;
+const appShellPath = `${appPath}.html`;
 const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 export default defineConfig({
@@ -28,7 +29,7 @@ export default defineConfig({
 				background_color: '#fdf6f9',
 				display: 'standalone',
 				orientation: 'portrait',
-				start_url: appPath,
+				start_url: appShellPath,
 				scope: appScope,
 				icons: [
 					{
@@ -46,8 +47,8 @@ export default defineConfig({
 			},
 			workbox: {
 				globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
-				additionalManifestEntries: [{ url: appPath, revision: null }],
-				navigateFallback: appPath,
+				additionalManifestEntries: [{ url: appShellPath, revision: null }],
+				navigateFallback: appShellPath,
 				navigateFallbackAllowlist: [new RegExp(`^${escapeRegex(appPath)}`)],
 				clientsClaim: true,
 				skipWaiting: true
