@@ -1,32 +1,57 @@
 <script lang="ts">
 	import { formatDuration, formatDateTime } from '$lib/timer/format';
 	interface Props {
-		type: 'feeding' | 'sleep';
+		type: 'feeding' | 'sleep' | 'breast_pump';
 		side: string;
 		startedAt: Date;
 		endedAt: Date | null;
 		durationSeconds: number | null;
+		yieldLeftMl?: number | null;
+		yieldRightMl?: number | null;
 		note?: string | null;
 		onedit?: () => void | Promise<void>;
 		onremove?: () => void | Promise<void>;
 	}
-	let { type, side, startedAt, endedAt, durationSeconds, note, onedit, onremove }: Props = $props();
-	const typeLabel = $derived(type === 'feeding' ? '🍼' : '😴');
+	let {
+		type,
+		side,
+		startedAt,
+		endedAt,
+		durationSeconds,
+		yieldLeftMl = null,
+		yieldRightMl = null,
+		note,
+		onedit,
+		onremove
+	}: Props = $props();
+	const typeLabel = $derived(type === 'feeding' ? '🍼' : type === 'sleep' ? '😴' : '🥛');
+	const typeName = $derived(
+		type === 'feeding' ? 'Feeding' : type === 'sleep' ? 'Sleep' : 'Breast Pump'
+	);
 	const isActive = $derived(endedAt === null);
+	const yieldText = $derived.by(() => {
+		if (type !== 'breast_pump') return null;
+		const parts = [];
+		if (yieldLeftMl !== null) parts.push(`L: ${yieldLeftMl} ml`);
+		if (yieldRightMl !== null) parts.push(`R: ${yieldRightMl} ml`);
+		return parts.length > 0 ? parts.join(' · ') : null;
+	});
 </script>
 
 <div
 	class="session-entry"
 	class:session-entry--feeding={type === 'feeding'}
 	class:session-entry--sleep={type === 'sleep'}
+	class:session-entry--pump={type === 'breast_pump'}
 >
 	<div class="session-icon">{typeLabel}</div>
 	<div class="session-body">
 		<div class="session-header">
-			<span class="session-type">{type === 'feeding' ? 'Feeding' : 'Sleep'} · {side}</span>
+			<span class="session-type">{typeName} · {side}</span>
 			{#if isActive}<span class="session-live">Live</span>{/if}
 		</div>
 		<div class="session-time">{formatDateTime(startedAt)}</div>
+		{#if yieldText}<div class="session-note">{yieldText}</div>{/if}
 		{#if note}<div class="session-note">{note}</div>{/if}
 	</div>
 	<div class="session-duration">
@@ -65,6 +90,9 @@
 	}
 	.session-entry--sleep {
 		border-left-color: hsl(240, 60%, 70%);
+	}
+	.session-entry--pump {
+		border-left-color: hsl(43, 80%, 70%);
 	}
 	.session-icon {
 		font-size: 1.5rem;

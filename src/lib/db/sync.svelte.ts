@@ -54,6 +54,17 @@ export function createSyncEngine() {
 				else anyError = true;
 			}
 
+			const pendingPumps = await db.breast_pump_sessions.where('_sync').equals('pending').toArray();
+			for (const pump of pendingPumps) {
+				if (!pump.family_id) {
+					continue;
+				}
+				const { _sync, ...payload } = pump;
+				const { error: err } = await supabase.from('breast_pump_sessions').upsert(payload as any);
+				if (!err) await db.breast_pump_sessions.update(pump.id, { _sync: 'synced' });
+				else anyError = true;
+			}
+
 			if (anyError) {
 				error = 'Some rows failed to sync';
 			} else {
@@ -81,6 +92,11 @@ export function createSyncEngine() {
 		const guestSleeps = await db.sleep_sessions.filter((s) => s.family_id === null).toArray();
 		for (const sleep of guestSleeps) {
 			await db.sleep_sessions.update(sleep.id, { family_id: familyId, _sync: 'pending' });
+		}
+
+		const guestPumps = await db.breast_pump_sessions.filter((s) => s.family_id === null).toArray();
+		for (const pump of guestPumps) {
+			await db.breast_pump_sessions.update(pump.id, { family_id: familyId, _sync: 'pending' });
 		}
 
 		await syncNow();

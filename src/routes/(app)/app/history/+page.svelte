@@ -11,6 +11,11 @@
 		deleteFeedingLocal
 	} from '$lib/db/local-feeding';
 	import { listSleepSessionsLocal, updateSleepLocal, deleteSleepLocal } from '$lib/db/local-sleep';
+	import {
+		listBreastPumpSessionsLocal,
+		updateBreastPumpLocal,
+		deleteBreastPumpLocal
+	} from '$lib/db/local-breast-pump';
 	import { listBabiesLocal, type LocalBaby } from '$lib/db/local-babies';
 	import { getLocalFamily, putLocalFamily } from '$lib/db/local-family';
 	import { getUserFamilies } from '$lib/db/family';
@@ -18,6 +23,7 @@
 	import SessionList from '$lib/components/SessionList.svelte';
 	import type { FeedingSide } from '$lib/sessions/feeding';
 	import type { HeadSide } from '$lib/sessions/sleep';
+	import type { PumpSide } from '$lib/sessions/breast-pump';
 
 	const session = getContext<SessionStore>(SESSION_KEY);
 	const sync = getContext<SyncEngineStore>(SYNC_KEY);
@@ -30,11 +36,13 @@
 	let sessions = $state<
 		Array<{
 			id: string;
-			type: 'feeding' | 'sleep';
+			type: 'feeding' | 'sleep' | 'breast_pump';
 			side: string;
 			startedAt: Date;
 			endedAt: Date | null;
 			durationSeconds: number | null;
+			yieldLeftMl: number | null;
+			yieldRightMl: number | null;
 			note: string | null;
 		}>
 	>([]);
@@ -43,9 +51,12 @@
 	let editSide = $state('');
 	let editStartedAt = $state('');
 	let editEndedAt = $state('');
+	let editYieldLeftMl = $state('');
+	let editYieldRightMl = $state('');
 
 	const FEEDING_SIDES: FeedingSide[] = ['left', 'right', 'both'];
 	const SLEEP_SIDES: HeadSide[] = ['left', 'right', 'back', 'tummy'];
+	const PUMP_SIDES: PumpSide[] = ['left', 'right', 'both'];
 
 	$effect(() => {
 		(async () => {
@@ -92,9 +103,10 @@
 	async function loadHistory(babyId: string) {
 		loading = true;
 		try {
-			const [feedings, sleeps] = await Promise.all([
+			const [feedings, sleeps, pumps] = await Promise.all([
 				listFeedingSessionsLocal(babyId, 100),
-				listSleepSessionsLocal(babyId, 100)
+				listSleepSessionsLocal(babyId, 100),
+				listBreastPumpSessionsLocal(babyId, 100)
 			]);
 
 			sessions = [
@@ -107,6 +119,8 @@
 					durationSeconds: s.ended_at
 						? buildTimerResult(new Date(s.started_at), new Date(s.ended_at)).durationSeconds
 						: null,
+					yieldLeftMl: null,
+					yieldRightMl: null,
 					note: s.note
 				})),
 				...sleeps.map((s) => ({
@@ -118,6 +132,21 @@
 					durationSeconds: s.ended_at
 						? buildTimerResult(new Date(s.started_at), new Date(s.ended_at)).durationSeconds
 						: null,
+					yieldLeftMl: null,
+					yieldRightMl: null,
+					note: s.note
+				})),
+				...pumps.map((s) => ({
+					id: s.id,
+					type: 'breast_pump' as const,
+					side: s.side,
+					startedAt: new Date(s.started_at),
+					endedAt: s.ended_at ? new Date(s.ended_at) : null,
+					durationSeconds: s.ended_at
+						? buildTimerResult(new Date(s.started_at), new Date(s.ended_at)).durationSeconds
+						: null,
+					yieldLeftMl: s.yield_left_ml,
+					yieldRightMl: s.yield_right_ml,
 					note: s.note
 				}))
 			].sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime());
@@ -138,11 +167,23 @@
 		return Number.isNaN(parsed.getTime()) ? null : parsed;
 	}
 
+	function parseOptionalYield(value: string): number | null {
+		const trimmed = value.trim();
+		if (!trimmed) return null;
+		const parsed = Number(trimmed);
+		if (!Number.isFinite(parsed) || parsed < 0) {
+			throw new Error('Yield must be a non-negative number');
+		}
+		return Math.round(parsed);
+	}
+
 	function openEditSessionModal(sessionItem: (typeof sessions)[number]) {
 		editingSession = sessionItem;
 		editSide = sessionItem.side;
 		editStartedAt = formatDateTimeInput(sessionItem.startedAt);
 		editEndedAt = sessionItem.endedAt ? formatDateTimeInput(sessionItem.endedAt) : '';
+		editYieldLeftMl = sessionItem.yieldLeftMl !== null ? String(sessionItem.yieldLeftMl) : '';
+		editYieldRightMl = sessionItem.yieldRightMl !== null ? String(sessionItem.yieldRightMl) : '';
 	}
 
 	function closeEditSessionModal() {
@@ -150,11 +191,18 @@
 		editSide = '';
 		editStartedAt = '';
 		editEndedAt = '';
+		editYieldLeftMl = '';
+		editYieldRightMl = '';
 	}
 
 	async function saveSessionEdits() {
 		if (!editingSession) return;
-		const allowedSides: string[] = editingSession.type === 'feeding' ? FEEDING_SIDES : SLEEP_SIDES;
+		const allowedSides: string[] =
+			editingSession.type === 'sleep'
+				? SLEEP_SIDES
+				: editingSession.type === 'breast_pump'
+					? PUMP_SIDES
+					: FEEDING_SIDES;
 		const nextSide = editSide.trim().toLowerCase();
 		if (!allowedSides.includes(nextSide)) {
 			error = 'Invalid side selection';
@@ -184,6 +232,15 @@
 					side: nextSide as FeedingSide,
 					started_at: startedAt.toISOString(),
 					ended_at: endedAt ? endedAt.toISOString() : null,
+					_sync: 'pending'
+				});
+			} else if (editingSession.type === 'breast_pump') {
+				await updateBreastPumpLocal(editingSession.id, {
+					side: nextSide as PumpSide,
+					started_at: startedAt.toISOString(),
+					ended_at: endedAt ? endedAt.toISOString() : null,
+					yield_left_ml: parseOptionalYield(editYieldLeftMl),
+					yield_right_ml: parseOptionalYield(editYieldRightMl),
 					_sync: 'pending'
 				});
 			} else {
@@ -216,6 +273,8 @@
 		try {
 			if (pendingDeleteSession.type === 'feeding') {
 				await deleteFeedingLocal(pendingDeleteSession.id);
+			} else if (pendingDeleteSession.type === 'breast_pump') {
+				await deleteBreastPumpLocal(pendingDeleteSession.id);
 			} else {
 				await deleteSleepLocal(pendingDeleteSession.id);
 			}
@@ -282,7 +341,7 @@
 					<div class="control">
 						<div class="select is-fullwidth">
 							<select id="edit-session-side" bind:value={editSide}>
-								{#each editingSession.type === 'feeding' ? FEEDING_SIDES : SLEEP_SIDES as sideOption}
+								{#each editingSession.type === 'sleep' ? SLEEP_SIDES : editingSession.type === 'breast_pump' ? PUMP_SIDES : FEEDING_SIDES as sideOption}
 									<option value={sideOption}>{sideOption}</option>
 								{/each}
 							</select>
@@ -312,6 +371,34 @@
 					</div>
 					<p class="help">Leave blank for active session.</p>
 				</div>
+				{#if editingSession.type === 'breast_pump'}
+					<div class="field">
+						<label class="label" for="edit-session-yield-left">Left yield (ml)</label>
+						<div class="control">
+							<input
+								id="edit-session-yield-left"
+								class="input"
+								type="number"
+								min="0"
+								step="1"
+								bind:value={editYieldLeftMl}
+							/>
+						</div>
+					</div>
+					<div class="field">
+						<label class="label" for="edit-session-yield-right">Right yield (ml)</label>
+						<div class="control">
+							<input
+								id="edit-session-yield-right"
+								class="input"
+								type="number"
+								min="0"
+								step="1"
+								bind:value={editYieldRightMl}
+							/>
+						</div>
+					</div>
+				{/if}
 			</section>
 			<footer class="modal-card-foot">
 				<button class="button is-primary" type="button" onclick={saveSessionEdits}>Save</button>
