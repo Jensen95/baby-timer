@@ -41,7 +41,7 @@ export default defineConfig({
 		})
 	],
 
-	// @ts-ignore — vitest reads `test` from vite config at runtime
+	// @ts-expect-error — vitest reads `test` from vite config at runtime
 	test: {
 		include: ['src/**/*.{test,spec}.{js,ts}']
 	}
