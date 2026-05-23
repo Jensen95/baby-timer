@@ -31,6 +31,7 @@ create policy "family member can accept invite"
 -- Registered users get a pending family_members row (joined_at = null);
 -- unregistered users get a family_invites row.  Both paths return the same
 -- opaque JSON so callers cannot infer whether the email was registered.
+drop function if exists public.add_family_member_by_email(uuid, text);
 create or replace function public.add_family_member_by_email(
   target_family_id uuid,
   target_email     text
@@ -81,6 +82,7 @@ $$;
 
 -- Update list_family_members_with_profiles to include pending members and
 -- unregistered invite placeholders, with a status field.
+drop function if exists public.list_family_members_with_profiles(uuid);
 create or replace function public.list_family_members_with_profiles(target_family_id uuid)
 returns table (
   user_id      uuid,
