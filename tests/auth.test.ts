@@ -20,7 +20,7 @@ test.describe('Authentication', () => {
 		await expect(emailInput).toBeVisible();
 	});
 
-	test('unauthenticated user accessing /app is redirected to /login', async ({ page }) => {
+	test('unauthenticated user accessing /app stays on /app with guest banner', async ({ page }) => {
 		// Mock all Supabase API calls to return unauthenticated
 		await page.route('**/rest/v1/**', (route) =>
 			route.fulfill({ status: 401, body: '{"error":"unauthorized"}' })
@@ -35,8 +35,8 @@ test.describe('Authentication', () => {
 
 		await page.goto('/app');
 
-		// Wait for the client-side redirect
-		await page.waitForURL(/\/login/, { timeout: 5000 });
-		await expect(page).toHaveURL(/\/login/);
+		// Guest mode: stays on /app, shows banner instead of redirecting
+		await expect(page).toHaveURL(/\/app/);
+		await expect(page.getByText('Sign in to sync')).toBeVisible({ timeout: 5000 });
 	});
 });

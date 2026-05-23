@@ -3,11 +3,11 @@
 	import { SESSION_KEY } from '$lib/auth/context';
 	import type { SessionStore } from '$lib/auth/context';
 	import { supabase } from '$lib/supabase';
-	import { listBabies } from '$lib/db/babies';
+	import { listBabiesLocal, type LocalBaby } from '$lib/db/local-babies';
+	import { getLocalFamily, putLocalFamily } from '$lib/db/local-family';
 	import { getUserFamilies } from '$lib/db/family';
-	import type { Tables } from '$lib/db/database.types';
-
-	type Baby = Tables<'babies'>;
+	import { db } from '$lib/db/local';
+	import { buildTimerResult } from '$lib/timer/timer-logic';
 
 	interface DaySummary {
 		date: string;
@@ -19,13 +19,13 @@
 
 	const session = getContext<SessionStore>(SESSION_KEY);
 
-	let babies = $state<Baby[]>([]);
+	let babies = $state<LocalBaby[]>([]);
 	let selectedBabyId = $state<string | null>(null);
+	let familyId = $state<string | null>(null);
 	let loading = $state(true);
 	let error = $state<string | null>(null);
 	let summaries = $state<DaySummary[]>([]);
 
-	// Last 7 days
 	const days = Array.from({ length: 7 }, (_, i) => {
 		const d = new Date();
 		d.setDate(d.getDate() - (6 - i));
@@ -33,18 +33,31 @@
 	});
 
 	$effect(() => {
-		const userId = session.user?.id;
-		if (!userId) return;
-
 		(async () => {
 			try {
-				const families = await getUserFamilies(supabase);
-				if (families.length === 0) {
-					loading = false;
-					return;
+				if (session.user) {
+					let localFamily = await getLocalFamily();
+					if (!localFamily) {
+						const families = await getUserFamilies(supabase);
+						if (families.length > 0) {
+							await putLocalFamily({
+								id: families[0].id,
+								name: families[0].name,
+								created_at: families[0].created_at
+							});
+							localFamily = {
+								id: families[0].id,
+								name: families[0].name,
+								created_at: families[0].created_at
+							};
+						}
+					}
+					familyId = localFamily?.id ?? null;
+				} else {
+					familyId = null;
 				}
 
-				babies = await listBabies(supabase, families[0].id);
+				babies = await listBabiesLocal(familyId);
 				if (babies.length > 0) {
 					selectedBabyId = babies[0].id;
 				}
@@ -58,34 +71,71 @@
 
 	$effect(() => {
 		if (!selectedBabyId) return;
-		loadSummaries(selectedBabyId);
+		loadStats(selectedBabyId);
 	});
 
-	async function loadSummaries(babyId: string) {
+	function getLast7Days(): string[] {
+		const result = [];
+		for (let i = 6; i >= 0; i--) {
+			const d = new Date();
+			d.setDate(d.getDate() - i);
+			result.push(d.toISOString().split('T')[0]);
+		}
+		return result;
+	}
+
+	async function loadStats(babyId: string) {
 		loading = true;
 		error = null;
 		try {
-			const results = await Promise.all(
-				days.map(async (day) => {
-					const { data, error: rpcError } = await (supabase as any).rpc('daily_summary', {
-						p_baby_id: babyId,
-						p_day: day
-					});
-					if (rpcError) throw rpcError;
-					const row =
-						Array.isArray(data) && data.length > 0
-							? data[0]
-							: { feed_count: 0, feed_minutes: 0, sleep_count: 0, sleep_minutes: 0 };
+			const dayList = getLast7Days();
+			summaries = await Promise.all(
+				dayList.map(async (day) => {
+					const dayStart = new Date(day + 'T00:00:00');
+					const dayEnd = new Date(day + 'T23:59:59');
+					const feedings = await db.feeding_sessions
+						.where('baby_id')
+						.equals(babyId)
+						.filter((s) => {
+							const t = new Date(s.started_at);
+							return t >= dayStart && t <= dayEnd && s.ended_at !== null;
+						})
+						.toArray();
+					const sleeps = await db.sleep_sessions
+						.where('baby_id')
+						.equals(babyId)
+						.filter((s) => {
+							const t = new Date(s.started_at);
+							return t >= dayStart && t <= dayEnd && s.ended_at !== null;
+						})
+						.toArray();
+					const feedMinutes = Math.round(
+						feedings.reduce(
+							(sum, s) =>
+								sum +
+								buildTimerResult(new Date(s.started_at), new Date(s.ended_at!)).durationSeconds /
+									60,
+							0
+						)
+					);
+					const sleepMinutes = Math.round(
+						sleeps.reduce(
+							(sum, s) =>
+								sum +
+								buildTimerResult(new Date(s.started_at), new Date(s.ended_at!)).durationSeconds /
+									60,
+							0
+						)
+					);
 					return {
 						date: day,
-						feedCount: row.feed_count ?? 0,
-						feedMinutes: row.feed_minutes ?? 0,
-						sleepCount: row.sleep_count ?? 0,
-						sleepMinutes: row.sleep_minutes ?? 0
+						feedCount: feedings.length,
+						feedMinutes,
+						sleepCount: sleeps.length,
+						sleepMinutes
 					};
 				})
 			);
-			summaries = results;
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Failed to load stats';
 		} finally {
@@ -97,7 +147,6 @@
 		return new Date(dateStr + 'T12:00:00').toLocaleDateString([], { weekday: 'short' });
 	}
 
-	// Bar chart helpers
 	function barHeight(value: number, max: number): number {
 		if (max === 0) return 0;
 		return Math.round((value / max) * 80);
@@ -143,7 +192,6 @@
 		{#if loading}
 			<progress class="progress is-primary" max="100">Loading</progress>
 		{:else if summaries.length > 0}
-			<!-- Summary cards -->
 			<div class="columns mb-5">
 				<div class="column">
 					<div class="box has-text-centered">
@@ -165,7 +213,6 @@
 				</div>
 			</div>
 
-			<!-- Feeding minutes bar chart -->
 			<div class="box mb-4">
 				<h3 class="subtitle is-6 mb-3">Feeding time (minutes/day)</h3>
 				<svg width="100%" viewBox="0 0 280 110" preserveAspectRatio="xMidYMid meet">
@@ -176,7 +223,7 @@
 								y={90 - barHeight(s.feedMinutes, maxFeedMinutes)}
 								width="25"
 								height={barHeight(s.feedMinutes, maxFeedMinutes)}
-								fill="hsl(217, 71%, 53%)"
+								fill="hsl(340, 65%, 70%)"
 								rx="2"
 							/>
 							<text x="17" y="105" text-anchor="middle" font-size="9" fill="#888">
@@ -198,7 +245,6 @@
 				</svg>
 			</div>
 
-			<!-- Sleep minutes bar chart -->
 			<div class="box">
 				<h3 class="subtitle is-6 mb-3">Sleep time (minutes/day)</h3>
 				<svg width="100%" viewBox="0 0 280 110" preserveAspectRatio="xMidYMid meet">
@@ -209,7 +255,7 @@
 								y={90 - barHeight(s.sleepMinutes, maxSleepMinutes)}
 								width="25"
 								height={barHeight(s.sleepMinutes, maxSleepMinutes)}
-								fill="hsl(141, 53%, 53%)"
+								fill="hsl(240, 60%, 70%)"
 								rx="2"
 							/>
 							<text x="17" y="105" text-anchor="middle" font-size="9" fill="#888">

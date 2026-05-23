@@ -1,5 +1,6 @@
-import { supabase } from '$lib/supabase';
-import { listBabies, type Baby } from '$lib/db/babies';
+import { listBabiesLocal, type LocalBaby } from '$lib/db/local-babies';
+
+export type Baby = LocalBaby;
 
 export function createBabyState() {
 	let babies = $state<Baby[]>([]);
@@ -8,10 +9,10 @@ export function createBabyState() {
 
 	let selectedBaby = $derived(babies.find((b) => b.id === selectedBabyId) ?? null);
 
-	async function loadBabies(familyId: string) {
+	async function loadBabies(familyId: string | null) {
 		loading = true;
 		try {
-			babies = await listBabies(supabase, familyId);
+			babies = await listBabiesLocal(familyId);
 			if (babies.length > 0 && !selectedBabyId) {
 				selectedBabyId = babies[0].id;
 			}

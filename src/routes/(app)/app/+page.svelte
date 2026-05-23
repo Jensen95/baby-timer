@@ -3,42 +3,46 @@
 	import { base } from '$app/paths';
 	import { SESSION_KEY } from '$lib/auth/context';
 	import type { SessionStore } from '$lib/auth/context';
+	import { SYNC_KEY } from '$lib/db/sync.svelte';
+	import type { SyncEngineStore } from '$lib/db/sync.svelte';
 	import { supabase } from '$lib/supabase';
 	import { createTimer } from '$lib/timer/timer.svelte';
+	import { buildTimerResult } from '$lib/timer/timer-logic';
 	import {
-		startFeeding,
-		stopFeeding,
-		getActiveFeedingSession,
-		listFeedingSessions
-	} from '$lib/db/feeding';
-	import { startSleep, stopSleep, getActiveSleepSession, listSleepSessions } from '$lib/db/sleep';
-	import { listBabies } from '$lib/db/babies';
+		listFeedingSessionsLocal,
+		getActiveFeedingSessionLocal,
+		createFeedingLocal,
+		updateFeedingLocal,
+		type LocalFeeding
+	} from '$lib/db/local-feeding';
+	import {
+		listSleepSessionsLocal,
+		getActiveSleepSessionLocal,
+		createSleepLocal,
+		updateSleepLocal,
+		type LocalSleep
+	} from '$lib/db/local-sleep';
+	import { listBabiesLocal, type LocalBaby } from '$lib/db/local-babies';
+	import { getLocalFamily, putLocalFamily } from '$lib/db/local-family';
 	import { getUserFamilies } from '$lib/db/family';
 	import FeedingTimerCard from '$lib/components/FeedingTimerCard.svelte';
 	import SleepTimerCard from '$lib/components/SleepTimerCard.svelte';
 	import SessionList from '$lib/components/SessionList.svelte';
 	import type { FeedingSide } from '$lib/sessions/feeding';
 	import type { HeadSide } from '$lib/sessions/sleep';
-	import type { Tables } from '$lib/db/database.types';
-
-	type Baby = Tables<'babies'>;
-	type FeedingSession = Tables<'feeding_sessions'>;
-	type SleepSession = Tables<'sleep_sessions'>;
 
 	const session = getContext<SessionStore>(SESSION_KEY);
+	const sync = getContext<SyncEngineStore>(SYNC_KEY);
 
-	// State
-	let babies = $state<Baby[]>([]);
+	let babies = $state<LocalBaby[]>([]);
 	let selectedBabyId = $state<string | null>(null);
 	let familyId = $state<string | null>(null);
 	let pageLoading = $state(true);
 	let error = $state<string | null>(null);
 
-	// Active sessions in DB (null = no session running)
-	let activeFeedingSession = $state<FeedingSession | null>(null);
-	let activeSleepSession = $state<SleepSession | null>(null);
+	let activeFeedingSession = $state<LocalFeeding | null>(null);
+	let activeSleepSession = $state<LocalSleep | null>(null);
 
-	// Recent sessions for the list
 	let recentSessions = $state<
 		Array<{
 			id: string;
@@ -51,34 +55,42 @@
 		}>
 	>([]);
 
-	// Timer state (client-side clock, synced from DB on load)
 	const feedingTimer = createTimer();
 	const sleepTimer = createTimer();
 
-	// Side selections
 	let feedingSide = $state<FeedingSide>('left');
 	let sleepSide = $state<HeadSide>('back');
 
 	let selectedBaby = $derived(babies.find((b) => b.id === selectedBabyId) ?? null);
 
-	// Load everything on mount
 	$effect(() => {
-		const userId = session.user?.id;
-		if (!userId) return;
-
 		(async () => {
 			try {
-				const families = await getUserFamilies(supabase);
-				if (families.length === 0) {
-					pageLoading = false;
-					return;
+				if (session.user) {
+					let localFamily = await getLocalFamily();
+					if (!localFamily) {
+						const families = await getUserFamilies(supabase);
+						if (families.length > 0) {
+							await putLocalFamily({
+								id: families[0].id,
+								name: families[0].name,
+								created_at: families[0].created_at
+							});
+							localFamily = {
+								id: families[0].id,
+								name: families[0].name,
+								created_at: families[0].created_at
+							};
+						}
+					}
+					familyId = localFamily?.id ?? null;
+				} else {
+					familyId = null;
 				}
-				familyId = families[0].id;
 
-				babies = await listBabies(supabase, familyId);
+				babies = await listBabiesLocal(familyId);
 				if (babies.length > 0) {
 					selectedBabyId = babies[0].id;
-					await loadSessionsForBaby(babies[0].id);
 				}
 			} catch (e) {
 				error = e instanceof Error ? e.message : 'Failed to load data';
@@ -88,66 +100,32 @@
 		})();
 	});
 
-	// Reload when selected baby changes
 	$effect(() => {
 		if (!selectedBabyId) return;
 		loadSessionsForBaby(selectedBabyId);
 	});
 
-	// Realtime subscription
-	$effect(() => {
-		if (!selectedBabyId) return;
-
-		const channel = supabase
-			.channel(`sessions:${selectedBabyId}`)
-			.on(
-				'postgres_changes',
-				{
-					event: '*',
-					schema: 'public',
-					table: 'feeding_sessions',
-					filter: `baby_id=eq.${selectedBabyId}`
-				},
-				() => {
-					loadSessionsForBaby(selectedBabyId!);
-				}
-			)
-			.on(
-				'postgres_changes',
-				{
-					event: '*',
-					schema: 'public',
-					table: 'sleep_sessions',
-					filter: `baby_id=eq.${selectedBabyId}`
-				},
-				() => {
-					loadSessionsForBaby(selectedBabyId!);
-				}
-			)
-			.subscribe();
-
-		return () => {
-			supabase.removeChannel(channel);
-		};
-	});
-
 	async function loadSessionsForBaby(babyId: string) {
 		const [activeFeeding, activeSleep, feedingSessions, sleepSessions] = await Promise.all([
-			getActiveFeedingSession(supabase, babyId),
-			getActiveSleepSession(supabase, babyId),
-			listFeedingSessions(supabase, babyId, 20),
-			listSleepSessions(supabase, babyId, 20)
+			getActiveFeedingSessionLocal(babyId),
+			getActiveSleepSessionLocal(babyId),
+			listFeedingSessionsLocal(babyId, 20),
+			listSleepSessionsLocal(babyId, 20)
 		]);
 
 		activeFeedingSession = activeFeeding;
 		activeSleepSession = activeSleep;
 
-		// Re-attach timers to in-progress sessions
 		if (activeFeeding && !feedingTimer.running) {
-			feedingTimer.reset();
+			feedingTimer.resume(new Date(activeFeeding.started_at));
+			feedingSide = activeFeeding.side;
 		}
 
-		// Build unified session list, sorted by startedAt desc
+		if (activeSleep && !sleepTimer.running) {
+			sleepTimer.resume(new Date(activeSleep.started_at));
+			sleepSide = activeSleep.side;
+		}
+
 		const combined = [
 			...feedingSessions.map((s) => ({
 				id: s.id,
@@ -155,7 +133,9 @@
 				side: s.side,
 				startedAt: new Date(s.started_at),
 				endedAt: s.ended_at ? new Date(s.ended_at) : null,
-				durationSeconds: s.duration_seconds,
+				durationSeconds: s.ended_at
+					? buildTimerResult(new Date(s.started_at), new Date(s.ended_at)).durationSeconds
+					: null,
 				note: s.note
 			})),
 			...sleepSessions.map((s) => ({
@@ -164,7 +144,9 @@
 				side: s.side,
 				startedAt: new Date(s.started_at),
 				endedAt: s.ended_at ? new Date(s.ended_at) : null,
-				durationSeconds: s.duration_seconds,
+				durationSeconds: s.ended_at
+					? buildTimerResult(new Date(s.started_at), new Date(s.ended_at)).durationSeconds
+					: null,
 				note: s.note
 			}))
 		].sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime());
@@ -173,16 +155,27 @@
 	}
 
 	async function handleStartFeeding(side: FeedingSide) {
-		if (!selectedBabyId || !familyId) return;
+		if (!selectedBabyId) return;
 		feedingSide = side;
 		feedingTimer.start();
 		try {
-			activeFeedingSession = await startFeeding(supabase, {
+			const id = crypto.randomUUID();
+			const now = feedingTimer.startedAt!.toISOString();
+			const payload: LocalFeeding = {
+				id,
 				baby_id: selectedBabyId,
 				family_id: familyId,
 				side,
-				started_at: feedingTimer.startedAt!.toISOString()
-			});
+				started_at: now,
+				ended_at: null,
+				note: null,
+				created_at: now,
+				_sync: 'pending'
+			};
+			await createFeedingLocal(payload);
+			activeFeedingSession = payload;
+			await loadSessionsForBaby(selectedBabyId!);
+			sync.syncNow();
 		} catch (e) {
 			feedingTimer.reset();
 			error = e instanceof Error ? e.message : 'Failed to start feeding';
@@ -194,25 +187,38 @@
 		const result = feedingTimer.stop();
 		if (!result) return;
 		try {
-			await stopFeeding(supabase, activeFeedingSession.id, result.endedAt);
+			const endedAt = result.endedAt.toISOString();
+			await updateFeedingLocal(activeFeedingSession.id, { ended_at: endedAt, _sync: 'pending' });
 			activeFeedingSession = null;
 			await loadSessionsForBaby(selectedBabyId!);
+			sync.syncNow();
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Failed to stop feeding';
 		}
 	}
 
 	async function handleStartSleep(side: HeadSide) {
-		if (!selectedBabyId || !familyId) return;
+		if (!selectedBabyId) return;
 		sleepSide = side;
 		sleepTimer.start();
 		try {
-			activeSleepSession = await startSleep(supabase, {
+			const id = crypto.randomUUID();
+			const now = sleepTimer.startedAt!.toISOString();
+			const payload: LocalSleep = {
+				id,
 				baby_id: selectedBabyId,
 				family_id: familyId,
 				side,
-				started_at: sleepTimer.startedAt!.toISOString()
-			});
+				started_at: now,
+				ended_at: null,
+				note: null,
+				created_at: now,
+				_sync: 'pending'
+			};
+			await createSleepLocal(payload);
+			activeSleepSession = payload;
+			await loadSessionsForBaby(selectedBabyId!);
+			sync.syncNow();
 		} catch (e) {
 			sleepTimer.reset();
 			error = e instanceof Error ? e.message : 'Failed to start sleep';
@@ -224,9 +230,11 @@
 		const result = sleepTimer.stop();
 		if (!result) return;
 		try {
-			await stopSleep(supabase, activeSleepSession.id, result.endedAt);
+			const endedAt = result.endedAt.toISOString();
+			await updateSleepLocal(activeSleepSession.id, { ended_at: endedAt, _sync: 'pending' });
 			activeSleepSession = null;
 			await loadSessionsForBaby(selectedBabyId!);
+			sync.syncNow();
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Failed to stop sleep';
 		}
@@ -239,7 +247,7 @@
 			<progress class="progress is-primary" max="100">Loading</progress>
 		{:else if error}
 			<div class="notification is-danger">
-				<button class="delete" onclick={() => (error = null)}></button>
+				<button class="delete" aria-label="Dismiss error" onclick={() => (error = null)}></button>
 				{error}
 			</div>
 		{:else if babies.length === 0}

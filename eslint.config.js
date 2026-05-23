@@ -37,6 +37,6 @@ export default [
 		}
 	},
 	{
-		ignores: ['build/', '.svelte-kit/', 'dist/', '**/*.svelte.ts']
+		ignores: ['build/', '.svelte-kit/', 'dist/', '**/*.svelte.ts', '.claude/worktrees/']
 	}
 ];

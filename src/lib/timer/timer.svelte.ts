@@ -25,6 +25,14 @@ export function createTimer() {
 		intervalId = setInterval(tick, 1000);
 	}
 
+	function resume(existingStartedAt: Date) {
+		if (running) return;
+		startedAt = existingStartedAt;
+		running = true;
+		now = Date.now();
+		intervalId = setInterval(tick, 1000);
+	}
+
 	function stop(): TimerResult | null {
 		if (!running || !startedAt) return null;
 		clearInterval(intervalId!);
@@ -61,6 +69,7 @@ export function createTimer() {
 			return elapsed;
 		},
 		start,
+		resume,
 		stop,
 		reset
 	};

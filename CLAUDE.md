@@ -59,6 +59,14 @@ src/routes/
 
 ## Known Gotchas
 
+### package-lock.json must stay in sync
+
+After adding or changing packages in `package.json`, always run `npm install` and commit the updated `package-lock.json`. `npm ci` (used in CI) fails hard if the lockfile is stale — it does not auto-update. This is not caught locally if `node_modules` is already populated.
+
+### CI log access
+
+There is no `gh` CLI in this remote environment. GitHub Actions logs require authentication. `WebFetch` on Actions pages returns unreliable parsed HTML, not real log content. When CI fails: **ask the user to paste the error text** rather than guessing at the cause.
+
 ### Static SPA mode
 
 `ssr = false` is set globally in `+layout.ts`. There is no server-side rendering. All data fetching happens in `$effect` blocks or event handlers in Svelte components.
@@ -82,6 +90,7 @@ We use `supabase.auth.getUser()` (validates JWT with Supabase server) for securi
 - Session tables (`feeding_sessions`, `sleep_sessions`) have a denormalized `family_id` for fast, simple RLS
 - `duration_seconds` is a **generated column** — never set it in INSERT/UPDATE
 - Entitlement/access is family-based via `family_members` join table
+- Never mirror `GENERATED ALWAYS` columns into Dexie — omit them from local schemas entirely (local interfaces correctly omit `duration_seconds`)
 
 ## Testing Philosophy
 
@@ -92,6 +101,17 @@ Test **pure business logic functions**, not component internals or Supabase API 
 - ✅ Timer start/stop state transitions
 - ❌ "the button renders with class X"
 - ❌ "Supabase.from().insert() was called"
+
+## Agent delegation
+
+When breaking work into sub-agents, fan out **in parallel** by default — send multiple `Agent`
+tool calls in one message. Sequential calls are only correct when one output feeds the next.
+
+Pick the model for the task:
+
+- **Opus** — complex analysis, code review, architecture decisions, pressure-testing learnings
+- **Sonnet** — implementation, debugging, refactoring, writing (default)
+- **Haiku** — fast lookups, grep, summarising, formatting checks
 
 ## Conventions
 

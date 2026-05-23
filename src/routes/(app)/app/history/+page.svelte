@@ -3,19 +3,19 @@
 	import { SESSION_KEY } from '$lib/auth/context';
 	import type { SessionStore } from '$lib/auth/context';
 	import { supabase } from '$lib/supabase';
-	import { listFeedingSessions } from '$lib/db/feeding';
-	import { listSleepSessions } from '$lib/db/sleep';
-	import { listBabies } from '$lib/db/babies';
+	import { listFeedingSessionsLocal } from '$lib/db/local-feeding';
+	import { listSleepSessionsLocal } from '$lib/db/local-sleep';
+	import { listBabiesLocal, type LocalBaby } from '$lib/db/local-babies';
+	import { getLocalFamily, putLocalFamily } from '$lib/db/local-family';
 	import { getUserFamilies } from '$lib/db/family';
+	import { buildTimerResult } from '$lib/timer/timer-logic';
 	import SessionList from '$lib/components/SessionList.svelte';
-	import type { Tables } from '$lib/db/database.types';
-
-	type Baby = Tables<'babies'>;
 
 	const session = getContext<SessionStore>(SESSION_KEY);
 
-	let babies = $state<Baby[]>([]);
+	let babies = $state<LocalBaby[]>([]);
 	let selectedBabyId = $state<string | null>(null);
+	let familyId = $state<string | null>(null);
 	let loading = $state(true);
 	let error = $state<string | null>(null);
 	let sessions = $state<
@@ -31,21 +31,33 @@
 	>([]);
 
 	$effect(() => {
-		const userId = session.user?.id;
-		if (!userId) return;
-
 		(async () => {
 			try {
-				const families = await getUserFamilies(supabase);
-				if (families.length === 0) {
-					loading = false;
-					return;
+				if (session.user) {
+					let localFamily = await getLocalFamily();
+					if (!localFamily) {
+						const families = await getUserFamilies(supabase);
+						if (families.length > 0) {
+							await putLocalFamily({
+								id: families[0].id,
+								name: families[0].name,
+								created_at: families[0].created_at
+							});
+							localFamily = {
+								id: families[0].id,
+								name: families[0].name,
+								created_at: families[0].created_at
+							};
+						}
+					}
+					familyId = localFamily?.id ?? null;
+				} else {
+					familyId = null;
 				}
 
-				const familyBabies = await listBabies(supabase, families[0].id);
-				babies = familyBabies;
-				if (familyBabies.length > 0) {
-					selectedBabyId = familyBabies[0].id;
+				babies = await listBabiesLocal(familyId);
+				if (babies.length > 0) {
+					selectedBabyId = babies[0].id;
 				}
 			} catch (e) {
 				error = e instanceof Error ? e.message : 'Failed to load';
@@ -64,8 +76,8 @@
 		loading = true;
 		try {
 			const [feedings, sleeps] = await Promise.all([
-				listFeedingSessions(supabase, babyId, 100),
-				listSleepSessions(supabase, babyId, 100)
+				listFeedingSessionsLocal(babyId, 100),
+				listSleepSessionsLocal(babyId, 100)
 			]);
 
 			sessions = [
@@ -75,7 +87,9 @@
 					side: s.side,
 					startedAt: new Date(s.started_at),
 					endedAt: s.ended_at ? new Date(s.ended_at) : null,
-					durationSeconds: s.duration_seconds,
+					durationSeconds: s.ended_at
+						? buildTimerResult(new Date(s.started_at), new Date(s.ended_at)).durationSeconds
+						: null,
 					note: s.note
 				})),
 				...sleeps.map((s) => ({
@@ -84,7 +98,9 @@
 					side: s.side,
 					startedAt: new Date(s.started_at),
 					endedAt: s.ended_at ? new Date(s.ended_at) : null,
-					durationSeconds: s.duration_seconds,
+					durationSeconds: s.ended_at
+						? buildTimerResult(new Date(s.started_at), new Date(s.ended_at)).durationSeconds
+						: null,
 					note: s.note
 				}))
 			].sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime());
