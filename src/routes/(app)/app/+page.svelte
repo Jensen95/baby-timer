@@ -13,6 +13,7 @@
 		getActiveFeedingSessionLocal,
 		createFeedingLocal,
 		updateFeedingLocal,
+		deleteFeedingLocal,
 		type LocalFeeding
 	} from '$lib/db/local-feeding';
 	import {
@@ -20,6 +21,7 @@
 		getActiveSleepSessionLocal,
 		createSleepLocal,
 		updateSleepLocal,
+		deleteSleepLocal,
 		type LocalSleep
 	} from '$lib/db/local-sleep';
 	import { listBabiesLocal, type LocalBaby } from '$lib/db/local-babies';
@@ -62,6 +64,9 @@
 	let sleepSide = $state<HeadSide>('back');
 
 	let selectedBaby = $derived(babies.find((b) => b.id === selectedBabyId) ?? null);
+
+	const FEEDING_SIDES: FeedingSide[] = ['left', 'right', 'both'];
+	const SLEEP_SIDES: HeadSide[] = ['left', 'right', 'back', 'tummy'];
 
 	$effect(() => {
 		(async () => {
@@ -182,6 +187,19 @@
 		}
 	}
 
+	async function handleFeedingSideChange(side: FeedingSide) {
+		feedingSide = side;
+		if (!activeFeedingSession || !selectedBabyId || activeFeedingSession.side === side) return;
+		try {
+			await updateFeedingLocal(activeFeedingSession.id, { side, _sync: 'pending' });
+			activeFeedingSession = { ...activeFeedingSession, side, _sync: 'pending' };
+			await loadSessionsForBaby(selectedBabyId);
+			sync.syncNow();
+		} catch (e) {
+			error = e instanceof Error ? e.message : 'Failed to update feeding side';
+		}
+	}
+
 	async function handleStopFeeding() {
 		if (!activeFeedingSession) return;
 		const result = feedingTimer.stop();
@@ -225,6 +243,19 @@
 		}
 	}
 
+	async function handleSleepSideChange(side: HeadSide) {
+		sleepSide = side;
+		if (!activeSleepSession || !selectedBabyId || activeSleepSession.side === side) return;
+		try {
+			await updateSleepLocal(activeSleepSession.id, { side, _sync: 'pending' });
+			activeSleepSession = { ...activeSleepSession, side, _sync: 'pending' };
+			await loadSessionsForBaby(selectedBabyId);
+			sync.syncNow();
+		} catch (e) {
+			error = e instanceof Error ? e.message : 'Failed to update sleep side';
+		}
+	}
+
 	async function handleStopSleep() {
 		if (!activeSleepSession) return;
 		const result = sleepTimer.stop();
@@ -237,6 +268,100 @@
 			sync.syncNow();
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Failed to stop sleep';
+		}
+	}
+
+	function formatDateTimeInput(date: Date): string {
+		const pad = (value: number) => String(value).padStart(2, '0');
+		return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+	}
+
+	function parseDateTimeInput(value: string): Date | null {
+		const parsed = new Date(value);
+		return Number.isNaN(parsed.getTime()) ? null : parsed;
+	}
+
+	async function handleEditSession(sessionItem: (typeof recentSessions)[number]) {
+		const allowedSides: string[] = sessionItem.type === 'feeding' ? FEEDING_SIDES : SLEEP_SIDES;
+		const nextSideInput = window.prompt(`Side (${allowedSides.join('/')})`, sessionItem.side);
+		if (nextSideInput === null) return;
+		const nextSide = nextSideInput.trim().toLowerCase();
+		if (!allowedSides.includes(nextSide)) {
+			error = 'Invalid side selection';
+			return;
+		}
+
+		const startedInput = window.prompt(
+			'Start time (YYYY-MM-DDTHH:mm)',
+			formatDateTimeInput(sessionItem.startedAt)
+		);
+		if (startedInput === null) return;
+		const startedAt = parseDateTimeInput(startedInput.trim());
+		if (!startedAt) {
+			error = 'Invalid start time';
+			return;
+		}
+
+		const endedInput = window.prompt(
+			'End time (YYYY-MM-DDTHH:mm, leave blank for active)',
+			sessionItem.endedAt ? formatDateTimeInput(sessionItem.endedAt) : ''
+		);
+		if (endedInput === null) return;
+		const endedAt = endedInput.trim() ? parseDateTimeInput(endedInput.trim()) : null;
+		if (endedInput.trim() && !endedAt) {
+			error = 'Invalid end time';
+			return;
+		}
+		if (endedAt && endedAt < startedAt) {
+			error = 'End time cannot be before start time';
+			return;
+		}
+
+		if (!selectedBabyId) return;
+		try {
+			if (sessionItem.type === 'feeding') {
+				await updateFeedingLocal(sessionItem.id, {
+					side: nextSide as FeedingSide,
+					started_at: startedAt.toISOString(),
+					ended_at: endedAt ? endedAt.toISOString() : null,
+					_sync: 'pending'
+				});
+			} else {
+				await updateSleepLocal(sessionItem.id, {
+					side: nextSide as HeadSide,
+					started_at: startedAt.toISOString(),
+					ended_at: endedAt ? endedAt.toISOString() : null,
+					_sync: 'pending'
+				});
+			}
+			await loadSessionsForBaby(selectedBabyId);
+			sync.syncNow();
+		} catch (e) {
+			error = e instanceof Error ? e.message : 'Failed to edit session';
+		}
+	}
+
+	async function handleRemoveSession(sessionItem: (typeof recentSessions)[number]) {
+		if (!window.confirm('Delete this session?')) return;
+		if (!selectedBabyId) return;
+		try {
+			if (sessionItem.type === 'feeding') {
+				await deleteFeedingLocal(sessionItem.id);
+				if (activeFeedingSession?.id === sessionItem.id) {
+					activeFeedingSession = null;
+					feedingTimer.reset();
+				}
+			} else {
+				await deleteSleepLocal(sessionItem.id);
+				if (activeSleepSession?.id === sessionItem.id) {
+					activeSleepSession = null;
+					sleepTimer.reset();
+				}
+			}
+			await loadSessionsForBaby(selectedBabyId);
+			sync.syncNow();
+		} catch (e) {
+			error = e instanceof Error ? e.message : 'Failed to remove session';
 		}
 	}
 </script>
@@ -287,7 +412,7 @@
 						disabled={sleepTimer.running}
 						onstart={handleStartFeeding}
 						onstop={handleStopFeeding}
-						onsidechange={(s) => (feedingSide = s)}
+						onsidechange={handleFeedingSideChange}
 					/>
 				</div>
 				<div class="column">
@@ -298,14 +423,18 @@
 						disabled={feedingTimer.running}
 						onstart={handleStartSleep}
 						onstop={handleStopSleep}
-						onsidechange={(s) => (sleepSide = s)}
+						onsidechange={handleSleepSideChange}
 					/>
 				</div>
 			</div>
 
 			<div class="mt-5">
 				<h3 class="title is-5">Recent Sessions</h3>
-				<SessionList sessions={recentSessions} />
+				<SessionList
+					sessions={recentSessions}
+					onedit={handleEditSession}
+					onremove={handleRemoveSession}
+				/>
 			</div>
 		{/if}
 	</div>
