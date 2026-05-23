@@ -2,6 +2,16 @@ import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
+const rawBasePath = (process.env.BASE_PATH ?? '').trim();
+const normalizedBasePath = rawBasePath ? rawBasePath.replace(/\/+$/, '') : '';
+const basePath = normalizedBasePath === '/' ? '' : normalizedBasePath;
+if (basePath && !basePath.startsWith('/')) {
+	throw new Error('BASE_PATH must be empty or start with "/"');
+}
+const appPath = `${basePath}/app`;
+const appScope = `${basePath}/`;
+const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 export default defineConfig({
 	plugins: [
 		sveltekit(),
@@ -9,7 +19,7 @@ export default defineConfig({
 			registerType: 'autoUpdate',
 			injectRegister: null,
 			strategies: 'generateSW',
-			includeAssets: ['favicon.png', 'robots.txt'],
+			includeAssets: ['favicon.svg', 'favicon.png', 'robots.txt'],
 			manifest: {
 				name: 'Baby Timer',
 				short_name: 'BabyTimer',
@@ -18,16 +28,16 @@ export default defineConfig({
 				background_color: '#fdf6f9',
 				display: 'standalone',
 				orientation: 'portrait',
-				start_url: '/app',
-				scope: '/',
+				start_url: appPath,
+				scope: appScope,
 				icons: [
 					{
-						src: '/icons/pwa-192x192.png',
+						src: `${basePath}/icons/pwa-192x192.png`,
 						sizes: '192x192',
 						type: 'image/png'
 					},
 					{
-						src: '/icons/pwa-512x512.png',
+						src: `${basePath}/icons/pwa-512x512.png`,
 						sizes: '512x512',
 						type: 'image/png',
 						purpose: 'maskable any'
@@ -36,9 +46,9 @@ export default defineConfig({
 			},
 			workbox: {
 				globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
-				additionalManifestEntries: [{ url: '/app', revision: null }],
-				navigateFallback: '/app',
-				navigateFallbackAllowlist: [/^\/app/],
+				additionalManifestEntries: [{ url: appPath, revision: null }],
+				navigateFallback: appPath,
+				navigateFallbackAllowlist: [new RegExp(`^${escapeRegex(appPath)}`)],
 				clientsClaim: true,
 				skipWaiting: true
 			}
