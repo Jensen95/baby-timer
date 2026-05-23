@@ -1,10 +1,64 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { getContext } from 'svelte';
 	import { base } from '$app/paths';
 	import { SESSION_KEY } from '$lib/auth/context';
 	import type { SessionStore } from '$lib/auth/context';
 
 	const session = getContext<SessionStore>(SESSION_KEY);
+
+	interface BeforeInstallPromptEvent extends Event {
+		prompt: () => Promise<void>;
+		userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
+	}
+
+	let installPrompt = $state<BeforeInstallPromptEvent | null>(null);
+	let installSupported = $state(false);
+	let standalone = $state(false);
+	let showInstallHelp = $state(false);
+
+	function updateStandaloneMode() {
+		standalone =
+			window.matchMedia('(display-mode: standalone)').matches ||
+			((window.navigator as Navigator & { standalone?: boolean }).standalone ?? false);
+	}
+
+	async function handleInstallClick() {
+		if (!installPrompt) return;
+		await installPrompt.prompt();
+		const { outcome } = await installPrompt.userChoice;
+		if (outcome === 'accepted') {
+			installPrompt = null;
+			installSupported = false;
+		}
+	}
+
+	onMount(() => {
+		updateStandaloneMode();
+		const isMobileBrowser = /android|iphone|ipad|ipod|mobile/i.test(window.navigator.userAgent);
+		showInstallHelp = isMobileBrowser && !standalone;
+
+		const onBeforeInstallPrompt = (event: Event) => {
+			event.preventDefault();
+			installPrompt = event as BeforeInstallPromptEvent;
+			installSupported = true;
+		};
+
+		const onAppInstalled = () => {
+			installPrompt = null;
+			installSupported = false;
+			showInstallHelp = false;
+			updateStandaloneMode();
+		};
+
+		window.addEventListener('beforeinstallprompt', onBeforeInstallPrompt);
+		window.addEventListener('appinstalled', onAppInstalled);
+
+		return () => {
+			window.removeEventListener('beforeinstallprompt', onBeforeInstallPrompt);
+			window.removeEventListener('appinstalled', onAppInstalled);
+		};
+	});
 </script>
 
 <svelte:head>
@@ -24,6 +78,18 @@
 				<a href="{base}/app" class="button is-white is-medium mt-4">Open Dashboard</a>
 			{:else}
 				<a href="{base}/login" class="button is-white is-medium mt-4">Get Started →</a>
+			{/if}
+			{#if !standalone && installSupported}
+				<div class="mt-3">
+					<button class="button is-light is-medium" type="button" onclick={handleInstallClick}>
+						Install App
+					</button>
+				</div>
+			{:else if showInstallHelp}
+				<p class="is-size-7 mt-3 has-text-white-bis">
+					To install: open your browser menu and choose <strong>Install app</strong> or
+					<strong>Add to Home screen</strong>.
+				</p>
 			{/if}
 		</div>
 	</div>
