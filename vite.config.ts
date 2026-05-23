@@ -7,6 +7,7 @@ export default defineConfig({
 		sveltekit(),
 		VitePWA({
 			registerType: 'autoUpdate',
+			injectRegister: null,
 			strategies: 'generateSW',
 			includeAssets: ['favicon.png', 'robots.txt'],
 			manifest: {

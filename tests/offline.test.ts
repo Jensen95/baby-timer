@@ -64,21 +64,10 @@ test.describe('Offline mode', () => {
 		await page.goto('/app');
 		await page.waitForLoadState('networkidle');
 
-		// If empty state (no babies), create one via the babies page first
-		const addBabyLink = page.getByRole('link', { name: 'Add Baby' });
-		if (await addBabyLink.isVisible({ timeout: 2000 }).catch(() => false)) {
-			await addBabyLink.click();
-			await page.waitForLoadState('networkidle');
-
-			// Open the add baby form and create a baby
-			await page.getByRole('button', { name: /\+ add baby/i }).click();
-			await page.getByLabel('Name').fill('Offline Baby');
-			await page.getByRole('button', { name: 'Add', exact: true }).click();
-
-			// Go back to the dashboard
-			await page.goto('/app');
-			await page.waitForLoadState('networkidle');
-		}
+		// Seed a baby directly into IndexedDB (avoids UI timing issues) then reload
+		await seedBaby(page);
+		await page.reload();
+		await page.waitForLoadState('networkidle');
 
 		// Click Start on the feeding timer
 		const startBtn = page.locator('.timer-btn--start').first();
