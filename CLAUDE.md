@@ -82,6 +82,7 @@ We use `supabase.auth.getUser()` (validates JWT with Supabase server) for securi
 - Session tables (`feeding_sessions`, `sleep_sessions`) have a denormalized `family_id` for fast, simple RLS
 - `duration_seconds` is a **generated column** — never set it in INSERT/UPDATE
 - Entitlement/access is family-based via `family_members` join table
+- Never mirror `GENERATED ALWAYS` columns into Dexie — omit them from local schemas entirely (local interfaces correctly omit `duration_seconds`)
 
 ## Testing Philosophy
 

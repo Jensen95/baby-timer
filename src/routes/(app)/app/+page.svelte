@@ -91,7 +91,6 @@
 				babies = await listBabiesLocal(familyId);
 				if (babies.length > 0) {
 					selectedBabyId = babies[0].id;
-					await loadSessionsForBaby(babies[0].id);
 				}
 			} catch (e) {
 				error = e instanceof Error ? e.message : 'Failed to load data';

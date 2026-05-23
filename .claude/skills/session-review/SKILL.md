@@ -32,3 +32,4 @@
 - Are all new tables in `supabase/migrations/` covered by RLS?
 - Is `src/lib/db/database.types.ts` up to date with migrations?
 - Are new components purely presentational (no data fetching)?
+- Do E2E tests assert data survives reload (e.g. visible data after `page.reload()`), not just that the shell renders?

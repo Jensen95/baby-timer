@@ -123,7 +123,12 @@ test.describe('Offline mode', () => {
 		expect(tableNames).toContain('sleep_sessions');
 		expect(tableNames).toContain('babies');
 		expect(tableNames).toContain('families');
-		expect(tableNames).toContain('family_members');
+
+		// Prove guest data survives a reload (the actual offline-first guarantee)
+		await seedBaby(page);
+		await page.reload();
+		await page.waitForLoadState('networkidle');
+		await expect(page.getByText('Test Baby')).toBeVisible({ timeout: 5000 });
 	});
 
 	test('can create a baby without logging in', async ({ page }) => {

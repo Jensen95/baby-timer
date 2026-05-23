@@ -17,6 +17,33 @@ async function mockSupabaseUnauthenticated(page: Page) {
 	);
 }
 
+async function seedActiveFeedingSession(page: Page) {
+	await page.evaluate(async () => {
+		const db = await new Promise<IDBDatabase>((resolve, reject) => {
+			const req = indexedDB.open('baby-timer');
+			req.onsuccess = () => resolve(req.result);
+			req.onerror = () => reject(req.error);
+		});
+		await new Promise<void>((resolve, reject) => {
+			const tx = db.transaction('feeding_sessions', 'readwrite');
+			tx.objectStore('feeding_sessions').put({
+				id: 'test-feed-resume-1',
+				baby_id: 'timer-test-baby',
+				family_id: null,
+				side: 'left',
+				started_at: new Date(Date.now() - 300_000).toISOString(),
+				ended_at: null,
+				note: null,
+				created_at: new Date(Date.now() - 300_000).toISOString(),
+				_sync: 'pending'
+			});
+			tx.oncomplete = () => resolve();
+			tx.onerror = () => reject(tx.error);
+		});
+		db.close();
+	});
+}
+
 async function seedBaby(page: Page) {
 	await page.evaluate(async () => {
 		const db = await new Promise<IDBDatabase>((resolve, reject) => {
@@ -130,5 +157,52 @@ test.describe('Timer', () => {
 		const nav = page.locator('nav.bottom-nav');
 		// The element is in the DOM but hidden via CSS media query
 		await expect(nav).toBeHidden();
+	});
+
+	test('feeding timer resumes after page reload', async ({ page }) => {
+		await mockSupabaseUnauthenticated(page);
+		await page.goto('/app');
+		await page.waitForLoadState('networkidle');
+
+		// Seed baby + an in-progress feeding session from ~5 min ago
+		await seedBaby(page);
+		await seedActiveFeedingSession(page);
+
+		// Reload — this is the key step: proves resume happens on reload, not just first load
+		await page.reload();
+		await page.waitForLoadState('networkidle');
+
+		// Stop button visible without any user interaction proves auto-resume
+		const stopBtn = page.locator('.timer-btn--stop').first();
+		await expect(stopBtn).toBeVisible({ timeout: 5000 });
+
+		// Timer digits are visible and not at zero (resumed from ~5 min ago)
+		const timerDigits = page.locator('.timer-digits').first();
+		await expect(timerDigits).toBeVisible();
+		const elapsedText = await timerDigits.innerText();
+		// A freshly-started (non-resumed) timer would show 0:00 or near-zero
+		expect(elapsedText).not.toMatch(/^0:0[0-4]/);
+
+		// Timer is counting — digits advance after 1 second
+		await page.waitForTimeout(1100);
+		expect(await timerDigits.innerText()).not.toBe(elapsedText);
+
+		// No duplicate session created — resume reused the existing row
+		const count = await page.evaluate(async (): Promise<number> => {
+			return new Promise((resolve) => {
+				const req = indexedDB.open('baby-timer');
+				req.onsuccess = () => {
+					const db = req.result;
+					const tx = db.transaction('feeding_sessions', 'readonly');
+					const countReq = tx.objectStore('feeding_sessions').count();
+					countReq.onsuccess = () => {
+						db.close();
+						resolve(countReq.result);
+					};
+				};
+				req.onerror = () => resolve(-1);
+			});
+		});
+		expect(count).toBe(1);
 	});
 });
