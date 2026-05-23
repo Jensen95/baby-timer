@@ -241,23 +241,19 @@ test.describe('Timer', () => {
 		const editButton = sessionEntry.getByRole('button', { name: 'Edit' });
 		const deleteButton = sessionEntry.getByRole('button', { name: 'Delete' });
 
-		await page.evaluate(() => {
-			let promptCall = 0;
-			window.prompt = () => {
-				promptCall += 1;
-				if (promptCall === 1) return 'both';
-				if (promptCall === 2) return '2026-01-01T01:00';
-				if (promptCall === 3) return '2026-01-01T01:05';
-				return '';
-			};
-			window.confirm = () => true;
-		});
-
 		await editButton.click();
+		await expect(page.getByText('Edit Session')).toBeVisible();
+		await page.getByLabel('Side').selectOption('both');
+		await page.getByLabel('Start time').fill('2026-01-01T01:00');
+		await page.getByLabel('End time').fill('2026-01-01T01:05');
+		await page.getByRole('button', { name: 'Save' }).click();
 
 		await expect(sessionEntry.locator('.session-type')).toContainText('both');
 
 		await deleteButton.click();
+		const deleteModal = page.locator('.modal.is-active').filter({ hasText: 'Delete Session' });
+		await expect(deleteModal).toBeVisible();
+		await deleteModal.getByRole('button', { name: 'Delete', exact: true }).click();
 
 		await expect(page.locator('.session-entry')).toHaveCount(0);
 	});
