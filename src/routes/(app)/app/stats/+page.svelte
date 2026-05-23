@@ -8,6 +8,13 @@
 	import { getUserFamilies } from '$lib/db/family';
 	import { db } from '$lib/db/local';
 	import { buildTimerResult } from '$lib/timer/timer-logic';
+	import {
+		HEAD_SIDES,
+		analyzeSleepPositionBalance,
+		formatHeadSideLabel,
+		getSleepSessionMinutes,
+		type SleepPositionBalance
+	} from '$lib/sessions/sleep-balance';
 
 	interface DaySummary {
 		date: string;
@@ -25,6 +32,7 @@
 	let loading = $state(true);
 	let error = $state<string | null>(null);
 	let summaries = $state<DaySummary[]>([]);
+	let sleepBalance = $state<SleepPositionBalance | null>(null);
 
 	const days = Array.from({ length: 7 }, (_, i) => {
 		const d = new Date();
@@ -87,12 +95,48 @@
 	async function loadStats(babyId: string) {
 		loading = true;
 		error = null;
+		sleepBalance = null;
 		try {
 			const dayList = getLast7Days();
+			const dateRangeStart = new Date(dayList[0] + 'T00:00:00');
+			const dateRangeEnd = new Date(dayList[dayList.length - 1] + 'T23:59:59.999');
+			const sleeps = await db.sleep_sessions
+				.where('baby_id')
+				.equals(babyId)
+				.filter((s) => {
+					const t = new Date(s.started_at);
+					return t >= dateRangeStart && t <= dateRangeEnd;
+				})
+				.toArray();
+			const sleepEntries = sleeps
+				.map((s) => {
+					const startedAt = new Date(s.started_at);
+					const endedAt = s.ended_at ? new Date(s.ended_at) : null;
+					const minutes = getSleepSessionMinutes({
+						side: s.side,
+						startedAt,
+						endedAt
+					});
+					return {
+						side: s.side,
+						day: startedAt.toISOString().split('T')[0],
+						startedAt,
+						endedAt,
+						minutes
+					};
+				})
+				.filter((s) => s.minutes > 0);
+			sleepBalance = analyzeSleepPositionBalance(
+				sleepEntries.map((s) => ({
+					side: s.side,
+					startedAt: s.startedAt,
+					endedAt: s.endedAt
+				}))
+			);
 			summaries = await Promise.all(
 				dayList.map(async (day) => {
 					const dayStart = new Date(day + 'T00:00:00');
-					const dayEnd = new Date(day + 'T23:59:59');
+					const dayEnd = new Date(day + 'T23:59:59.999');
 					const feedings = await db.feeding_sessions
 						.where('baby_id')
 						.equals(babyId)
@@ -101,14 +145,7 @@
 							return t >= dayStart && t <= dayEnd && s.ended_at !== null;
 						})
 						.toArray();
-					const sleeps = await db.sleep_sessions
-						.where('baby_id')
-						.equals(babyId)
-						.filter((s) => {
-							const t = new Date(s.started_at);
-							return t >= dayStart && t <= dayEnd && s.ended_at !== null;
-						})
-						.toArray();
+					const daySleeps = sleepEntries.filter((s) => s.day === day);
 					const feedMinutes = Math.round(
 						feedings.reduce(
 							(sum, s) =>
@@ -118,26 +155,19 @@
 							0
 						)
 					);
-					const sleepMinutes = Math.round(
-						sleeps.reduce(
-							(sum, s) =>
-								sum +
-								buildTimerResult(new Date(s.started_at), new Date(s.ended_at!)).durationSeconds /
-									60,
-							0
-						)
-					);
+					const sleepMinutes = daySleeps.reduce((sum, s) => sum + s.minutes, 0);
 					return {
 						date: day,
 						feedCount: feedings.length,
 						feedMinutes,
-						sleepCount: sleeps.length,
+						sleepCount: daySleeps.length,
 						sleepMinutes
 					};
 				})
 			);
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Failed to load stats';
+			sleepBalance = null;
 		} finally {
 			loading = false;
 		}
@@ -161,6 +191,22 @@
 	let avgFeedingsPerDay = $derived(
 		summaries.length > 0 ? Math.round((totalFeedings / summaries.length) * 10) / 10 : 0
 	);
+	let sleepPositionBreakdown = $derived.by(() => {
+		if (!sleepBalance || sleepBalance.totalMinutes === 0) return [];
+		const totalMinutes = sleepBalance.totalMinutes;
+		const minutesBySide = sleepBalance.minutesBySide;
+		return HEAD_SIDES.map((side) => ({
+			side,
+			minutes: minutesBySide[side]
+		}))
+			.filter(({ minutes }) => minutes > 0)
+			.sort((a, b) => b.minutes - a.minutes)
+			.map(({ side, minutes }) => ({
+				side,
+				minutes,
+				percent: Math.round((minutes / totalMinutes) * 100)
+			}));
+	});
 </script>
 
 <section class="section">
@@ -211,6 +257,28 @@
 						<p class="title">{totalSleepHours}h</p>
 					</div>
 				</div>
+			</div>
+
+			<div class="box mb-4">
+				<h3 class="subtitle is-6 mb-3">Sleep position balance (last 7 days)</h3>
+				{#if sleepBalance && sleepBalance.totalMinutes > 0}
+					<div class="tags mb-3">
+						{#each sleepPositionBreakdown as position}
+							<span class="tag is-light"
+								>{formatHeadSideLabel(position.side)}: {position.minutes} min ({position.percent}%)</span
+							>
+						{/each}
+					</div>
+					{#if sleepBalance.needsWarning && sleepBalance.message}
+						<div class="notification is-warning is-light">{sleepBalance.message}</div>
+					{:else}
+						<div class="notification is-success is-light">
+							Sleep positions look balanced. Keep alternating head direction between sleeps.
+						</div>
+					{/if}
+				{:else}
+					<p class="has-text-grey">No completed sleep sessions in the last 7 days yet.</p>
+				{/if}
 			</div>
 
 			<div class="box mb-4">
