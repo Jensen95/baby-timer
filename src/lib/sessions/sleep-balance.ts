@@ -17,7 +17,8 @@ export interface SleepPositionBalance {
 	message: string | null;
 }
 
-const IMBALANCE_THRESHOLD_PERCENT = 60;
+// Flag when one position accounts for at least 60% of completed sleep minutes in the recent window.
+export const SLEEP_POSITION_IMBALANCE_THRESHOLD_PERCENT = 60;
 
 export function formatHeadSideLabel(side: HeadSide): string {
 	switch (side) {
@@ -72,7 +73,7 @@ export function analyzeSleepPositionBalance(
 		}
 	}
 	const dominantPercent = Math.round((dominantMinutes / totalMinutes) * 100);
-	const needsWarning = dominantPercent >= IMBALANCE_THRESHOLD_PERCENT;
+	const needsWarning = dominantPercent >= SLEEP_POSITION_IMBALANCE_THRESHOLD_PERCENT;
 
 	let message: string | null = null;
 	if (needsWarning && dominantSide) {

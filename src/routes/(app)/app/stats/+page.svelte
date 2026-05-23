@@ -99,7 +99,7 @@
 		try {
 			const dayList = getLast7Days();
 			const dateRangeStart = new Date(dayList[0] + 'T00:00:00');
-			const dateRangeEnd = new Date(dayList[dayList.length - 1] + 'T23:59:59');
+			const dateRangeEnd = new Date(dayList[dayList.length - 1] + 'T23:59:59.999');
 			const sleeps = await db.sleep_sessions
 				.where('baby_id')
 				.equals(babyId)
@@ -136,7 +136,7 @@
 			summaries = await Promise.all(
 				dayList.map(async (day) => {
 					const dayStart = new Date(day + 'T00:00:00');
-					const dayEnd = new Date(day + 'T23:59:59');
+					const dayEnd = new Date(day + 'T23:59:59.999');
 					const feedings = await db.feeding_sessions
 						.where('baby_id')
 						.equals(babyId)
