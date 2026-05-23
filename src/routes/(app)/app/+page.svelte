@@ -174,6 +174,7 @@
 			};
 			await createFeedingLocal(payload);
 			activeFeedingSession = payload;
+			await loadSessionsForBaby(selectedBabyId!);
 			sync.syncNow();
 		} catch (e) {
 			feedingTimer.reset();
@@ -216,6 +217,7 @@
 			};
 			await createSleepLocal(payload);
 			activeSleepSession = payload;
+			await loadSessionsForBaby(selectedBabyId!);
 			sync.syncNow();
 		} catch (e) {
 			sleepTimer.reset();

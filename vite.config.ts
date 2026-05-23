@@ -8,7 +8,6 @@ export default defineConfig({
 		VitePWA({
 			registerType: 'autoUpdate',
 			strategies: 'generateSW',
-			outDir: 'build',
 			includeAssets: ['favicon.png', 'robots.txt'],
 			manifest: {
 				name: 'Baby Timer',
@@ -36,7 +35,9 @@ export default defineConfig({
 			},
 			workbox: {
 				globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
-				navigateFallback: '/404.html',
+				additionalManifestEntries: [{ url: '/app', revision: null }],
+				navigateFallback: '/app',
+				navigateFallbackAllowlist: [/^\/app/],
 				clientsClaim: true,
 				skipWaiting: true
 			}
