@@ -19,28 +19,47 @@ export function createSyncEngine() {
 			} = await supabase.auth.getSession();
 			if (!session) return;
 
+			let anyError = false;
+
 			const pendingBabies = await db.babies.where('_sync').equals('pending').toArray();
 			for (const baby of pendingBabies) {
+				if (!baby.family_id) {
+					continue;
+				}
 				const { _sync, ...payload } = baby;
 				const { error: err } = await supabase.from('babies').upsert(payload as any);
 				if (!err) await db.babies.update(baby.id, { _sync: 'synced' });
+				else anyError = true;
 			}
 
 			const pendingFeedings = await db.feeding_sessions.where('_sync').equals('pending').toArray();
 			for (const feeding of pendingFeedings) {
+				if (!feeding.family_id) {
+					continue;
+				}
 				const { _sync, ...payload } = feeding;
 				const { error: err } = await supabase.from('feeding_sessions').upsert(payload as any);
 				if (!err) await db.feeding_sessions.update(feeding.id, { _sync: 'synced' });
+				else anyError = true;
 			}
 
 			const pendingSleeps = await db.sleep_sessions.where('_sync').equals('pending').toArray();
 			for (const sleep of pendingSleeps) {
+				if (!sleep.family_id) {
+					continue;
+				}
 				const { _sync, ...payload } = sleep;
 				const { error: err } = await supabase.from('sleep_sessions').upsert(payload as any);
 				if (!err) await db.sleep_sessions.update(sleep.id, { _sync: 'synced' });
+				else anyError = true;
 			}
 
-			lastSyncedAt = new Date();
+			if (anyError) {
+				error = 'Some rows failed to sync';
+			} else {
+				error = null;
+				lastSyncedAt = new Date();
+			}
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Sync failed';
 		} finally {

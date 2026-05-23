@@ -31,8 +31,8 @@
 					familyId = newFamily.id;
 				}
 				await sync.migrateGuestData(userId, familyId);
-			} catch {
-				// non-fatal
+			} catch (e) {
+				console.error('Guest migration failed:', e);
 			}
 		}
 

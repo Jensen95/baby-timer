@@ -65,19 +65,32 @@ npx playwright screenshot --browser=chromium \
 
 Example: `/app/history` → slug `app-history` → file `app-history.png`
 
-### 5. Commit screenshots via a git worktree
+### 5. Commit screenshots via a git worktree (images only, orphan branch)
 
-Never touch the user's working tree. Use a temporary worktree against the screenshots branch:
+Never touch the user's working tree. Always build a true orphan so the screenshots branch contains **only images** — no code, no history:
 
 ```bash
 TMPWT=$(mktemp -d)
-git worktree add "$TMPWT" --orphan "$SCREENSHOTS_BRANCH" 2>/dev/null \
-  || git worktree add "$TMPWT" "$SCREENSHOTS_BRANCH"
-mkdir -p "$TMPWT/.screenshots"
-cp /tmp/screenshots/*.png "$TMPWT/.screenshots/"
-cd "$TMPWT" && git add .screenshots/
+
+# Detach then create a fresh orphan every time.
+# Never reuse an existing screenshots branch (that carries history/code).
+git worktree add --detach "$TMPWT"
+cd "$TMPWT"
+git checkout --orphan "$SCREENSHOTS_BRANCH"
+git reset --hard   # orphan inherits the prior index; wipe it
+git clean -fdx     # remove any stray files — only screenshots go in
+
+mkdir -p .screenshots
+cp /tmp/screenshots/*.png .screenshots/
+
+git add .screenshots/
 git commit -m "chore: screenshots for $BRANCH"
+
+# Force-push the single orphan commit — remote ref has exactly one commit
+# with only the images, regardless of what was there before.
 git push --force origin "HEAD:$SCREENSHOTS_BRANCH"
+
+cd - >/dev/null
 git worktree remove --force "$TMPWT"
 ```
 
