@@ -118,3 +118,12 @@ A tight summary:
 - Always get explicit confirmation before writing to CLAUDE.md or a skill file.
 - Don't invent learnings to fill a quota. A session with nothing worth saving is a valid outcome —
   say so.
+
+## Skill authoring conventions
+
+- When designing **or correcting** a skill, confirm its purpose in one sentence first — patching
+  symptoms without rechecking the purpose causes full rewrites.
+- Skills with overlapping trigger vocabulary must cross-reference each other in their trigger
+  sections (e.g. "if the user wants X instead, use the **Y** skill").
+- When spawning agents to do the persisting or research work, follow the model-selection and
+  parallelism rules in the **skill-authoring** skill.
