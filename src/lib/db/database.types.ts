@@ -139,6 +139,45 @@ export type Database = {
 					created_at?: string;
 				};
 			};
+			breast_pump_sessions: {
+				Row: {
+					id: string;
+					baby_id: string;
+					family_id: string;
+					side: 'left' | 'right' | 'both';
+					started_at: string;
+					ended_at: string | null;
+					duration_seconds: number | null;
+					yield_left_ml: number | null;
+					yield_right_ml: number | null;
+					note: string | null;
+					created_at: string;
+				};
+				Insert: {
+					id?: string;
+					baby_id: string;
+					family_id: string;
+					side?: 'left' | 'right' | 'both';
+					started_at?: string;
+					ended_at?: string | null;
+					yield_left_ml?: number | null;
+					yield_right_ml?: number | null;
+					note?: string | null;
+					created_at?: string;
+				};
+				Update: {
+					id?: string;
+					baby_id?: string;
+					family_id?: string;
+					side?: 'left' | 'right' | 'both';
+					started_at?: string;
+					ended_at?: string | null;
+					yield_left_ml?: number | null;
+					yield_right_ml?: number | null;
+					note?: string | null;
+					created_at?: string;
+				};
+			};
 			sleep_sessions: {
 				Row: {
 					id: string;

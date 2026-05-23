@@ -24,14 +24,24 @@
 		deleteSleepLocal,
 		type LocalSleep
 	} from '$lib/db/local-sleep';
+	import {
+		listBreastPumpSessionsLocal,
+		getActiveBreastPumpSessionLocal,
+		createBreastPumpLocal,
+		updateBreastPumpLocal,
+		deleteBreastPumpLocal,
+		type LocalBreastPump
+	} from '$lib/db/local-breast-pump';
 	import { listBabiesLocal, type LocalBaby } from '$lib/db/local-babies';
 	import { getLocalFamily, putLocalFamily } from '$lib/db/local-family';
 	import { getUserFamilies } from '$lib/db/family';
 	import FeedingTimerCard from '$lib/components/FeedingTimerCard.svelte';
 	import SleepTimerCard from '$lib/components/SleepTimerCard.svelte';
+	import BreastPumpTimerCard from '$lib/components/BreastPumpTimerCard.svelte';
 	import SessionList from '$lib/components/SessionList.svelte';
 	import type { FeedingSide } from '$lib/sessions/feeding';
 	import type { HeadSide } from '$lib/sessions/sleep';
+	import type { PumpSide } from '$lib/sessions/breast-pump';
 
 	const session = getContext<SessionStore>(SESSION_KEY);
 	const sync = getContext<SyncEngineStore>(SYNC_KEY);
@@ -44,15 +54,18 @@
 
 	let activeFeedingSession = $state<LocalFeeding | null>(null);
 	let activeSleepSession = $state<LocalSleep | null>(null);
+	let activeBreastPumpSession = $state<LocalBreastPump | null>(null);
 
 	let recentSessions = $state<
 		Array<{
 			id: string;
-			type: 'feeding' | 'sleep';
+			type: 'feeding' | 'sleep' | 'breast_pump';
 			side: string;
 			startedAt: Date;
 			endedAt: Date | null;
 			durationSeconds: number | null;
+			yieldLeftMl: number | null;
+			yieldRightMl: number | null;
 			note: string | null;
 		}>
 	>([]);
@@ -61,17 +74,24 @@
 	let editSide = $state('');
 	let editStartedAt = $state('');
 	let editEndedAt = $state('');
+	let editYieldLeftMl = $state('');
+	let editYieldRightMl = $state('');
 
 	const feedingTimer = createTimer();
 	const sleepTimer = createTimer();
+	const breastPumpTimer = createTimer();
 
 	let feedingSide = $state<FeedingSide>('left');
 	let sleepSide = $state<HeadSide>('back');
+	let breastPumpSide = $state<PumpSide>('both');
+	let breastPumpYieldLeftMl = $state('');
+	let breastPumpYieldRightMl = $state('');
 
 	let selectedBaby = $derived(babies.find((b) => b.id === selectedBabyId) ?? null);
 
 	const FEEDING_SIDES: FeedingSide[] = ['left', 'right', 'both'];
 	const SLEEP_SIDES: HeadSide[] = ['left', 'right', 'back', 'tummy', 'side'];
+	const PUMP_SIDES: PumpSide[] = ['left', 'right', 'both'];
 
 	$effect(() => {
 		(async () => {
@@ -116,15 +136,19 @@
 	});
 
 	async function loadSessionsForBaby(babyId: string) {
-		const [activeFeeding, activeSleep, feedingSessions, sleepSessions] = await Promise.all([
-			getActiveFeedingSessionLocal(babyId),
-			getActiveSleepSessionLocal(babyId),
-			listFeedingSessionsLocal(babyId, 20),
-			listSleepSessionsLocal(babyId, 20)
-		]);
+		const [activeFeeding, activeSleep, activePump, feedingSessions, sleepSessions, pumpSessions] =
+			await Promise.all([
+				getActiveFeedingSessionLocal(babyId),
+				getActiveSleepSessionLocal(babyId),
+				getActiveBreastPumpSessionLocal(babyId),
+				listFeedingSessionsLocal(babyId, 20),
+				listSleepSessionsLocal(babyId, 20),
+				listBreastPumpSessionsLocal(babyId, 20)
+			]);
 
 		activeFeedingSession = activeFeeding;
 		activeSleepSession = activeSleep;
+		activeBreastPumpSession = activePump;
 
 		if (activeFeeding && !feedingTimer.running) {
 			feedingTimer.resume(new Date(activeFeeding.started_at));
@@ -134,6 +158,15 @@
 		if (activeSleep && !sleepTimer.running) {
 			sleepTimer.resume(new Date(activeSleep.started_at));
 			sleepSide = activeSleep.side;
+		}
+
+		if (activePump && !breastPumpTimer.running) {
+			breastPumpTimer.resume(new Date(activePump.started_at));
+			breastPumpSide = activePump.side;
+			breastPumpYieldLeftMl =
+				activePump.yield_left_ml !== null ? String(activePump.yield_left_ml) : '';
+			breastPumpYieldRightMl =
+				activePump.yield_right_ml !== null ? String(activePump.yield_right_ml) : '';
 		}
 
 		const combined = [
@@ -146,6 +179,8 @@
 				durationSeconds: s.ended_at
 					? buildTimerResult(new Date(s.started_at), new Date(s.ended_at)).durationSeconds
 					: null,
+				yieldLeftMl: null,
+				yieldRightMl: null,
 				note: s.note
 			})),
 			...sleepSessions.map((s) => ({
@@ -157,6 +192,21 @@
 				durationSeconds: s.ended_at
 					? buildTimerResult(new Date(s.started_at), new Date(s.ended_at)).durationSeconds
 					: null,
+				yieldLeftMl: null,
+				yieldRightMl: null,
+				note: s.note
+			})),
+			...pumpSessions.map((s) => ({
+				id: s.id,
+				type: 'breast_pump' as const,
+				side: s.side,
+				startedAt: new Date(s.started_at),
+				endedAt: s.ended_at ? new Date(s.ended_at) : null,
+				durationSeconds: s.ended_at
+					? buildTimerResult(new Date(s.started_at), new Date(s.ended_at)).durationSeconds
+					: null,
+				yieldLeftMl: s.yield_left_ml,
+				yieldRightMl: s.yield_right_ml,
 				note: s.note
 			}))
 		].sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime());
@@ -276,6 +326,86 @@
 		}
 	}
 
+	function parseOptionalYield(value: string): number | null {
+		const trimmed = value.trim();
+		if (!trimmed) return null;
+		const parsed = Number(trimmed);
+		if (!Number.isFinite(parsed) || parsed < 0) {
+			throw new Error('Yield must be a non-negative number');
+		}
+		return Math.round(parsed);
+	}
+
+	async function handleStartBreastPump(state: {
+		side: PumpSide;
+		yieldLeftMl: string;
+		yieldRightMl: string;
+	}) {
+		if (!selectedBabyId) return;
+		try {
+			const yieldLeftMl = parseOptionalYield(state.yieldLeftMl);
+			const yieldRightMl = parseOptionalYield(state.yieldRightMl);
+			breastPumpSide = state.side;
+			breastPumpYieldLeftMl = state.yieldLeftMl;
+			breastPumpYieldRightMl = state.yieldRightMl;
+			breastPumpTimer.start();
+			const id = crypto.randomUUID();
+			const now = breastPumpTimer.startedAt!.toISOString();
+			const payload: LocalBreastPump = {
+				id,
+				baby_id: selectedBabyId,
+				family_id: familyId,
+				side: state.side,
+				started_at: now,
+				ended_at: null,
+				yield_left_ml: yieldLeftMl,
+				yield_right_ml: yieldRightMl,
+				note: null,
+				created_at: now,
+				_sync: 'pending'
+			};
+			await createBreastPumpLocal(payload);
+			activeBreastPumpSession = payload;
+			await loadSessionsForBaby(selectedBabyId);
+			sync.syncNow();
+		} catch (e) {
+			breastPumpTimer.reset();
+			error = e instanceof Error ? e.message : 'Failed to start breast pump session';
+		}
+	}
+
+	async function handleBreastPumpSideChange(side: PumpSide) {
+		breastPumpSide = side;
+		if (!activeBreastPumpSession || !selectedBabyId || activeBreastPumpSession.side === side)
+			return;
+		try {
+			await updateBreastPumpLocal(activeBreastPumpSession.id, { side, _sync: 'pending' });
+			activeBreastPumpSession = { ...activeBreastPumpSession, side, _sync: 'pending' };
+			await loadSessionsForBaby(selectedBabyId);
+			sync.syncNow();
+		} catch (e) {
+			error = e instanceof Error ? e.message : 'Failed to update breast pump side';
+		}
+	}
+
+	async function handleStopBreastPump() {
+		if (!activeBreastPumpSession) return;
+		const result = breastPumpTimer.stop();
+		if (!result) return;
+		try {
+			const endedAt = result.endedAt.toISOString();
+			await updateBreastPumpLocal(activeBreastPumpSession.id, {
+				ended_at: endedAt,
+				_sync: 'pending'
+			});
+			activeBreastPumpSession = null;
+			await loadSessionsForBaby(selectedBabyId!);
+			sync.syncNow();
+		} catch (e) {
+			error = e instanceof Error ? e.message : 'Failed to stop breast pump session';
+		}
+	}
+
 	function formatDateTimeInput(date: Date): string {
 		const pad = (value: number) => String(value).padStart(2, '0');
 		return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
@@ -291,6 +421,8 @@
 		editSide = sessionItem.side;
 		editStartedAt = formatDateTimeInput(sessionItem.startedAt);
 		editEndedAt = sessionItem.endedAt ? formatDateTimeInput(sessionItem.endedAt) : '';
+		editYieldLeftMl = sessionItem.yieldLeftMl !== null ? String(sessionItem.yieldLeftMl) : '';
+		editYieldRightMl = sessionItem.yieldRightMl !== null ? String(sessionItem.yieldRightMl) : '';
 	}
 
 	function closeEditSessionModal() {
@@ -298,11 +430,18 @@
 		editSide = '';
 		editStartedAt = '';
 		editEndedAt = '';
+		editYieldLeftMl = '';
+		editYieldRightMl = '';
 	}
 
 	async function saveSessionEdits() {
 		if (!editingSession) return;
-		const allowedSides: string[] = editingSession.type === 'feeding' ? FEEDING_SIDES : SLEEP_SIDES;
+		const allowedSides: string[] =
+			editingSession.type === 'sleep'
+				? SLEEP_SIDES
+				: editingSession.type === 'breast_pump'
+					? PUMP_SIDES
+					: FEEDING_SIDES;
 		const nextSide = editSide.trim().toLowerCase();
 		if (!allowedSides.includes(nextSide)) {
 			error = 'Invalid side selection';
@@ -332,6 +471,15 @@
 					side: nextSide as FeedingSide,
 					started_at: startedAt.toISOString(),
 					ended_at: endedAt ? endedAt.toISOString() : null,
+					_sync: 'pending'
+				});
+			} else if (editingSession.type === 'breast_pump') {
+				await updateBreastPumpLocal(editingSession.id, {
+					side: nextSide as PumpSide,
+					started_at: startedAt.toISOString(),
+					ended_at: endedAt ? endedAt.toISOString() : null,
+					yield_left_ml: parseOptionalYield(editYieldLeftMl),
+					yield_right_ml: parseOptionalYield(editYieldRightMl),
 					_sync: 'pending'
 				});
 			} else {
@@ -367,6 +515,12 @@
 				if (activeFeedingSession?.id === pendingDeleteSession.id) {
 					activeFeedingSession = null;
 					feedingTimer.reset();
+				}
+			} else if (pendingDeleteSession.type === 'breast_pump') {
+				await deleteBreastPumpLocal(pendingDeleteSession.id);
+				if (activeBreastPumpSession?.id === pendingDeleteSession.id) {
+					activeBreastPumpSession = null;
+					breastPumpTimer.reset();
 				}
 			} else {
 				await deleteSleepLocal(pendingDeleteSession.id);
@@ -427,7 +581,7 @@
 						running={feedingTimer.running}
 						elapsed={feedingTimer.elapsed}
 						side={feedingSide}
-						disabled={sleepTimer.running}
+						disabled={sleepTimer.running || breastPumpTimer.running}
 						onstart={handleStartFeeding}
 						onstop={handleStopFeeding}
 						onsidechange={handleFeedingSideChange}
@@ -438,10 +592,25 @@
 						running={sleepTimer.running}
 						elapsed={sleepTimer.elapsed}
 						side={sleepSide}
-						disabled={feedingTimer.running}
+						disabled={feedingTimer.running || breastPumpTimer.running}
 						onstart={handleStartSleep}
 						onstop={handleStopSleep}
 						onsidechange={handleSleepSideChange}
+					/>
+				</div>
+				<div class="column">
+					<BreastPumpTimerCard
+						running={breastPumpTimer.running}
+						elapsed={breastPumpTimer.elapsed}
+						side={breastPumpSide}
+						yieldLeftMl={breastPumpYieldLeftMl}
+						yieldRightMl={breastPumpYieldRightMl}
+						disabled={feedingTimer.running || sleepTimer.running}
+						onstart={handleStartBreastPump}
+						onstop={handleStopBreastPump}
+						onsidechange={handleBreastPumpSideChange}
+						onyieldleftchange={(value) => (breastPumpYieldLeftMl = value)}
+						onyieldrightchange={(value) => (breastPumpYieldRightMl = value)}
 					/>
 				</div>
 			</div>
@@ -478,7 +647,7 @@
 					<div class="control">
 						<div class="select is-fullwidth">
 							<select id="edit-session-side" bind:value={editSide}>
-								{#each editingSession.type === 'feeding' ? FEEDING_SIDES : SLEEP_SIDES as sideOption}
+								{#each editingSession.type === 'sleep' ? SLEEP_SIDES : editingSession.type === 'breast_pump' ? PUMP_SIDES : FEEDING_SIDES as sideOption}
 									<option value={sideOption}>{sideOption}</option>
 								{/each}
 							</select>
@@ -508,6 +677,34 @@
 					</div>
 					<p class="help">Leave blank for active session.</p>
 				</div>
+				{#if editingSession.type === 'breast_pump'}
+					<div class="field">
+						<label class="label" for="edit-session-yield-left">Left yield (ml)</label>
+						<div class="control">
+							<input
+								id="edit-session-yield-left"
+								class="input"
+								type="number"
+								min="0"
+								step="1"
+								bind:value={editYieldLeftMl}
+							/>
+						</div>
+					</div>
+					<div class="field">
+						<label class="label" for="edit-session-yield-right">Right yield (ml)</label>
+						<div class="control">
+							<input
+								id="edit-session-yield-right"
+								class="input"
+								type="number"
+								min="0"
+								step="1"
+								bind:value={editYieldRightMl}
+							/>
+						</div>
+					</div>
+				{/if}
 			</section>
 			<footer class="modal-card-foot">
 				<button class="button is-primary" type="button" onclick={saveSessionEdits}>Save</button>
