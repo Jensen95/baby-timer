@@ -49,7 +49,7 @@ export default defineConfig({
 				globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
 				additionalManifestEntries: [{ url: appShellPath, revision: null }],
 				navigateFallback: appShellPath,
-				navigateFallbackAllowlist: [new RegExp(`^${escapeRegex(appPath)}`)],
+				navigateFallbackAllowlist: [new RegExp(`^${escapeRegex(appPath)}(?:/|$|\\.html$)`)],
 				clientsClaim: true,
 				skipWaiting: true
 			}
