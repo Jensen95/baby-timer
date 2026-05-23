@@ -2,81 +2,119 @@
 
 ## Trigger phrases
 
-Fire on intent, not exact wording. Load this skill whenever the user signals they want a
-quality gate before sharing work, or a wrap-up of what changed. Examples:
+Fire on intent, not exact wording. Load this skill when the user wants to **reflect on how the
+session went** and capture durable learnings — a retrospective on the conversation, not a review
+of the code. Examples:
 
-- "review this session", "session summary", "what did we do", "wrap up"
-- "before we push", "ready to merge", "push to CI", "are we ready to commit"
-- "check everything", "double check", "is everything good", "did we miss anything"
+- "review this session", "let's do a retro", "retrospective", "post-mortem"
+- "what did we learn", "any learnings", "lessons from this session"
+- "what should we remember", "capture this for next time", "save what we learned"
+- "what went well / badly", "where did you get stuck", "what was confusing"
+- "update CLAUDE.md / the skills with what we learned"
 
-When unsure whether a phrase fits, prefer to run it — this is a cheap, read-mostly check.
+This is NOT a code-quality or pre-push check. If the user wants `check`/`lint`/`test`, a diff
+review, or a "are we ready to push" gate, that is the **pre-push** skill — use that instead.
 
 ## Purpose
 
-This is a **pre-push / pre-commit quality gate** and a session-learning pass — not just a diff
-dump. The goal is to catch problems before they hit CI or review, and to verify the change
-respects this project's conventions. Run the checks, then actively walk the checklist against
-the actual diff and call out anything that's off.
+A meta-review of the **conversation itself**. Look back at how this session unfolded, extract the
+learnings worth keeping, get a second opinion from Opus on which ones are worth persisting, then
+write the keepers into the right place (CLAUDE.md or a skill) so future sessions don't repeat the
+same mistakes. The output is updated memory, not a fixed diff.
 
 ## When invoked, do the following:
 
-### 1. Establish what changed
+### 1. Reconstruct the session
+
+Work from the actual conversation transcript above — not from the code, and not from memory of how
+it "should" have gone. Build a short factual timeline:
+
+- **What was asked:** the user's goals, in order, including mid-course corrections.
+- **What was done:** the approach taken and the final outcome for each goal.
+- **Friction points:** where you went down a wrong path, misread a convention, needed several
+  attempts, asked a question you could have answered yourself, or got corrected by the user.
+- **What worked:** approaches, commands, or patterns that paid off and should be repeated.
+
+For grounding only, you may glance at what changed — but keep the focus on the conversation:
 
 ```bash
+git log --oneline -10
 git diff --stat HEAD
-git diff --name-only $(git merge-base origin/main HEAD)...HEAD
 ```
 
-Use this to scope the rest of the review to the files actually touched.
+### 2. Draft candidate learnings
 
-### 2. Run the quality gate
+Turn the friction points and wins into concrete, reusable statements. A good learning is specific
+and actionable; a bad one is a vague platitude.
+
+- ✅ "Pure logic in `src/lib/timer` and `src/lib/sessions` must have Vitest coverage — I shipped
+  an untested formatter and the user asked for the test."
+- ✅ "`duration_seconds` is a generated column; including it in an INSERT fails. I tried it twice."
+- ❌ "Be more careful." / "Write better tests." (not actionable, not specific)
+
+Only keep learnings that would change behavior in a future session. Discard anything that is
+already documented, one-off, or obvious. Aim for a tight list (roughly 2–6 items), not an
+exhaustive log.
+
+### 3. Consult Opus for a second opinion
+
+Before persisting anything, get Opus to pressure-test the candidate list. Pass it the drafted
+learnings and ask which are genuinely worth saving, which are redundant or too vague, and how to
+phrase each one tightly. Use the `claude` CLI in print mode:
 
 ```bash
-npm run check
-npm run lint
-npm run test:unit
+claude -p --model opus 'You are reviewing learnings from a coding session on a SvelteKit +
+Supabase project, to decide what is worth persisting to long-term memory (CLAUDE.md or skill
+files).
+
+For each candidate below, judge: (a) keep, drop, or merge; (b) if keep, the tightest one-line
+phrasing; (c) where it belongs — CLAUDE.md (project-wide fact/convention/gotcha) or a specific
+skill file (domain-specific procedure). Flag anything vague, redundant with what is likely already
+documented, or too one-off to generalize.
+
+Candidate learnings:
+<paste the numbered candidate learnings from step 2>'
 ```
 
-Then verify the lockfile is in sync (stale `package-lock.json` breaks `npm ci` in CI):
+Treat Opus's response as advice, not orders: fold in its phrasing and keep/drop calls where they
+improve the list, but you own the final decision. If the `claude` CLI is unavailable, say so and
+proceed with your own judgment.
 
-```bash
-npm install
-git diff --stat package-lock.json
-```
+### 4. Persist the keepers in the right place
 
-A non-empty diff means the lockfile drifted — flag it and stage the regenerated file.
+Route each surviving learning by its kind. **Show the user the proposed edits and get a yes before
+writing** — memory changes are durable and easy to get wrong.
 
-### 3. Review the diff against project conventions
+- **CLAUDE.md** — project-wide facts, conventions, and gotchas that apply regardless of task.
+  These are always loaded, so the bar is high: only broadly-relevant, durable items. Add to the
+  matching existing section (Known Gotchas, Database Conventions, Conventions, Testing
+  Philosophy) rather than creating new top-level sections.
+- **`.claude/skills/<name>/SKILL.md`** — domain-specific procedures and pitfalls that only matter
+  for a particular kind of work (Svelte, Supabase migrations, screenshots, pre-push). These load
+  by trigger, so task-specific detail belongs here. Add to the existing skill whose domain fits;
+  create a new skill only if the learning is a genuinely new, recurring workflow.
+- **Neither** — if a learning is real but fits no clear home, surface it in the report and let the
+  user decide. Don't force it into a file.
 
-For each item, look at the actual changed files — don't answer from memory:
-
-- **Untested logic:** new/changed pure functions in `src/lib/` (timer, sessions) should have
-  Vitest coverage. Flag anything pure and untested.
-- **Runes only:** no `writable`/`readable`/`derived` from `svelte/store` in new code — must use
-  `$state` / `$derived` / `$effect`.
-- **RLS:** every new table in `supabase/migrations/` must `enable row level security` and carry a
-  family-scoped policy.
-- **DB types:** if migrations changed, `src/lib/db/database.types.ts` must reflect them.
-- **Component purity:** new components in `src/lib/components/` should be presentational — no
-  Supabase calls or data fetching.
-- **E2E durability:** new Playwright tests should assert data survives a `page.reload()`, not just
-  that the shell renders.
-
-### 4. Act on what you find
-
-- **Fix small, safe, in-scope issues directly:** add a missing test for a pure function,
-  regenerate the lockfile, update `database.types.ts`, swap a legacy store for a rune. Re-run the
-  relevant check after fixing.
-- **Flag larger or risky issues, don't silently fix them:** missing RLS, data-fetching in a
-  presentational component, a failing test whose intent is unclear. Describe the problem and
-  propose a fix; let the user decide.
-- **Never** commit or push — that's the user's call.
+Keep edits surgical: one tight line or bullet in the correct section. Match the file's existing
+voice and the project's conventions (tabs, single quotes, 100-char width).
 
 ### 5. Report
 
 A tight summary:
 
-- Files changed and their purpose (one line each)
-- Gate results: check / lint / test / lockfile — pass or the exact failure
-- Issues found, split into **fixed** (what you did) and **needs attention** (what to decide)
-- Suggested next step (e.g. "ready to push", or "add RLS to `x` first")
+- **Timeline:** 2–4 lines on what the session set out to do and how it went.
+- **Learnings captured:** each kept learning, where it was written (file + section), and why.
+- **Considered but dropped:** learnings you discarded, with the one-word reason (vague /
+  redundant / one-off) — so the user can overrule.
+- **Opus notes:** anything material from the second opinion worth flagging.
+
+## Constraints
+
+- This skill reviews the **conversation**, not the code. No `npm run check/lint/test` here — that
+  is the pre-push skill's job.
+- Never commit or push. Persisting learnings means editing CLAUDE.md / skill files; the user
+  commits.
+- Always get explicit confirmation before writing to CLAUDE.md or a skill file.
+- Don't invent learnings to fill a quota. A session with nothing worth saving is a valid outcome —
+  say so.
