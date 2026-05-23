@@ -1,5 +1,7 @@
 import type { HeadSide } from './sleep';
 
+export const HEAD_SIDES: HeadSide[] = ['left', 'right', 'back', 'tummy', 'side'];
+
 export interface SleepPositionSession {
 	side: HeadSide;
 	startedAt: Date;
@@ -44,10 +46,7 @@ export function analyzeSleepPositionBalance(
 	};
 
 	for (const session of sessions) {
-		if (!session.endedAt || session.endedAt <= session.startedAt) continue;
-		const durationMinutes = Math.round(
-			(session.endedAt.getTime() - session.startedAt.getTime()) / 60000
-		);
+		const durationMinutes = getSleepSessionMinutes(session);
 		if (durationMinutes <= 0) continue;
 		minutesBySide[session.side] += durationMinutes;
 	}
@@ -64,11 +63,14 @@ export function analyzeSleepPositionBalance(
 		};
 	}
 
-	const dominantSide = (Object.entries(minutesBySide).reduce(
-		(acc, [side, minutes]) => (minutes > acc.minutes ? { side: side as HeadSide, minutes } : acc),
-		{ side: 'left' as HeadSide, minutes: 0 }
-	).side ?? null) as HeadSide | null;
-	const dominantMinutes = dominantSide ? minutesBySide[dominantSide] : 0;
+	let dominantSide: HeadSide | null = null;
+	let dominantMinutes = 0;
+	for (const side of HEAD_SIDES) {
+		if (minutesBySide[side] > dominantMinutes) {
+			dominantSide = side;
+			dominantMinutes = minutesBySide[side];
+		}
+	}
 	const dominantPercent = Math.round((dominantMinutes / totalMinutes) * 100);
 	const needsWarning = dominantPercent >= IMBALANCE_THRESHOLD_PERCENT;
 
@@ -89,4 +91,9 @@ export function analyzeSleepPositionBalance(
 		needsWarning,
 		message
 	};
+}
+
+export function getSleepSessionMinutes(session: SleepPositionSession): number {
+	if (!session.endedAt || session.endedAt <= session.startedAt) return 0;
+	return Math.round((session.endedAt.getTime() - session.startedAt.getTime()) / 60000);
 }

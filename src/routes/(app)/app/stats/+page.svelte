@@ -9,11 +9,12 @@
 	import { db } from '$lib/db/local';
 	import { buildTimerResult } from '$lib/timer/timer-logic';
 	import {
+		HEAD_SIDES,
 		analyzeSleepPositionBalance,
 		formatHeadSideLabel,
+		getSleepSessionMinutes,
 		type SleepPositionBalance
 	} from '$lib/sessions/sleep-balance';
-	import type { HeadSide } from '$lib/sessions/sleep';
 
 	interface DaySummary {
 		date: string;
@@ -111,10 +112,11 @@
 				.map((s) => {
 					const startedAt = new Date(s.started_at);
 					const endedAt = s.ended_at ? new Date(s.ended_at) : null;
-					const minutes =
-						endedAt && endedAt > startedAt
-							? Math.round(buildTimerResult(startedAt, endedAt).durationSeconds / 60)
-							: 0;
+					const minutes = getSleepSessionMinutes({
+						side: s.side,
+						startedAt,
+						endedAt
+					});
 					return {
 						side: s.side,
 						day: startedAt.toISOString().split('T')[0],
@@ -192,10 +194,14 @@
 	let sleepPositionBreakdown = $derived.by(() => {
 		if (!sleepBalance || sleepBalance.totalMinutes === 0) return [];
 		const totalMinutes = sleepBalance.totalMinutes;
-		return (Object.entries(sleepBalance.minutesBySide) as [HeadSide, number][])
-			.filter(([, minutes]) => minutes > 0)
-			.sort(([, minutesA], [, minutesB]) => minutesB - minutesA)
-			.map(([side, minutes]) => ({
+		const minutesBySide = sleepBalance.minutesBySide;
+		return HEAD_SIDES.map((side) => ({
+			side,
+			minutes: minutesBySide[side]
+		}))
+			.filter(({ minutes }) => minutes > 0)
+			.sort((a, b) => b.minutes - a.minutes)
+			.map(({ side, minutes }) => ({
 				side,
 				minutes,
 				percent: Math.round((minutes / totalMinutes) * 100)

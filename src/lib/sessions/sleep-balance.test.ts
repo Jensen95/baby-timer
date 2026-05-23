@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { analyzeSleepPositionBalance, formatHeadSideLabel } from './sleep-balance';
+import {
+	analyzeSleepPositionBalance,
+	formatHeadSideLabel,
+	getSleepSessionMinutes
+} from './sleep-balance';
 
 describe('analyzeSleepPositionBalance', () => {
 	it('summarizes minutes by side and dominant side', () => {
@@ -85,5 +89,17 @@ describe('formatHeadSideLabel', () => {
 		expect(formatHeadSideLabel('back')).toBe('back');
 		expect(formatHeadSideLabel('tummy')).toBe('tummy');
 		expect(formatHeadSideLabel('side')).toBe('side');
+	});
+});
+
+describe('getSleepSessionMinutes', () => {
+	it('returns rounded minutes for completed sessions', () => {
+		expect(
+			getSleepSessionMinutes({
+				side: 'left',
+				startedAt: new Date('2024-01-01T10:00:00Z'),
+				endedAt: new Date('2024-01-01T10:29:29Z')
+			})
+		).toBe(29);
 	});
 });
