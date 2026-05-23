@@ -98,36 +98,37 @@ security definer
 stable
 set search_path = public, auth
 as $$
-  -- Registered members (joined or pending acceptance)
-  select
-    fm.user_id,
-    fm.role,
-    fm.invited_at,
-    fm.joined_at,
-    p.display_name,
-    u.email,
-    case when fm.joined_at is not null then 'joined' else 'pending' end as status
-  from public.family_members fm
-  join auth.users u on u.id = fm.user_id
-  left join public.profiles p on p.id = fm.user_id
-  where fm.family_id = target_family_id
-    and public.is_family_member(target_family_id)
+  select * from (
+    -- Registered members (joined or pending acceptance)
+    select
+      fm.user_id,
+      fm.role,
+      fm.invited_at,
+      fm.joined_at,
+      p.display_name,
+      u.email,
+      case when fm.joined_at is not null then 'joined' else 'pending' end as status
+    from public.family_members fm
+    join auth.users u on u.id = fm.user_id
+    left join public.profiles p on p.id = fm.user_id
+    where fm.family_id = target_family_id
+      and public.is_family_member(target_family_id)
 
-  union all
+    union all
 
-  -- Unregistered email placeholders (awaiting sign-up)
-  select
-    null::uuid              as user_id,
-    'member'::public.family_role as role,
-    fi.invited_at,
-    null::timestamptz       as joined_at,
-    null::text              as display_name,
-    fi.email,
-    'invited'               as status
-  from public.family_invites fi
-  where fi.family_id = target_family_id
-    and public.is_family_member(target_family_id)
-
+    -- Unregistered email placeholders (awaiting sign-up)
+    select
+      null::uuid              as user_id,
+      'member'::public.family_role as role,
+      fi.invited_at,
+      null::timestamptz       as joined_at,
+      null::text              as display_name,
+      fi.email,
+      'invited'               as status
+    from public.family_invites fi
+    where fi.family_id = target_family_id
+      and public.is_family_member(target_family_id)
+  ) members
   order by coalesce(joined_at, invited_at), invited_at, user_id;
 $$;
 
