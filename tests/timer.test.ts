@@ -205,4 +205,60 @@ test.describe('Timer', () => {
 		});
 		expect(count).toBe(1);
 	});
+
+	test('switching side during active feeding updates saved session side', async ({ page }) => {
+		await mockSupabaseUnauthenticated(page);
+		await page.goto('/app');
+		await page.waitForLoadState('networkidle');
+
+		await seedBaby(page);
+		await page.reload();
+		await page.waitForLoadState('networkidle');
+
+		const feedingCard = page.locator('.timer-card').filter({ hasText: 'Feeding' }).first();
+		await feedingCard.locator('.timer-btn--start').click();
+		await feedingCard.getByRole('button', { name: 'Right' }).click();
+		await feedingCard.locator('.timer-btn--stop').click();
+
+		await expect(page.locator('.session-type').first()).toContainText('right');
+	});
+
+	test('session can be edited and deleted from recent sessions', async ({ page }) => {
+		await mockSupabaseUnauthenticated(page);
+		await page.goto('/app');
+		await page.waitForLoadState('networkidle');
+
+		await seedBaby(page);
+		await page.reload();
+		await page.waitForLoadState('networkidle');
+
+		const feedingCard = page.locator('.timer-card').filter({ hasText: 'Feeding' }).first();
+		await feedingCard.locator('.timer-btn--start').click();
+		await feedingCard.locator('.timer-btn--stop').click();
+		await expect(page.locator('.session-entry').first()).toBeVisible();
+
+		const sessionEntry = page.locator('.session-entry').first();
+		const editButton = sessionEntry.getByRole('button', { name: 'Edit' });
+		const deleteButton = sessionEntry.getByRole('button', { name: 'Delete' });
+
+		await page.evaluate(() => {
+			let promptCall = 0;
+			window.prompt = () => {
+				promptCall += 1;
+				if (promptCall === 1) return 'both';
+				if (promptCall === 2) return '2026-01-01T01:00';
+				if (promptCall === 3) return '2026-01-01T01:05';
+				return '';
+			};
+			window.confirm = () => true;
+		});
+
+		await editButton.click();
+
+		await expect(sessionEntry.locator('.session-type')).toContainText('both');
+
+		await deleteButton.click();
+
+		await expect(page.locator('.session-entry')).toHaveCount(0);
+	});
 });

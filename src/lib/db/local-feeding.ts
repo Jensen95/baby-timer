@@ -32,3 +32,7 @@ export async function updateFeedingLocal(
 ): Promise<void> {
 	await db.feeding_sessions.update(id, updates);
 }
+
+export async function deleteFeedingLocal(id: string): Promise<void> {
+	await db.feeding_sessions.delete(id);
+}

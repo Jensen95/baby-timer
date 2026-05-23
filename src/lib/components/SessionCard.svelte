@@ -7,8 +7,10 @@
 		endedAt: Date | null;
 		durationSeconds: number | null;
 		note?: string | null;
+		onedit?: () => void | Promise<void>;
+		onremove?: () => void | Promise<void>;
 	}
-	let { type, side, startedAt, endedAt, durationSeconds, note }: Props = $props();
+	let { type, side, startedAt, endedAt, durationSeconds, note, onedit, onremove }: Props = $props();
 	const typeLabel = $derived(type === 'feeding' ? '🍼' : '😴');
 	const isActive = $derived(endedAt === null);
 </script>
@@ -32,6 +34,18 @@
 				class="session-in-progress">…</span
 			>{/if}
 	</div>
+	{#if onedit || onremove}
+		<div class="session-actions">
+			{#if onedit}
+				<button class="button is-small is-light" type="button" onclick={onedit}>Edit</button>
+			{/if}
+			{#if onremove}
+				<button class="button is-small is-danger is-light" type="button" onclick={onremove}
+					>Delete</button
+				>
+			{/if}
+		</div>
+	{/if}
 </div>
 
 <style>
@@ -98,6 +112,11 @@
 		font-size: 0.925rem;
 		font-family: 'Nunito', monospace;
 		color: var(--color-text-primary, #2d2d2d);
+		flex-shrink: 0;
+	}
+	.session-actions {
+		display: flex;
+		gap: 0.35rem;
 		flex-shrink: 0;
 	}
 	.session-in-progress {

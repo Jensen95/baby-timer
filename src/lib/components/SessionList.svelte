@@ -8,15 +8,17 @@
 		startedAt: Date;
 		endedAt: Date | null;
 		durationSeconds: number | null;
-		note?: string | null;
+		note: string | null;
 	}
 
 	interface Props {
 		sessions: Session[];
 		loading?: boolean;
+		onedit?: (session: Session) => void | Promise<void>;
+		onremove?: (session: Session) => void | Promise<void>;
 	}
 
-	let { sessions, loading = false }: Props = $props();
+	let { sessions, loading = false, onedit, onremove }: Props = $props();
 </script>
 
 {#if loading}
@@ -37,6 +39,8 @@
 			endedAt={session.endedAt}
 			durationSeconds={session.durationSeconds}
 			note={session.note}
+			onedit={onedit ? () => onedit(session) : undefined}
+			onremove={onremove ? () => onremove(session) : undefined}
 		/>
 	{/each}
 {/if}

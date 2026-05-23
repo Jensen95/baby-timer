@@ -26,3 +26,7 @@ export async function createSleepLocal(session: LocalSleep): Promise<LocalSleep>
 export async function updateSleepLocal(id: string, updates: Partial<LocalSleep>): Promise<void> {
 	await db.sleep_sessions.update(id, updates);
 }
+
+export async function deleteSleepLocal(id: string): Promise<void> {
+	await db.sleep_sessions.delete(id);
+}
