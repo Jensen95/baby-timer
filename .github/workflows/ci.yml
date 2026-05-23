@@ -78,3 +78,17 @@ jobs:
         run: npm run build
       - name: E2E tests
         run: npm run test:integration
+
+  ci:
+    if: always()
+    needs: [lint, typecheck, unit, e2e]
+    runs-on: ubuntu-latest
+    steps:
+      - name: All checks passed
+        run: |
+          for result in ${{ join(needs.*.result, ' ') }}; do
+            if [[ "$result" != "success" && "$result" != "skipped" ]]; then
+              echo "Job result '$result' is not acceptable"
+              exit 1
+            fi
+          done
