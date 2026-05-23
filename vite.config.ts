@@ -2,7 +2,12 @@ import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
-const basePath = (process.env.BASE_PATH ?? '').replace(/\/$/, '');
+const rawBasePath = (process.env.BASE_PATH ?? '').trim();
+const normalizedBasePath = rawBasePath === '/' ? '' : rawBasePath.replace(/\/$/, '');
+if (normalizedBasePath && !normalizedBasePath.startsWith('/')) {
+	throw new Error('BASE_PATH must be empty or start with "/"');
+}
+const basePath = normalizedBasePath;
 const appPath = `${basePath}/app`;
 const appScope = `${basePath}/`;
 

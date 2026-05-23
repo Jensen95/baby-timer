@@ -23,6 +23,11 @@
 			((window.navigator as Navigator & { standalone?: boolean }).standalone ?? false);
 	}
 
+	function isBeforeInstallPromptEvent(event: Event): event is BeforeInstallPromptEvent {
+		const candidate = event as Partial<BeforeInstallPromptEvent>;
+		return typeof candidate.prompt === 'function' && candidate.userChoice instanceof Promise;
+	}
+
 	async function handleInstallClick() {
 		if (!installPrompt) return;
 		await installPrompt.prompt();
@@ -35,13 +40,14 @@
 
 	onMount(() => {
 		updateStandaloneMode();
-		const isMobileBrowser = /android|iphone|ipad|ipod|mobile/i.test(window.navigator.userAgent);
-		showInstallHelp = isMobileBrowser && !standalone;
+		showInstallHelp = !standalone;
 
 		const onBeforeInstallPrompt = (event: Event) => {
+			if (!isBeforeInstallPromptEvent(event)) return;
 			event.preventDefault();
-			installPrompt = event as BeforeInstallPromptEvent;
+			installPrompt = event;
 			installSupported = true;
+			showInstallHelp = false;
 		};
 
 		const onAppInstalled = () => {
