@@ -48,18 +48,19 @@
 		(async () => {
 			try {
 				// Load pending invites the current user has not yet accepted
-				pendingInvites = await getPendingMemberships(supabase);
+				const pendingMemberships = await getPendingMemberships(supabase);
+				pendingInvites = pendingMemberships;
 
 				let localFamily = await getLocalFamily();
 				if (localFamily) {
 					familyId = localFamily.id;
 					currentFamilyName = localFamily.name;
-					members = await listFamilyMemberDetails(supabase, familyId);
+					members = await listFamilyMemberDetails(supabase, localFamily.id);
 				} else {
 					const families = await getUserFamilies(supabase);
 					// Only use families where the user has fully joined (joined_at IS NOT NULL)
 					const joinedFamily = families.find(
-						(f) => !pendingInvites.some((p) => p.family_id === f.id)
+						(f) => !pendingMemberships.some((p) => p.family_id === f.id)
 					);
 					if (joinedFamily) {
 						familyId = joinedFamily.id;
@@ -69,7 +70,7 @@
 							name: joinedFamily.name,
 							created_at: joinedFamily.created_at
 						});
-						members = await listFamilyMemberDetails(supabase, familyId);
+						members = await listFamilyMemberDetails(supabase, joinedFamily.id);
 					}
 				}
 			} catch (e) {
