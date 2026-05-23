@@ -233,7 +233,7 @@ test.describe('Timer', () => {
 		await page.waitForLoadState('networkidle');
 
 		const sleepCard = page.locator('.timer-card').filter({ hasText: 'Sleep' }).first();
-		await sleepCard.getByRole('button', { name: 'Side sleeping' }).click();
+		await sleepCard.getByRole('button', { name: 'Side position' }).click();
 		await sleepCard.locator('.timer-btn--start').click();
 		await sleepCard.locator('.timer-btn--stop').click();
 

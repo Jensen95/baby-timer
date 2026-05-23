@@ -8,7 +8,7 @@
 		{ value: 'right', label: 'Head right' },
 		{ value: 'back', label: 'Back (center)' },
 		{ value: 'tummy', label: 'Tummy (center)' },
-		{ value: 'side', label: 'Side sleeping' }
+		{ value: 'side', label: 'Side position' }
 	];
 
 	interface Props {
@@ -30,7 +30,7 @@
 		<h3 class="timer-card-title">Sleep</h3>
 	</div>
 	<div class="timer-card-body">
-		<p class="side-label">Sleep position / head direction</p>
+		<p class="side-label">Position and head turn</p>
 		<SideToggle
 			value={side}
 			options={HEAD_OPTIONS}
