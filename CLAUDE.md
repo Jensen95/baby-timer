@@ -59,6 +59,14 @@ src/routes/
 
 ## Known Gotchas
 
+### package-lock.json must stay in sync
+
+After adding or changing packages in `package.json`, always run `npm install` and commit the updated `package-lock.json`. `npm ci` (used in CI) fails hard if the lockfile is stale — it does not auto-update. This is not caught locally if `node_modules` is already populated.
+
+### CI log access
+
+There is no `gh` CLI in this remote environment. GitHub Actions logs require authentication. `WebFetch` on Actions pages returns unreliable parsed HTML, not real log content. When CI fails: **ask the user to paste the error text** rather than guessing at the cause.
+
 ### Static SPA mode
 
 `ssr = false` is set globally in `+layout.ts`. There is no server-side rendering. All data fetching happens in `$effect` blocks or event handlers in Svelte components.
