@@ -47,6 +47,18 @@ export interface LocalBreastPump {
 	_sync: 'pending' | 'synced';
 }
 
+export interface LocalDiaperChange {
+	id: string;
+	baby_id: string;
+	family_id: string | null;
+	started_at: string;
+	has_poop: boolean;
+	has_pee: boolean;
+	note: string | null;
+	created_at: string;
+	_sync: 'pending' | 'synced';
+}
+
 export interface LocalFamily {
 	id: string;
 	name: string;
@@ -58,6 +70,7 @@ class BabyTimerDB extends Dexie {
 	feeding_sessions!: Table<LocalFeeding>;
 	sleep_sessions!: Table<LocalSleep>;
 	breast_pump_sessions!: Table<LocalBreastPump>;
+	diaper_change_sessions!: Table<LocalDiaperChange>;
 	families!: Table<LocalFamily>;
 
 	constructor() {
@@ -73,6 +86,14 @@ class BabyTimerDB extends Dexie {
 			feeding_sessions: 'id, baby_id, family_id, started_at, ended_at, _sync',
 			sleep_sessions: 'id, baby_id, family_id, started_at, ended_at, _sync',
 			breast_pump_sessions: 'id, baby_id, family_id, started_at, ended_at, _sync',
+			families: 'id'
+		});
+		this.version(3).stores({
+			babies: 'id, family_id, _sync',
+			feeding_sessions: 'id, baby_id, family_id, started_at, ended_at, _sync',
+			sleep_sessions: 'id, baby_id, family_id, started_at, ended_at, _sync',
+			breast_pump_sessions: 'id, baby_id, family_id, started_at, ended_at, _sync',
+			diaper_change_sessions: 'id, baby_id, family_id, started_at, _sync',
 			families: 'id'
 		});
 	}

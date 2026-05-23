@@ -16,6 +16,11 @@
 		updateBreastPumpLocal,
 		deleteBreastPumpLocal
 	} from '$lib/db/local-breast-pump';
+	import {
+		listDiaperChangeSessionsLocal,
+		updateDiaperChangeLocal,
+		deleteDiaperChangeLocal
+	} from '$lib/db/local-diaper-change';
 	import { listBabiesLocal, type LocalBaby } from '$lib/db/local-babies';
 	import { getLocalFamily, putLocalFamily } from '$lib/db/local-family';
 	import { getUserFamilies } from '$lib/db/family';
@@ -36,7 +41,7 @@
 	let sessions = $state<
 		Array<{
 			id: string;
-			type: 'feeding' | 'sleep' | 'breast_pump';
+			type: 'feeding' | 'sleep' | 'breast_pump' | 'diaper_change';
 			side: string;
 			startedAt: Date;
 			endedAt: Date | null;
@@ -57,6 +62,15 @@
 	const FEEDING_SIDES: FeedingSide[] = ['left', 'right', 'both'];
 	const SLEEP_SIDES: HeadSide[] = ['left', 'right', 'back', 'tummy', 'side'];
 	const PUMP_SIDES: PumpSide[] = ['left', 'right', 'both'];
+	const DIAPER_CONTENTS = ['poop', 'pee', 'both'] as const;
+
+	function formatDiaperContent(
+		hasPoop: boolean,
+		hasPee: boolean
+	): (typeof DIAPER_CONTENTS)[number] {
+		if (hasPoop && hasPee) return 'both';
+		return hasPoop ? 'poop' : 'pee';
+	}
 
 	$effect(() => {
 		(async () => {
@@ -103,10 +117,11 @@
 	async function loadHistory(babyId: string) {
 		loading = true;
 		try {
-			const [feedings, sleeps, pumps] = await Promise.all([
+			const [feedings, sleeps, pumps, diaperChanges] = await Promise.all([
 				listFeedingSessionsLocal(babyId, 100),
 				listSleepSessionsLocal(babyId, 100),
-				listBreastPumpSessionsLocal(babyId, 100)
+				listBreastPumpSessionsLocal(babyId, 100),
+				listDiaperChangeSessionsLocal(babyId, 100)
 			]);
 
 			sessions = [
@@ -147,6 +162,17 @@
 						: null,
 					yieldLeftMl: s.yield_left_ml,
 					yieldRightMl: s.yield_right_ml,
+					note: s.note
+				})),
+				...diaperChanges.map((s) => ({
+					id: s.id,
+					type: 'diaper_change' as const,
+					side: formatDiaperContent(s.has_poop, s.has_pee),
+					startedAt: new Date(s.started_at),
+					endedAt: new Date(s.started_at),
+					durationSeconds: 0,
+					yieldLeftMl: null,
+					yieldRightMl: null,
 					note: s.note
 				}))
 			].sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime());
@@ -202,7 +228,9 @@
 				? SLEEP_SIDES
 				: editingSession.type === 'breast_pump'
 					? PUMP_SIDES
-					: FEEDING_SIDES;
+					: editingSession.type === 'diaper_change'
+						? [...DIAPER_CONTENTS]
+						: FEEDING_SIDES;
 		const nextSide = editSide.trim().toLowerCase();
 		if (!allowedSides.includes(nextSide)) {
 			error = 'Invalid side selection';
@@ -243,11 +271,18 @@
 					yield_right_ml: parseOptionalYield(editYieldRightMl),
 					_sync: 'pending'
 				});
-			} else {
+			} else if (editingSession.type === 'sleep') {
 				await updateSleepLocal(editingSession.id, {
 					side: nextSide as HeadSide,
 					started_at: startedAt.toISOString(),
 					ended_at: endedAt ? endedAt.toISOString() : null,
+					_sync: 'pending'
+				});
+			} else {
+				await updateDiaperChangeLocal(editingSession.id, {
+					started_at: startedAt.toISOString(),
+					has_poop: nextSide === 'poop' || nextSide === 'both',
+					has_pee: nextSide === 'pee' || nextSide === 'both',
 					_sync: 'pending'
 				});
 			}
@@ -275,6 +310,8 @@
 				await deleteFeedingLocal(pendingDeleteSession.id);
 			} else if (pendingDeleteSession.type === 'breast_pump') {
 				await deleteBreastPumpLocal(pendingDeleteSession.id);
+			} else if (pendingDeleteSession.type === 'diaper_change') {
+				await deleteDiaperChangeLocal(pendingDeleteSession.id);
 			} else {
 				await deleteSleepLocal(pendingDeleteSession.id);
 			}
@@ -341,7 +378,7 @@
 					<div class="control">
 						<div class="select is-fullwidth">
 							<select id="edit-session-side" bind:value={editSide}>
-								{#each editingSession.type === 'sleep' ? SLEEP_SIDES : editingSession.type === 'breast_pump' ? PUMP_SIDES : FEEDING_SIDES as sideOption}
+								{#each editingSession.type === 'sleep' ? SLEEP_SIDES : editingSession.type === 'breast_pump' ? PUMP_SIDES : editingSession.type === 'diaper_change' ? DIAPER_CONTENTS : FEEDING_SIDES as sideOption}
 									<option value={sideOption}>{sideOption}</option>
 								{/each}
 							</select>

@@ -178,6 +178,38 @@ export type Database = {
 					created_at?: string;
 				};
 			};
+			diaper_change_sessions: {
+				Row: {
+					id: string;
+					baby_id: string;
+					family_id: string;
+					started_at: string;
+					has_poop: boolean;
+					has_pee: boolean;
+					note: string | null;
+					created_at: string;
+				};
+				Insert: {
+					id?: string;
+					baby_id: string;
+					family_id: string;
+					started_at?: string;
+					has_poop?: boolean;
+					has_pee?: boolean;
+					note?: string | null;
+					created_at?: string;
+				};
+				Update: {
+					id?: string;
+					baby_id?: string;
+					family_id?: string;
+					started_at?: string;
+					has_poop?: boolean;
+					has_pee?: boolean;
+					note?: string | null;
+					created_at?: string;
+				};
+			};
 			sleep_sessions: {
 				Row: {
 					id: string;

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { formatDuration, formatDateTime } from '$lib/timer/format';
 	interface Props {
-		type: 'feeding' | 'sleep' | 'breast_pump';
+		type: 'feeding' | 'sleep' | 'breast_pump' | 'diaper_change';
 		side: string;
 		startedAt: Date;
 		endedAt: Date | null;
@@ -24,9 +24,17 @@
 		onedit,
 		onremove
 	}: Props = $props();
-	const typeLabel = $derived(type === 'feeding' ? '🍼' : type === 'sleep' ? '😴' : '🥛');
+	const typeLabel = $derived(
+		type === 'feeding' ? '🍼' : type === 'sleep' ? '😴' : type === 'breast_pump' ? '🥛' : '🧷'
+	);
 	const typeName = $derived(
-		type === 'feeding' ? 'Feeding' : type === 'sleep' ? 'Sleep' : 'Breast Pump'
+		type === 'feeding'
+			? 'Feeding'
+			: type === 'sleep'
+				? 'Sleep'
+				: type === 'breast_pump'
+					? 'Breast Pump'
+					: 'Diaper Change'
 	);
 	const isActive = $derived(endedAt === null);
 	const yieldText = $derived.by(() => {
@@ -43,6 +51,7 @@
 	class:session-entry--feeding={type === 'feeding'}
 	class:session-entry--sleep={type === 'sleep'}
 	class:session-entry--pump={type === 'breast_pump'}
+	class:session-entry--diaper={type === 'diaper_change'}
 >
 	<div class="session-icon">{typeLabel}</div>
 	<div class="session-body">
@@ -93,6 +102,9 @@
 	}
 	.session-entry--pump {
 		border-left-color: hsl(43, 80%, 70%);
+	}
+	.session-entry--diaper {
+		border-left-color: hsl(176, 60%, 55%);
 	}
 	.session-icon {
 		font-size: 1.5rem;
