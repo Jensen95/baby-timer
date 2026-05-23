@@ -13,7 +13,7 @@ export function buildDiaperChangePayload(
 	form: DiaperChangeFormState
 ): Insert<'diaper_change_sessions'> {
 	if (!form.hasPoop && !form.hasPee) {
-		throw new Error('at least one diaper content type must be selected');
+		throw new Error('At least one diaper content type must be selected');
 	}
 
 	return {

@@ -278,13 +278,15 @@
 					ended_at: endedAt ? endedAt.toISOString() : null,
 					_sync: 'pending'
 				});
-			} else {
+			} else if (editingSession.type === 'diaper_change') {
 				await updateDiaperChangeLocal(editingSession.id, {
 					started_at: startedAt.toISOString(),
 					has_poop: nextSide === 'poop' || nextSide === 'both',
 					has_pee: nextSide === 'pee' || nextSide === 'both',
 					_sync: 'pending'
 				});
+			} else {
+				throw new Error(`Unsupported session type: ${editingSession.type}`);
 			}
 			closeEditSessionModal();
 			await loadHistory(selectedBabyId);

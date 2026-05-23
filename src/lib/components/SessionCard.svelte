@@ -24,18 +24,20 @@
 		onedit,
 		onremove
 	}: Props = $props();
-	const typeLabel = $derived(
-		type === 'feeding' ? '🍼' : type === 'sleep' ? '😴' : type === 'breast_pump' ? '🥛' : '🧷'
-	);
-	const typeName = $derived(
-		type === 'feeding'
-			? 'Feeding'
-			: type === 'sleep'
-				? 'Sleep'
-				: type === 'breast_pump'
-					? 'Breast Pump'
-					: 'Diaper Change'
-	);
+	const TYPE_LABELS: Record<Props['type'], string> = {
+		feeding: '🍼',
+		sleep: '😴',
+		breast_pump: '🥛',
+		diaper_change: '🧷'
+	};
+	const TYPE_NAMES: Record<Props['type'], string> = {
+		feeding: 'Feeding',
+		sleep: 'Sleep',
+		breast_pump: 'Breast Pump',
+		diaper_change: 'Diaper Change'
+	};
+	const typeLabel = $derived(TYPE_LABELS[type]);
+	const typeName = $derived(TYPE_NAMES[type]);
 	const isActive = $derived(endedAt === null);
 	const yieldText = $derived.by(() => {
 		if (type !== 'breast_pump') return null;

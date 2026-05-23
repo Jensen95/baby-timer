@@ -41,6 +41,6 @@ describe('buildDiaperChangePayload', () => {
 				hasPoop: false,
 				hasPee: false
 			})
-		).toThrow(/at least one/);
+		).toThrow(/At least one/);
 	});
 });

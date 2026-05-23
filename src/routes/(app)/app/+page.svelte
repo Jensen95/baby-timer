@@ -449,7 +449,7 @@
 		try {
 			const now = new Date();
 			if (!diaperHasPoop && !diaperHasPee) {
-				throw new Error('Select poop, pee, or both');
+				throw new Error('Please select poop, pee, or both');
 			}
 			const payload =
 				familyId !== null
@@ -567,13 +567,15 @@
 					ended_at: endedAt ? endedAt.toISOString() : null,
 					_sync: 'pending'
 				});
-			} else {
+			} else if (editingSession.type === 'diaper_change') {
 				await updateDiaperChangeLocal(editingSession.id, {
 					started_at: startedAt.toISOString(),
 					has_poop: nextSide === 'poop' || nextSide === 'both',
 					has_pee: nextSide === 'pee' || nextSide === 'both',
 					_sync: 'pending'
 				});
+			} else {
+				throw new Error(`Unsupported session type: ${editingSession.type}`);
 			}
 			closeEditSessionModal();
 			await loadSessionsForBaby(selectedBabyId);
