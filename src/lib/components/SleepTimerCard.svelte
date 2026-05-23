@@ -4,10 +4,11 @@
 	import type { HeadSide } from '$lib/sessions/sleep';
 
 	const HEAD_OPTIONS = [
-		{ value: 'left', label: 'Left' },
-		{ value: 'right', label: 'Right' },
-		{ value: 'back', label: 'Back' },
-		{ value: 'tummy', label: 'Tummy' }
+		{ value: 'left', label: 'Head left' },
+		{ value: 'right', label: 'Head right' },
+		{ value: 'back', label: 'Back (center)' },
+		{ value: 'tummy', label: 'Tummy (center)' },
+		{ value: 'side', label: 'Side position' }
 	];
 
 	interface Props {
@@ -29,7 +30,7 @@
 		<h3 class="timer-card-title">Sleep</h3>
 	</div>
 	<div class="timer-card-body">
-		<p class="side-label">Head position</p>
+		<p class="side-label">Position and head turn</p>
 		<SideToggle
 			value={side}
 			options={HEAD_OPTIONS}

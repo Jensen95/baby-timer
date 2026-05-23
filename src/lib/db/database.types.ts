@@ -183,7 +183,7 @@ export type Database = {
 					id: string;
 					baby_id: string;
 					family_id: string;
-					side: 'left' | 'right' | 'back' | 'tummy';
+					side: 'left' | 'right' | 'back' | 'tummy' | 'side';
 					started_at: string;
 					ended_at: string | null;
 					duration_seconds: number | null;
@@ -194,7 +194,7 @@ export type Database = {
 					id?: string;
 					baby_id: string;
 					family_id: string;
-					side: 'left' | 'right' | 'back' | 'tummy';
+					side: 'left' | 'right' | 'back' | 'tummy' | 'side';
 					started_at?: string;
 					ended_at?: string | null;
 					note?: string | null;
@@ -204,7 +204,7 @@ export type Database = {
 					id?: string;
 					baby_id?: string;
 					family_id?: string;
-					side?: 'left' | 'right' | 'back' | 'tummy';
+					side?: 'left' | 'right' | 'back' | 'tummy' | 'side';
 					started_at?: string;
 					ended_at?: string | null;
 					note?: string | null;
@@ -268,7 +268,7 @@ export type Database = {
 		};
 		Enums: {
 			breast_side: 'left' | 'right' | 'both';
-			head_side: 'left' | 'right' | 'back' | 'tummy';
+			head_side: 'left' | 'right' | 'back' | 'tummy' | 'side';
 			family_role: 'owner' | 'member';
 		};
 	};

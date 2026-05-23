@@ -124,8 +124,8 @@
 							<p class="is-size-2 mb-3">😴</p>
 							<h3 class="title is-5">Sleep Timer</h3>
 							<p class="has-text-grey">
-								Log sleep sessions with head position — back, tummy, left, or right. See total sleep
-								at a glance.
+								Log sleep sessions with sleep position and head direction — back, tummy, side, left,
+								or right. See total sleep at a glance.
 							</p>
 						</div>
 					</div>

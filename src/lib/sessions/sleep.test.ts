@@ -40,6 +40,7 @@ describe('buildSleepPayload', () => {
 		expect(() => buildSleepPayload({ ...base, side: 'right' })).not.toThrow();
 		expect(() => buildSleepPayload({ ...base, side: 'back' })).not.toThrow();
 		expect(() => buildSleepPayload({ ...base, side: 'tummy' })).not.toThrow();
+		expect(() => buildSleepPayload({ ...base, side: 'side' })).not.toThrow();
 	});
 });
 
@@ -49,6 +50,7 @@ describe('isValidHeadSide', () => {
 		expect(isValidHeadSide('right')).toBe(true);
 		expect(isValidHeadSide('back')).toBe(true);
 		expect(isValidHeadSide('tummy')).toBe(true);
+		expect(isValidHeadSide('side')).toBe(true);
 	});
 
 	it('rejects invalid values', () => {

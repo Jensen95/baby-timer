@@ -55,7 +55,7 @@
 	let editYieldRightMl = $state('');
 
 	const FEEDING_SIDES: FeedingSide[] = ['left', 'right', 'both'];
-	const SLEEP_SIDES: HeadSide[] = ['left', 'right', 'back', 'tummy'];
+	const SLEEP_SIDES: HeadSide[] = ['left', 'right', 'back', 'tummy', 'side'];
 	const PUMP_SIDES: PumpSide[] = ['left', 'right', 'both'];
 
 	$effect(() => {
