@@ -91,6 +91,7 @@
 
 	const FEEDING_SIDES: FeedingSide[] = ['left', 'right', 'both'];
 	const SLEEP_SIDES: HeadSide[] = ['left', 'right', 'back', 'tummy'];
+	const PUMP_SIDES: PumpSide[] = ['left', 'right', 'both'];
 
 	$effect(() => {
 		(async () => {
@@ -435,7 +436,12 @@
 
 	async function saveSessionEdits() {
 		if (!editingSession) return;
-		const allowedSides: string[] = editingSession.type === 'sleep' ? SLEEP_SIDES : FEEDING_SIDES;
+		const allowedSides: string[] =
+			editingSession.type === 'sleep'
+				? SLEEP_SIDES
+				: editingSession.type === 'breast_pump'
+					? PUMP_SIDES
+					: FEEDING_SIDES;
 		const nextSide = editSide.trim().toLowerCase();
 		if (!allowedSides.includes(nextSide)) {
 			error = 'Invalid side selection';
@@ -641,7 +647,7 @@
 					<div class="control">
 						<div class="select is-fullwidth">
 							<select id="edit-session-side" bind:value={editSide}>
-								{#each editingSession.type === 'sleep' ? SLEEP_SIDES : FEEDING_SIDES as sideOption}
+								{#each editingSession.type === 'sleep' ? SLEEP_SIDES : editingSession.type === 'breast_pump' ? PUMP_SIDES : FEEDING_SIDES as sideOption}
 									<option value={sideOption}>{sideOption}</option>
 								{/each}
 							</select>
