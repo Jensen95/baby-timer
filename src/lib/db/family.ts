@@ -4,14 +4,41 @@ import type { Database, Tables } from './database.types';
 type Client = SupabaseClient<Database>;
 export type Family = Tables<'families'>;
 export type FamilyMember = Tables<'family_members'>;
+export type FamilyInvite = Tables<'family_invites'>;
 type ListFamilyMemberDetailsArgs =
 	Database['public']['Functions']['list_family_members_with_profiles']['Args'];
 type AddFamilyMemberByEmailArgs =
 	Database['public']['Functions']['add_family_member_by_email']['Args'];
-export type FamilyMemberDetails = FamilyMember & {
+
+export type MemberStatus = 'joined' | 'pending' | 'invited';
+
+export type FamilyMemberDetails = {
+	user_id: string | null;
+	family_id: string;
+	role: 'owner' | 'member';
+	invited_at: string;
+	joined_at: string | null;
 	display_name: string | null;
 	email: string | null;
+	status: MemberStatus;
 };
+
+export type PendingMembership = {
+	family_id: string;
+	family_name: string;
+	invited_at: string;
+	invited_by: string | null;
+};
+
+/**
+ * Returns a human-readable label for a family member.
+ * Prefers display_name, then email, then user_id, then 'Unknown'.
+ */
+export function getMemberDisplayLabel(
+	member: Pick<FamilyMemberDetails, 'display_name' | 'email' | 'user_id'>
+): string {
+	return member.display_name ?? member.email ?? member.user_id ?? 'Unknown';
+}
 
 export async function getFamily(client: Client, familyId: string): Promise<Family | null> {
 	const { data, error } = await client
@@ -59,10 +86,15 @@ export async function listFamilyMemberDetails(
 	const args: ListFamilyMemberDetailsArgs = {
 		target_family_id: familyId
 	};
+	// `as never` is required because the Supabase TS client does not correctly
+	// resolve generic RPC arg types for this Database shape.
 	const { data, error } = await client.rpc('list_family_members_with_profiles', args as never);
 
 	if (error) throw error;
-	return data ?? [];
+	// Attach family_id to each row (the RPC does not return it for invited placeholders)
+	const rows =
+		(data as Database['public']['Functions']['list_family_members_with_profiles']['Returns']) ?? [];
+	return rows.map((row) => ({ family_id: familyId, ...row }) as FamilyMemberDetails);
 }
 
 export async function inviteMember(
@@ -83,16 +115,49 @@ export async function inviteMember(
 export async function inviteMemberByEmail(
 	client: Client,
 	familyId: string,
+	familyName: string,
 	email: string
-): Promise<FamilyMember> {
+): Promise<void> {
 	const args: AddFamilyMemberByEmailArgs = {
 		target_family_id: familyId,
 		target_email: email
 	};
-	const { data, error } = await client.rpc('add_family_member_by_email', args as never);
+	const { error } = await client.rpc('add_family_member_by_email', args as never);
 
 	if (error) throw error;
-	return data as FamilyMember;
+
+	// Best-effort: trigger an invitation email via the edge function.
+	// Failures here are non-fatal; the invite row was already created.
+	try {
+		await client.functions.invoke('send-invite', {
+			body: { familyId, inviteeEmail: email, familyName }
+		});
+	} catch {
+		// Intentionally swallowed – email delivery failure must not block the invite.
+	}
+}
+
+export async function acceptFamilyMembership(client: Client, familyId: string): Promise<void> {
+	const { error } = await client.rpc('accept_family_membership', {
+		target_family_id: familyId
+	} as never);
+
+	if (error) throw error;
+}
+
+export async function declineFamilyMembership(client: Client, familyId: string): Promise<void> {
+	const { error } = await client.rpc('decline_family_membership', {
+		target_family_id: familyId
+	} as never);
+
+	if (error) throw error;
+}
+
+export async function getPendingMemberships(client: Client): Promise<PendingMembership[]> {
+	const { data, error } = await client.rpc('get_pending_memberships', {} as never);
+
+	if (error) throw error;
+	return (data ?? []) as PendingMembership[];
 }
 
 export async function removeMember(

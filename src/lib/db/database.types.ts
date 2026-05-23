@@ -3,6 +3,26 @@ export type Json = string | number | boolean | null | { [key: string]: Json | un
 export type Database = {
 	public: {
 		Tables: {
+			family_invites: {
+				Row: {
+					id: string;
+					family_id: string;
+					email: string;
+					invited_at: string;
+				};
+				Insert: {
+					id?: string;
+					family_id: string;
+					email: string;
+					invited_at?: string;
+				};
+				Update: {
+					id?: string;
+					family_id?: string;
+					email?: string;
+					invited_at?: string;
+				};
+			};
 			profiles: {
 				Row: {
 					id: string;
@@ -175,23 +195,35 @@ export type Database = {
 			};
 			add_family_member_by_email: {
 				Args: { target_family_id: string; target_email: string };
-				Returns: {
+				Returns: Json;
+			};
+			accept_family_membership: {
+				Args: { target_family_id: string };
+				Returns: void;
+			};
+			decline_family_membership: {
+				Args: { target_family_id: string };
+				Returns: void;
+			};
+			get_pending_memberships: {
+				Args: Record<string, never>;
+				Returns: Array<{
 					family_id: string;
-					user_id: string;
-					role: 'owner' | 'member';
+					family_name: string;
 					invited_at: string;
-					joined_at: string | null;
-				};
+					invited_by: string | null;
+				}>;
 			};
 			list_family_members_with_profiles: {
 				Args: { target_family_id: string };
 				Returns: Array<{
-					user_id: string;
+					user_id: string | null;
 					role: 'owner' | 'member';
 					invited_at: string;
 					joined_at: string | null;
 					display_name: string | null;
 					email: string | null;
+					status: 'joined' | 'pending' | 'invited';
 				}>;
 			};
 		};
