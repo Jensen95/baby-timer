@@ -45,7 +45,11 @@
 								name: families[0].name,
 								created_at: families[0].created_at
 							});
-							localFamily = { id: families[0].id, name: families[0].name, created_at: families[0].created_at };
+							localFamily = {
+								id: families[0].id,
+								name: families[0].name,
+								created_at: families[0].created_at
+							};
 						}
 					}
 					familyId = localFamily?.id ?? null;
@@ -85,29 +89,53 @@
 		error = null;
 		try {
 			const dayList = getLast7Days();
-			summaries = await Promise.all(dayList.map(async (day) => {
-				const dayStart = new Date(day + 'T00:00:00');
-				const dayEnd = new Date(day + 'T23:59:59');
-				const feedings = await db.feeding_sessions.where('baby_id').equals(babyId)
-					.filter((s) => {
-						const t = new Date(s.started_at);
-						return t >= dayStart && t <= dayEnd && s.ended_at !== null;
-					}).toArray();
-				const sleeps = await db.sleep_sessions.where('baby_id').equals(babyId)
-					.filter((s) => {
-						const t = new Date(s.started_at);
-						return t >= dayStart && t <= dayEnd && s.ended_at !== null;
-					}).toArray();
-				const feedMinutes = Math.round(
-					feedings.reduce((sum, s) =>
-						sum + buildTimerResult(new Date(s.started_at), new Date(s.ended_at!)).durationSeconds / 60, 0)
-				);
-				const sleepMinutes = Math.round(
-					sleeps.reduce((sum, s) =>
-						sum + buildTimerResult(new Date(s.started_at), new Date(s.ended_at!)).durationSeconds / 60, 0)
-				);
-				return { date: day, feedCount: feedings.length, feedMinutes, sleepCount: sleeps.length, sleepMinutes };
-			}));
+			summaries = await Promise.all(
+				dayList.map(async (day) => {
+					const dayStart = new Date(day + 'T00:00:00');
+					const dayEnd = new Date(day + 'T23:59:59');
+					const feedings = await db.feeding_sessions
+						.where('baby_id')
+						.equals(babyId)
+						.filter((s) => {
+							const t = new Date(s.started_at);
+							return t >= dayStart && t <= dayEnd && s.ended_at !== null;
+						})
+						.toArray();
+					const sleeps = await db.sleep_sessions
+						.where('baby_id')
+						.equals(babyId)
+						.filter((s) => {
+							const t = new Date(s.started_at);
+							return t >= dayStart && t <= dayEnd && s.ended_at !== null;
+						})
+						.toArray();
+					const feedMinutes = Math.round(
+						feedings.reduce(
+							(sum, s) =>
+								sum +
+								buildTimerResult(new Date(s.started_at), new Date(s.ended_at!)).durationSeconds /
+									60,
+							0
+						)
+					);
+					const sleepMinutes = Math.round(
+						sleeps.reduce(
+							(sum, s) =>
+								sum +
+								buildTimerResult(new Date(s.started_at), new Date(s.ended_at!)).durationSeconds /
+									60,
+							0
+						)
+					);
+					return {
+						date: day,
+						feedCount: feedings.length,
+						feedMinutes,
+						sleepCount: sleeps.length,
+						sleepMinutes
+					};
+				})
+			);
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Failed to load stats';
 		} finally {

@@ -24,12 +24,12 @@
 		border-radius: 999px;
 	}
 
-.sync-badge--syncing {
+	.sync-badge--syncing {
 		background: hsl(210, 70%, 92%);
 		color: hsl(210, 60%, 40%);
 	}
 
-.sync-badge--error {
+	.sync-badge--error {
 		background: hsl(4, 80%, 92%);
 		color: hsl(4, 60%, 40%);
 	}

@@ -14,7 +14,9 @@ export function createSyncEngine() {
 		syncing = true;
 		error = null;
 		try {
-			const { data: { session } } = await supabase.auth.getSession();
+			const {
+				data: { session }
+			} = await supabase.auth.getSession();
 			if (!session) return;
 
 			const pendingBabies = await db.babies.where('_sync').equals('pending').toArray();
@@ -78,9 +80,15 @@ export function createSyncEngine() {
 	}
 
 	return {
-		get syncing() { return syncing; },
-		get lastSyncedAt() { return lastSyncedAt; },
-		get error() { return error; },
+		get syncing() {
+			return syncing;
+		},
+		get lastSyncedAt() {
+			return lastSyncedAt;
+		},
+		get error() {
+			return error;
+		},
 		syncNow,
 		migrateGuestData,
 		start,

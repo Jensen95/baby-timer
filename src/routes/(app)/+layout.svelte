@@ -67,6 +67,12 @@
 		gap: 0.75rem;
 		color: hsl(40, 30%, 35%);
 	}
-	.guest-banner-link { font-weight: 700; color: hsl(340, 65%, 55%); text-decoration: none; }
-	.guest-banner-link:hover { text-decoration: underline; }
+	.guest-banner-link {
+		font-weight: 700;
+		color: hsl(340, 65%, 55%);
+		text-decoration: none;
+	}
+	.guest-banner-link:hover {
+		text-decoration: underline;
+	}
 </style>

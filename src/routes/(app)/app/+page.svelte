@@ -76,7 +76,11 @@
 								name: families[0].name,
 								created_at: families[0].created_at
 							});
-							localFamily = { id: families[0].id, name: families[0].name, created_at: families[0].created_at };
+							localFamily = {
+								id: families[0].id,
+								name: families[0].name,
+								created_at: families[0].created_at
+							};
 						}
 					}
 					familyId = localFamily?.id ?? null;

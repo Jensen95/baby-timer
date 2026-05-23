@@ -2,7 +2,10 @@ import { db, type LocalFeeding } from './local';
 
 export type { LocalFeeding };
 
-export async function listFeedingSessionsLocal(babyId: string, limit = 50): Promise<LocalFeeding[]> {
+export async function listFeedingSessionsLocal(
+	babyId: string,
+	limit = 50
+): Promise<LocalFeeding[]> {
 	const all = await db.feeding_sessions.where('baby_id').equals(babyId).toArray();
 	return all.sort((a, b) => b.started_at.localeCompare(a.started_at)).slice(0, limit);
 }

@@ -49,7 +49,11 @@
 					if (families.length > 0) {
 						familyId = families[0].id;
 						currentFamilyName = families[0].name;
-						await putLocalFamily({ id: families[0].id, name: families[0].name, created_at: families[0].created_at });
+						await putLocalFamily({
+							id: families[0].id,
+							name: families[0].name,
+							created_at: families[0].created_at
+						});
 						members = await listFamilyMemberDetails(supabase, familyId);
 					}
 				}

@@ -56,19 +56,41 @@
 		font-family: 'Nunito', sans-serif;
 		border: none;
 		cursor: pointer;
-		transition: transform 0.1s ease, box-shadow 0.2s ease;
+		transition:
+			transform 0.1s ease,
+			box-shadow 0.2s ease;
 		color: white;
 	}
 
-	.timer-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-	.timer-btn:not(:disabled):active { transform: scale(0.97); }
-	.timer-btn--start { background: hsl(152, 55%, 48%); box-shadow: 0 4px 16px hsla(152, 55%, 48%, 0.35); }
-	.timer-btn--stop { background: hsl(4, 75%, 60%); box-shadow: 0 4px 16px hsla(4, 75%, 60%, 0.35); }
+	.timer-btn:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+	.timer-btn:not(:disabled):active {
+		transform: scale(0.97);
+	}
+	.timer-btn--start {
+		background: hsl(152, 55%, 48%);
+		box-shadow: 0 4px 16px hsla(152, 55%, 48%, 0.35);
+	}
+	.timer-btn--stop {
+		background: hsl(4, 75%, 60%);
+		box-shadow: 0 4px 16px hsla(4, 75%, 60%, 0.35);
+	}
 
 	@keyframes pulse-ring {
-		0% { transform: scale(0.97); opacity: 0.5; }
-		70% { transform: scale(1.03); opacity: 0; }
-		100% { transform: scale(1.03); opacity: 0; }
+		0% {
+			transform: scale(0.97);
+			opacity: 0.5;
+		}
+		70% {
+			transform: scale(1.03);
+			opacity: 0;
+		}
+		100% {
+			transform: scale(1.03);
+			opacity: 0;
+		}
 	}
 
 	.timer-pulse {
