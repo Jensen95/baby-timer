@@ -56,6 +56,11 @@
 			note: string | null;
 		}>
 	>([]);
+	let editingSession = $state<(typeof recentSessions)[number] | null>(null);
+	let pendingDeleteSession = $state<(typeof recentSessions)[number] | null>(null);
+	let editSide = $state('');
+	let editStartedAt = $state('');
+	let editEndedAt = $state('');
 
 	const feedingTimer = createTimer();
 	const sleepTimer = createTimer();
@@ -281,34 +286,37 @@
 		return Number.isNaN(parsed.getTime()) ? null : parsed;
 	}
 
-	async function handleEditSession(sessionItem: (typeof recentSessions)[number]) {
-		const allowedSides: string[] = sessionItem.type === 'feeding' ? FEEDING_SIDES : SLEEP_SIDES;
-		const nextSideInput = window.prompt(`Side (${allowedSides.join('/')})`, sessionItem.side);
-		if (nextSideInput === null) return;
-		const nextSide = nextSideInput.trim().toLowerCase();
+	function openEditSessionModal(sessionItem: (typeof recentSessions)[number]) {
+		editingSession = sessionItem;
+		editSide = sessionItem.side;
+		editStartedAt = formatDateTimeInput(sessionItem.startedAt);
+		editEndedAt = sessionItem.endedAt ? formatDateTimeInput(sessionItem.endedAt) : '';
+	}
+
+	function closeEditSessionModal() {
+		editingSession = null;
+		editSide = '';
+		editStartedAt = '';
+		editEndedAt = '';
+	}
+
+	async function saveSessionEdits() {
+		if (!editingSession) return;
+		const allowedSides: string[] = editingSession.type === 'feeding' ? FEEDING_SIDES : SLEEP_SIDES;
+		const nextSide = editSide.trim().toLowerCase();
 		if (!allowedSides.includes(nextSide)) {
 			error = 'Invalid side selection';
 			return;
 		}
 
-		const startedInput = window.prompt(
-			'Start time (YYYY-MM-DDTHH:mm)',
-			formatDateTimeInput(sessionItem.startedAt)
-		);
-		if (startedInput === null) return;
-		const startedAt = parseDateTimeInput(startedInput.trim());
+		const startedAt = parseDateTimeInput(editStartedAt.trim());
 		if (!startedAt) {
 			error = 'Invalid start time';
 			return;
 		}
 
-		const endedInput = window.prompt(
-			'End time (YYYY-MM-DDTHH:mm, leave blank for active)',
-			sessionItem.endedAt ? formatDateTimeInput(sessionItem.endedAt) : ''
-		);
-		if (endedInput === null) return;
-		const endedAt = endedInput.trim() ? parseDateTimeInput(endedInput.trim()) : null;
-		if (endedInput.trim() && !endedAt) {
+		const endedAt = editEndedAt.trim() ? parseDateTimeInput(editEndedAt.trim()) : null;
+		if (editEndedAt.trim() && !endedAt) {
 			error = 'Invalid end time';
 			return;
 		}
@@ -319,21 +327,22 @@
 
 		if (!selectedBabyId) return;
 		try {
-			if (sessionItem.type === 'feeding') {
-				await updateFeedingLocal(sessionItem.id, {
+			if (editingSession.type === 'feeding') {
+				await updateFeedingLocal(editingSession.id, {
 					side: nextSide as FeedingSide,
 					started_at: startedAt.toISOString(),
 					ended_at: endedAt ? endedAt.toISOString() : null,
 					_sync: 'pending'
 				});
 			} else {
-				await updateSleepLocal(sessionItem.id, {
+				await updateSleepLocal(editingSession.id, {
 					side: nextSide as HeadSide,
 					started_at: startedAt.toISOString(),
 					ended_at: endedAt ? endedAt.toISOString() : null,
 					_sync: 'pending'
 				});
 			}
+			closeEditSessionModal();
 			await loadSessionsForBaby(selectedBabyId);
 			sync.syncNow();
 		} catch (e) {
@@ -341,23 +350,32 @@
 		}
 	}
 
-	async function handleRemoveSession(sessionItem: (typeof recentSessions)[number]) {
-		if (!window.confirm('Delete this session?')) return;
+	function openDeleteSessionModal(sessionItem: (typeof recentSessions)[number]) {
+		pendingDeleteSession = sessionItem;
+	}
+
+	function closeDeleteSessionModal() {
+		pendingDeleteSession = null;
+	}
+
+	async function confirmRemoveSession() {
+		if (!pendingDeleteSession) return;
 		if (!selectedBabyId) return;
 		try {
-			if (sessionItem.type === 'feeding') {
-				await deleteFeedingLocal(sessionItem.id);
-				if (activeFeedingSession?.id === sessionItem.id) {
+			if (pendingDeleteSession.type === 'feeding') {
+				await deleteFeedingLocal(pendingDeleteSession.id);
+				if (activeFeedingSession?.id === pendingDeleteSession.id) {
 					activeFeedingSession = null;
 					feedingTimer.reset();
 				}
 			} else {
-				await deleteSleepLocal(sessionItem.id);
-				if (activeSleepSession?.id === sessionItem.id) {
+				await deleteSleepLocal(pendingDeleteSession.id);
+				if (activeSleepSession?.id === pendingDeleteSession.id) {
 					activeSleepSession = null;
 					sleepTimer.reset();
 				}
 			}
+			closeDeleteSessionModal();
 			await loadSessionsForBaby(selectedBabyId);
 			sync.syncNow();
 		} catch (e) {
@@ -432,10 +450,85 @@
 				<h3 class="title is-5">Recent Sessions</h3>
 				<SessionList
 					sessions={recentSessions}
-					onedit={handleEditSession}
-					onremove={handleRemoveSession}
+					onedit={openEditSessionModal}
+					onremove={openDeleteSessionModal}
 				/>
 			</div>
 		{/if}
 	</div>
 </section>
+
+{#if editingSession}
+	<div class="modal is-active">
+		<div class="modal-background" onclick={closeEditSessionModal}></div>
+		<div class="modal-card">
+			<header class="modal-card-head">
+				<p class="modal-card-title">Edit Session</p>
+				<button class="delete" aria-label="Close" type="button" onclick={closeEditSessionModal}
+				></button>
+			</header>
+			<section class="modal-card-body">
+				<div class="field">
+					<label class="label" for="edit-session-side">Side</label>
+					<div class="control">
+						<div class="select is-fullwidth">
+							<select id="edit-session-side" bind:value={editSide}>
+								{#each editingSession.type === 'feeding' ? FEEDING_SIDES : SLEEP_SIDES as sideOption}
+									<option value={sideOption}>{sideOption}</option>
+								{/each}
+							</select>
+						</div>
+					</div>
+				</div>
+				<div class="field">
+					<label class="label" for="edit-session-start">Start time</label>
+					<div class="control">
+						<input
+							id="edit-session-start"
+							class="input"
+							type="datetime-local"
+							bind:value={editStartedAt}
+						/>
+					</div>
+				</div>
+				<div class="field">
+					<label class="label" for="edit-session-end">End time</label>
+					<div class="control">
+						<input
+							id="edit-session-end"
+							class="input"
+							type="datetime-local"
+							bind:value={editEndedAt}
+						/>
+					</div>
+					<p class="help">Leave blank for active session.</p>
+				</div>
+			</section>
+			<footer class="modal-card-foot">
+				<button class="button is-primary" type="button" onclick={saveSessionEdits}>Save</button>
+				<button class="button" type="button" onclick={closeEditSessionModal}>Cancel</button>
+			</footer>
+		</div>
+	</div>
+{/if}
+
+{#if pendingDeleteSession}
+	<div class="modal is-active">
+		<div class="modal-background" onclick={closeDeleteSessionModal}></div>
+		<div class="modal-card">
+			<header class="modal-card-head">
+				<p class="modal-card-title">Delete Session</p>
+				<button class="delete" aria-label="Close" type="button" onclick={closeDeleteSessionModal}
+				></button>
+			</header>
+			<section class="modal-card-body">
+				<p>Are you sure you want to delete this session?</p>
+			</section>
+			<footer class="modal-card-foot">
+				<button class="button is-danger" type="button" onclick={confirmRemoveSession}>Delete</button
+				>
+				<button class="button" type="button" onclick={closeDeleteSessionModal}>Cancel</button>
+			</footer>
+		</div>
+	</div>
+{/if}
