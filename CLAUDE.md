@@ -102,6 +102,17 @@ Test **pure business logic functions**, not component internals or Supabase API 
 - ❌ "the button renders with class X"
 - ❌ "Supabase.from().insert() was called"
 
+## Agent delegation
+
+When breaking work into sub-agents, fan out **in parallel** by default — send multiple `Agent`
+tool calls in one message. Sequential calls are only correct when one output feeds the next.
+
+Pick the model for the task:
+
+- **Opus** — complex analysis, code review, architecture decisions, pressure-testing learnings
+- **Sonnet** — implementation, debugging, refactoring, writing (default)
+- **Haiku** — fast lookups, grep, summarising, formatting checks
+
 ## Conventions
 
 - **Indentation:** tabs

@@ -70,30 +70,10 @@ proceeding."
 
 ### 5. Spawning sub-work
 
-When a step needs research, a second opinion, or parallel exploration, spawn agents via the
-`Agent` tool. Pick the model for the task:
-
-| Work type                                                            | Model                |
-| -------------------------------------------------------------------- | -------------------- |
-| Complex analysis, architecture decisions, pressure-testing learnings | **Opus**             |
-| Implementation, debugging, refactoring, writing                      | **Sonnet** (default) |
-| Fast lookups, grep, summarising, formatting checks                   | **Haiku**            |
-
-**Fan out in parallel whenever tasks are independent.** Send multiple `Agent` tool calls in a
-single message. Sequential calls are only correct when one output feeds the next.
-
-```
-# Good — two independent Explore agents in one message
-Agent(subagent_type=Explore, prompt="find auth flow files")
-Agent(subagent_type=Explore, prompt="find sync engine files")
-
-# Bad — sequential with no dependency
-Agent(...) → wait → Agent(...)
-```
-
-For Opus consultation specifically (e.g. pressure-testing learnings), you can also shell out:
-`claude -p --model claude-opus-4-7 '...'` — see **session-review** step 3 for the canonical
-pattern.
+When a step needs research, a second opinion, or parallel exploration, spawn agents following the
+model-selection and parallelism rules in `CLAUDE.md` → **Agent delegation**. For Opus consultation
+specifically (e.g. pressure-testing learnings), see **session-review** step 3 for the canonical
+shell-out pattern.
 
 ### 6. File conventions
 
