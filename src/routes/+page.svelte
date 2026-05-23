@@ -27,7 +27,9 @@
 	function isBeforeInstallPromptEvent(event: Event): event is BeforeInstallPromptEvent {
 		const candidate = event as Partial<BeforeInstallPromptEvent>;
 		return (
-			typeof candidate.prompt === 'function' && typeof candidate.userChoice?.then === 'function'
+			typeof candidate.prompt === 'function' &&
+			candidate.userChoice != null &&
+			typeof candidate.userChoice?.then === 'function'
 		);
 	}
 

@@ -3,17 +3,14 @@ import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
 const rawBasePath = (process.env.BASE_PATH ?? '').trim();
-let basePath = '';
-if (rawBasePath === '/') {
-	basePath = '';
-} else if (rawBasePath) {
-	basePath = rawBasePath.replace(/\/$/, '');
-}
+const normalizedBasePath = rawBasePath ? rawBasePath.replace(/\/+$/, '') : '';
+const basePath = normalizedBasePath === '/' ? '' : normalizedBasePath;
 if (basePath && !basePath.startsWith('/')) {
 	throw new Error('BASE_PATH must be empty or start with "/"');
 }
 const appPath = `${basePath}/app`;
 const appScope = `${basePath}/`;
+const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 export default defineConfig({
 	plugins: [
@@ -51,7 +48,7 @@ export default defineConfig({
 				globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
 				additionalManifestEntries: [{ url: appPath, revision: null }],
 				navigateFallback: appPath,
-				navigateFallbackAllowlist: [new RegExp(`^${appPath}`)],
+				navigateFallbackAllowlist: [new RegExp(`^${escapeRegex(appPath)}`)],
 				clientsClaim: true,
 				skipWaiting: true
 			}
