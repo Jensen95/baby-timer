@@ -1,152 +1,194 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import { getContext } from 'svelte';
+	import { goto } from '$app/navigation';
 	import { base } from '$app/paths';
 	import { SESSION_KEY } from '$lib/auth/context';
 	import type { SessionStore } from '$lib/auth/context';
+	import { getGuestId } from '$lib/offline/guest';
+	import Button from '$lib/components/Button.svelte';
 
 	const session = getContext<SessionStore>(SESSION_KEY);
 
-	interface BeforeInstallPromptEvent extends Event {
-		prompt: () => Promise<void>;
-		userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
-	}
-	type NavigatorWithStandalone = Navigator & { standalone?: boolean };
-
-	let installPrompt = $state<BeforeInstallPromptEvent | null>(null);
-	let installSupported = $state(false);
-	let standalone = $state(false);
-	let showInstallHelp = $state(false);
-
-	function updateStandaloneMode() {
-		standalone =
-			window.matchMedia('(display-mode: standalone)').matches ||
-			((window.navigator as NavigatorWithStandalone).standalone ?? false);
+	function handleGuestMode() {
+		getGuestId();
+		goto(`${base}/app`);
 	}
 
-	function isBeforeInstallPromptEvent(event: Event): event is BeforeInstallPromptEvent {
-		const candidate = event as Partial<BeforeInstallPromptEvent>;
-		return (
-			typeof candidate.prompt === 'function' && typeof candidate.userChoice?.then === 'function'
-		);
-	}
-
-	async function handleInstallClick() {
-		if (!installPrompt) return;
-		await installPrompt.prompt();
-		const { outcome } = await installPrompt.userChoice;
-		if (outcome === 'accepted') {
-			installPrompt = null;
-			installSupported = false;
-		}
-	}
-
-	onMount(() => {
-		updateStandaloneMode();
-		showInstallHelp = !standalone;
-
-		const onBeforeInstallPrompt = (event: Event) => {
-			if (!isBeforeInstallPromptEvent(event)) return;
-			event.preventDefault();
-			installPrompt = event;
-			installSupported = true;
-			showInstallHelp = false;
-		};
-
-		const onAppInstalled = () => {
-			installPrompt = null;
-			installSupported = false;
-			showInstallHelp = false;
-			updateStandaloneMode();
-		};
-
-		window.addEventListener('beforeinstallprompt', onBeforeInstallPrompt);
-		window.addEventListener('appinstalled', onAppInstalled);
-
-		return () => {
-			window.removeEventListener('beforeinstallprompt', onBeforeInstallPrompt);
-			window.removeEventListener('appinstalled', onAppInstalled);
-		};
-	});
+	const primaryHref = session.user ? `${base}/app` : `${base}/login`;
+	const primaryLabel = session.user ? 'Open Dashboard' : 'Start Tracking — Free';
 </script>
 
 <svelte:head>
-	<title>Baby Timer — Track feeding & sleep</title>
+	<title>Baby Tracker — Track feeding & sleep</title>
 	<meta
 		name="description"
 		content="A simple family app for tracking baby feeding and sleep sessions in real time."
 	/>
 </svelte:head>
 
-<section class="hero is-primary is-medium">
-	<div class="hero-body">
-		<div class="container has-text-centered">
-			<h1 class="title is-1">Baby Timer</h1>
-			<p class="subtitle is-4">Track feeding and sleep — together, in real time</p>
-			{#if session.user}
-				<a href="{base}/app" class="button is-white is-medium mt-4">Open Dashboard</a>
-			{:else}
-				<a href="{base}/login" class="button is-white is-medium mt-4">Get Started →</a>
-			{/if}
-			{#if !standalone && installSupported}
-				<div class="mt-3">
-					<button class="button is-light is-medium" type="button" onclick={handleInstallClick}>
-						Install App
-					</button>
-				</div>
-			{:else if showInstallHelp}
-				<p class="is-size-7 mt-3 has-text-white-bis">
-					To install: open your browser menu and choose <strong>Install app</strong> or
-					<strong>Add to Home screen</strong>.
-				</p>
-			{/if}
-		</div>
-	</div>
-</section>
+<div class="page">
+	<section class="hero">
+		<div class="hero-content">
+			<h1 class="headline">Baby Tracker</h1>
+			<p class="subheadline">Track feeds, sleep & more — syncs across your family</p>
 
-<section class="section">
-	<div class="container">
-		<div class="columns is-centered">
-			<div class="column is-10">
-				<div class="columns">
-					<div class="column has-text-centered">
-						<div class="box">
-							<p class="is-size-2 mb-3">🍼</p>
-							<h3 class="title is-5">Feeding Timer</h3>
-							<p class="has-text-grey">
-								Track duration and which breast — left, right, or both. Active sessions sync
-								instantly across devices.
-							</p>
-						</div>
-					</div>
-					<div class="column has-text-centered">
-						<div class="box">
-							<p class="is-size-2 mb-3">😴</p>
-							<h3 class="title is-5">Sleep Timer</h3>
-							<p class="has-text-grey">
-								Log sleep sessions with sleep position and head direction — back, tummy, side, left,
-								or right. See total sleep at a glance.
-							</p>
-						</div>
-					</div>
-					<div class="column has-text-centered">
-						<div class="box">
-							<p class="is-size-2 mb-3">👨‍👩‍👦</p>
-							<h3 class="title is-5">Family Sharing</h3>
-							<p class="has-text-grey">
-								Both parents see live updates. No manual syncing — one parent starts a timer, the
-								other sees it immediately.
-							</p>
-						</div>
-					</div>
-				</div>
+			<div class="cta-group">
+				<Button variant="primary" size="lg" href={primaryHref}>
+					{primaryLabel}
+				</Button>
+				<Button variant="ghost" size="lg" onclick={handleGuestMode}>
+					Track without an account
+				</Button>
 			</div>
 		</div>
+	</section>
 
-		<div class="has-text-centered mt-5">
-			<p class="has-text-grey is-size-7">
-				Open source · Hosted on GitHub Pages · Data stored securely on Supabase
-			</p>
+	<section class="features">
+		<div class="features-grid">
+			<div class="feature-card">
+				<div class="feature-emoji">✓</div>
+				<h3 class="feature-title">Works offline</h3>
+				<p class="feature-desc">Start tracking without internet. Syncs when you're back online.</p>
+			</div>
+
+			<div class="feature-card">
+				<div class="feature-emoji">✓</div>
+				<h3 class="feature-title">Share with family</h3>
+				<p class="feature-desc">Both parents see live updates. No manual syncing needed.</p>
+			</div>
+
+			<div class="feature-card">
+				<div class="feature-emoji">✓</div>
+				<h3 class="feature-title">Track everything</h3>
+				<p class="feature-desc">
+					Feedings, sleep, diapers, temperatures, and notes — all in one place.
+				</p>
+			</div>
 		</div>
-	</div>
-</section>
+	</section>
+
+	<footer class="page-footer">
+		<p>Open source · Hosted on GitHub Pages · Data stored securely on Supabase</p>
+	</footer>
+</div>
+
+<style>
+	.page {
+		display: flex;
+		flex-direction: column;
+		min-height: 100vh;
+		background: var(--bg);
+		color: var(--text);
+	}
+
+	.hero {
+		flex: 1;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: var(--space-7);
+		background: var(--bg);
+	}
+
+	.hero-content {
+		max-width: 480px;
+		text-align: center;
+	}
+
+	.headline {
+		font-size: var(--font-size-6);
+		font-weight: var(--fw-black);
+		line-height: var(--lh-tight);
+		margin: 0 0 var(--space-4) 0;
+		color: var(--text);
+	}
+
+	.subheadline {
+		font-size: var(--font-size-4);
+		font-weight: var(--fw-semibold);
+		line-height: var(--lh-normal);
+		margin: 0 0 var(--space-6) 0;
+		color: var(--text-2);
+	}
+
+	.cta-group {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-3);
+		margin-bottom: var(--space-8);
+	}
+
+	.features {
+		background: var(--surface);
+		padding: var(--space-8) var(--space-7);
+		border-top: 1px solid var(--border);
+	}
+
+	.features-grid {
+		max-width: 720px;
+		margin: 0 auto;
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+		gap: var(--space-6);
+	}
+
+	.feature-card {
+		text-align: center;
+	}
+
+	.feature-emoji {
+		font-size: var(--font-size-6);
+		margin-bottom: var(--space-3);
+	}
+
+	.feature-title {
+		font-size: var(--font-size-4);
+		font-weight: var(--fw-semibold);
+		margin: 0 0 var(--space-2) 0;
+		color: var(--text);
+	}
+
+	.feature-desc {
+		font-size: var(--font-size-2);
+		color: var(--text-2);
+		margin: 0;
+		line-height: var(--lh-normal);
+	}
+
+	.page-footer {
+		background: var(--surface);
+		border-top: 1px solid var(--border);
+		padding: var(--space-5) var(--space-7);
+		text-align: center;
+		font-size: var(--font-size-2);
+		color: var(--text-3);
+		margin: 0;
+	}
+
+	@media (max-width: 600px) {
+		.hero {
+			padding: var(--space-5);
+		}
+
+		.hero-content {
+			max-width: 100%;
+		}
+
+		.headline {
+			font-size: var(--font-size-5);
+		}
+
+		.subheadline {
+			font-size: var(--font-size-3);
+		}
+
+		.features {
+			padding: var(--space-5);
+		}
+
+		.features-grid {
+			grid-template-columns: 1fr;
+			gap: var(--space-4);
+		}
+	}
+</style>

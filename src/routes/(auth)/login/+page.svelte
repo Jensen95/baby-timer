@@ -4,6 +4,8 @@
 	import { base } from '$app/paths';
 	import { SESSION_KEY } from '$lib/auth/context';
 	import type { SessionStore } from '$lib/auth/context';
+	import { getGuestId } from '$lib/offline/guest';
+	import Button from '$lib/components/Button.svelte';
 
 	const session = getContext<SessionStore>(SESSION_KEY);
 
@@ -32,70 +34,257 @@
 			loading = false;
 		}
 	}
+
+	function handleGuestMode() {
+		getGuestId();
+		goto(`${base}/app`);
+	}
 </script>
 
 <svelte:head>
-	<title>Sign in — Baby Timer</title>
+	<title>Sign in — Baby Tracker</title>
 </svelte:head>
 
-<section class="section">
-	<div class="container">
-		<div class="columns is-centered">
-			<div class="column is-narrow" style="min-width: 360px">
-				<div class="box">
-					<h1 class="title has-text-centered">Baby Timer</h1>
+<div class="page">
+	<div class="login-card">
+		<h1 class="login-title">Baby Tracker</h1>
 
-					{#if sent}
-						<div class="notification is-success">
-							<p>Check your email for a magic link to sign in!</p>
-						</div>
-					{:else}
-						<form onsubmit={handleSubmit}>
-							<div class="field">
-								<label class="label" for="display-name">Your name</label>
-								<div class="control">
-									<input
-										id="display-name"
-										class="input"
-										type="text"
-										placeholder="Alex"
-										bind:value={displayName}
-									/>
-								</div>
-								<p class="help">Optional, but it helps your family recognize you.</p>
-							</div>
-
-							<div class="field">
-								<label class="label" for="email">Email</label>
-								<div class="control">
-									<input
-										id="email"
-										class="input"
-										type="email"
-										placeholder="you@example.com"
-										bind:value={email}
-										required
-									/>
-								</div>
-							</div>
-
-							{#if error}
-								<div class="notification is-danger is-light">
-									{error}
-								</div>
-							{/if}
-
-							<div class="field">
-								<div class="control">
-									<button class="button is-primary is-fullwidth" type="submit" disabled={loading}>
-										{loading ? 'Sending...' : 'Send Magic Link'}
-									</button>
-								</div>
-							</div>
-						</form>
-					{/if}
-				</div>
+		{#if sent}
+			<div class="confirmation">
+				<div class="confirmation-icon">✓</div>
+				<h2 class="confirmation-title">Check your email</h2>
+				<p class="confirmation-text">
+					We sent a magic link to <strong>{email}</strong>. Click it to sign in and start syncing.
+				</p>
+				<p class="confirmation-hint">The link works for 24 hours.</p>
 			</div>
-		</div>
+		{:else}
+			<form onsubmit={handleSubmit} class="login-form">
+				<div class="form-group">
+					<label class="form-label" for="display-name">Your name</label>
+					<input
+						id="display-name"
+						class="form-input"
+						type="text"
+						placeholder="Alex"
+						bind:value={displayName}
+					/>
+					<p class="form-help">Optional, but it helps your family recognize you.</p>
+				</div>
+
+				<div class="form-group">
+					<label class="form-label" for="email">Email</label>
+					<input
+						id="email"
+						class="form-input"
+						type="email"
+						placeholder="you@example.com"
+						bind:value={email}
+						required
+					/>
+				</div>
+
+				{#if error}
+					<div class="error-box">
+						{error}
+					</div>
+				{/if}
+
+				<Button
+					variant="primary"
+					size="lg"
+					type="submit"
+					disabled={loading}
+					{loading}
+					class="form-submit"
+				>
+					{loading ? 'Sending...' : 'Send Magic Link'}
+				</Button>
+			</form>
+
+			<div class="form-divider">
+				<span>or</span>
+			</div>
+
+			<button type="button" class="guest-link" onclick={handleGuestMode}>
+				Continue without an account
+			</button>
+		{/if}
 	</div>
-</section>
+</div>
+
+<style>
+	.page {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		min-height: 100vh;
+		padding: var(--space-5);
+		background: var(--bg);
+		color: var(--text);
+	}
+
+	.login-card {
+		width: 100%;
+		max-width: 420px;
+		background: var(--surface);
+		border-radius: var(--radius-2);
+		border: 1px solid var(--border);
+		padding: var(--space-7);
+	}
+
+	.login-title {
+		font-size: var(--font-size-6);
+		font-weight: var(--fw-black);
+		text-align: center;
+		margin: 0 0 var(--space-6) 0;
+		color: var(--text);
+	}
+
+	.confirmation {
+		text-align: center;
+		padding: var(--space-4) 0;
+	}
+
+	.confirmation-icon {
+		font-size: 3rem;
+		margin-bottom: var(--space-4);
+		color: var(--brand);
+	}
+
+	.confirmation-title {
+		font-size: var(--font-size-5);
+		font-weight: var(--fw-bold);
+		margin: 0 0 var(--space-3) 0;
+		color: var(--text);
+	}
+
+	.confirmation-text {
+		font-size: var(--font-size-3);
+		line-height: var(--lh-normal);
+		margin: 0 0 var(--space-3) 0;
+		color: var(--text-2);
+	}
+
+	.confirmation-hint {
+		font-size: var(--font-size-2);
+		color: var(--text-3);
+		margin: 0;
+	}
+
+	.login-form {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-4);
+	}
+
+	.form-group {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-2);
+	}
+
+	.form-label {
+		font-size: var(--font-size-3);
+		font-weight: var(--fw-semibold);
+		color: var(--text);
+	}
+
+	.form-input {
+		min-height: var(--tap-comfortable);
+		padding: var(--space-3) var(--space-4);
+		font-size: var(--font-size-3);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-1);
+		background: var(--bg);
+		color: var(--text);
+		font-family: var(--font-body);
+		transition: border-color var(--duration-fast);
+	}
+
+	.form-input::placeholder {
+		color: var(--text-3);
+	}
+
+	.form-input:focus {
+		outline: none;
+		border-color: var(--brand);
+		box-shadow: 0 0 0 2px var(--brand-subtle);
+	}
+
+	.form-help {
+		font-size: var(--font-size-2);
+		color: var(--text-3);
+		margin: 0;
+	}
+
+	.error-box {
+		padding: var(--space-3) var(--space-4);
+		background: var(--danger-fill);
+		border: 1px solid var(--danger);
+		border-radius: var(--radius-1);
+		color: var(--danger);
+		font-size: var(--font-size-2);
+	}
+
+	:global(.form-submit) {
+		width: 100%;
+	}
+
+	.form-divider {
+		display: flex;
+		align-items: center;
+		gap: var(--space-4);
+		margin: var(--space-5) 0;
+		color: var(--text-3);
+		font-size: var(--font-size-2);
+	}
+
+	.form-divider::before,
+	.form-divider::after {
+		content: '';
+		flex: 1;
+		height: 1px;
+		background: var(--border);
+	}
+
+	.guest-link {
+		display: block;
+		width: 100%;
+		padding: var(--space-3) var(--space-4);
+		border: none;
+		background: transparent;
+		color: var(--brand);
+		font-size: var(--font-size-3);
+		font-weight: var(--fw-semibold);
+		cursor: pointer;
+		text-decoration: none;
+		border-radius: var(--radius-1);
+		transition: background-color var(--duration-fast);
+		text-align: center;
+		font-family: var(--font-body);
+	}
+
+	.guest-link:hover {
+		background-color: var(--brand-subtle);
+	}
+
+	.guest-link:active {
+		transform: scale(0.98);
+	}
+
+	@media (max-width: 480px) {
+		.login-card {
+			padding: var(--space-5);
+		}
+
+		.login-title {
+			font-size: var(--font-size-5);
+			margin-bottom: var(--space-5);
+		}
+
+		.confirmation-title {
+			font-size: var(--font-size-4);
+		}
+	}
+</style>
