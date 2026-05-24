@@ -1,8 +1,7 @@
-<script context="module" lang="ts">
+<script lang="ts">
 	import type { Component } from 'svelte';
 	import type { IconProps } from 'lucide-svelte';
-
-	export type SessionType = 'feed' | 'sleep' | 'pump' | 'diaper';
+	import type { SessionType } from '$lib/types';
 
 	interface Props {
 		type: SessionType;
@@ -13,9 +12,7 @@
 		disabledReason?: string;
 		onstart: () => void;
 	}
-</script>
 
-<script lang="ts">
 	let {
 		type,
 		label,
