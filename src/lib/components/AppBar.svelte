@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { base } from '$app/paths';
 	import { Sun, Moon, Sunset, Cloud, Settings } from 'lucide-svelte';
 	import BabySelector from './BabySelector.svelte';
 	import { getTheme, setTheme, THEMES } from '$lib/state/theme.svelte';
@@ -43,7 +44,7 @@
 		>
 			<ThemeIcon size={20} aria-hidden="true" />
 		</button>
-		<a href="/app/settings" class="icon-btn" aria-label="Settings">
+		<a href={`${base}/app/settings`} class="icon-btn" aria-label="Settings">
 			<Settings size={20} aria-hidden="true" />
 		</a>
 	</div>
