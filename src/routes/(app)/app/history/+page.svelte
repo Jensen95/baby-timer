@@ -4,6 +4,8 @@
 	import type { SessionStore } from '$lib/auth/context';
 	import { SYNC_KEY } from '$lib/db/sync.svelte';
 	import type { SyncEngineStore } from '$lib/db/sync.svelte';
+	import { BABY_STATE_KEY } from '$lib/state/baby.svelte';
+	import type { BabyState } from '$lib/state/baby.svelte';
 	import { supabase } from '$lib/supabase';
 	import {
 		listFeedingSessionsLocal,
@@ -21,49 +23,24 @@
 		updateDiaperChangeLocal,
 		deleteDiaperChangeLocal
 	} from '$lib/db/local-diaper-change';
-	import { listBabiesLocal, type LocalBaby } from '$lib/db/local-babies';
 	import { getLocalFamily, putLocalFamily } from '$lib/db/local-family';
 	import { getUserFamilies } from '$lib/db/family';
-	import { buildTimerResult } from '$lib/timer/timer-logic';
-	import SessionList from '$lib/components/SessionList.svelte';
+	import type { LocalSession } from '$lib/sessions/local-session';
 	import type { FeedingSide } from '$lib/sessions/feeding';
 	import type { HeadSide } from '$lib/sessions/sleep';
 	import type { PumpSide } from '$lib/sessions/breast-pump';
-	import { getDiaperContent } from '$lib/sessions/diaper-change';
+	import SessionRow from '$lib/components/SessionRow.svelte';
+	import SessionEditSheet from '$lib/components/SessionEditSheet.svelte';
 
 	const session = getContext<SessionStore>(SESSION_KEY);
 	const sync = getContext<SyncEngineStore>(SYNC_KEY);
+	const babyState = getContext<BabyState>(BABY_STATE_KEY);
 
-	let babies = $state<LocalBaby[]>([]);
-	let selectedBabyId = $state<string | null>(null);
 	let familyId = $state<string | null>(null);
 	let loading = $state(true);
 	let error = $state<string | null>(null);
-	let sessions = $state<
-		Array<{
-			id: string;
-			type: 'feeding' | 'sleep' | 'breast_pump' | 'diaper_change';
-			side: string;
-			startedAt: Date;
-			endedAt: Date | null;
-			durationSeconds: number | null;
-			yieldLeftMl: number | null;
-			yieldRightMl: number | null;
-			note: string | null;
-		}>
-	>([]);
-	let editingSession = $state<(typeof sessions)[number] | null>(null);
-	let pendingDeleteSession = $state<(typeof sessions)[number] | null>(null);
-	let editSide = $state('');
-	let editStartedAt = $state('');
-	let editEndedAt = $state('');
-	let editYieldLeftMl = $state('');
-	let editYieldRightMl = $state('');
-
-	const FEEDING_SIDES: FeedingSide[] = ['left', 'right', 'both'];
-	const SLEEP_SIDES: HeadSide[] = ['left', 'right', 'back', 'tummy', 'side'];
-	const PUMP_SIDES: PumpSide[] = ['left', 'right', 'both'];
-	const DIAPER_CONTENTS = ['poop', 'pee', 'both'] as const;
+	let sessions = $state<LocalSession[]>([]);
+	let editingSession = $state<LocalSession | null>(null);
 
 	$effect(() => {
 		(async () => {
@@ -89,11 +66,6 @@
 				} else {
 					familyId = null;
 				}
-
-				babies = await listBabiesLocal(familyId);
-				if (babies.length > 0) {
-					selectedBabyId = babies[0].id;
-				}
 			} catch (e) {
 				error = e instanceof Error ? e.message : 'Failed to load';
 			} finally {
@@ -103,72 +75,77 @@
 	});
 
 	$effect(() => {
-		if (!selectedBabyId) return;
-		loadHistory(selectedBabyId);
+		const babyId = babyState.selectedBabyId;
+		if (!babyId) return;
+		loadHistory(babyId);
 	});
 
 	async function loadHistory(babyId: string) {
 		loading = true;
 		try {
-			const [feedings, sleeps, pumps, diaperChanges] = await Promise.all([
-				listFeedingSessionsLocal(babyId, 100),
-				listSleepSessionsLocal(babyId, 100),
-				listBreastPumpSessionsLocal(babyId, 100),
-				listDiaperChangeSessionsLocal(babyId, 100)
+			const [feedings, sleeps, pumps, diapers] = await Promise.all([
+				listFeedingSessionsLocal(babyId, 200),
+				listSleepSessionsLocal(babyId, 200),
+				listBreastPumpSessionsLocal(babyId, 200),
+				listDiaperChangeSessionsLocal(babyId, 200)
 			]);
-
 			sessions = [
-				...feedings.map((s) => ({
-					id: s.id,
-					type: 'feeding' as const,
-					side: s.side,
-					startedAt: new Date(s.started_at),
-					endedAt: s.ended_at ? new Date(s.ended_at) : null,
-					durationSeconds: s.ended_at
-						? buildTimerResult(new Date(s.started_at), new Date(s.ended_at)).durationSeconds
-						: null,
-					yieldLeftMl: null,
-					yieldRightMl: null,
-					note: s.note
-				})),
-				...sleeps.map((s) => ({
-					id: s.id,
-					type: 'sleep' as const,
-					side: s.side,
-					startedAt: new Date(s.started_at),
-					endedAt: s.ended_at ? new Date(s.ended_at) : null,
-					durationSeconds: s.ended_at
-						? buildTimerResult(new Date(s.started_at), new Date(s.ended_at)).durationSeconds
-						: null,
-					yieldLeftMl: null,
-					yieldRightMl: null,
-					note: s.note
-				})),
-				...pumps.map((s) => ({
-					id: s.id,
-					type: 'breast_pump' as const,
-					side: s.side,
-					startedAt: new Date(s.started_at),
-					endedAt: s.ended_at ? new Date(s.ended_at) : null,
-					durationSeconds: s.ended_at
-						? buildTimerResult(new Date(s.started_at), new Date(s.ended_at)).durationSeconds
-						: null,
-					yieldLeftMl: s.yield_left_ml,
-					yieldRightMl: s.yield_right_ml,
-					note: s.note
-				})),
-				...diaperChanges.map((s) => ({
-					id: s.id,
-					type: 'diaper_change' as const,
-					side: getDiaperContent(s.has_poop, s.has_pee),
-					startedAt: new Date(s.started_at),
-					endedAt: new Date(s.started_at),
-					durationSeconds: 0,
-					yieldLeftMl: null,
-					yieldRightMl: null,
-					note: s.note
-				}))
-			].sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime());
+				...feedings.map(
+					(s): LocalSession => ({
+						id: s.id,
+						type: 'feeding',
+						baby_id: s.baby_id,
+						family_id: s.family_id,
+						started_at: s.started_at,
+						ended_at: s.ended_at,
+						side: s.side,
+						note: s.note,
+						_sync: s._sync
+					})
+				),
+				...sleeps.map(
+					(s): LocalSession => ({
+						id: s.id,
+						type: 'sleep',
+						baby_id: s.baby_id,
+						family_id: s.family_id,
+						started_at: s.started_at,
+						ended_at: s.ended_at,
+						side: s.side,
+						note: s.note,
+						_sync: s._sync
+					})
+				),
+				...pumps.map(
+					(s): LocalSession => ({
+						id: s.id,
+						type: 'breast_pump',
+						baby_id: s.baby_id,
+						family_id: s.family_id,
+						started_at: s.started_at,
+						ended_at: s.ended_at,
+						side: s.side,
+						yield_left_ml: s.yield_left_ml,
+						yield_right_ml: s.yield_right_ml,
+						note: s.note,
+						_sync: s._sync
+					})
+				),
+				...diapers.map(
+					(s): LocalSession => ({
+						id: s.id,
+						type: 'diaper_change',
+						baby_id: s.baby_id,
+						family_id: s.family_id,
+						started_at: s.started_at,
+						ended_at: null,
+						has_poop: s.has_poop,
+						has_pee: s.has_pee,
+						note: s.note,
+						_sync: s._sync
+					})
+				)
+			].sort((a, b) => new Date(b.started_at).getTime() - new Date(a.started_at).getTime());
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Failed to load history';
 		} finally {
@@ -176,292 +153,167 @@
 		}
 	}
 
-	function formatDateTimeInput(date: Date): string {
-		const pad = (value: number) => String(value).padStart(2, '0');
-		return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-	}
+	const grouped = $derived.by(() => {
+		const groups: { dateKey: string; label: string; sessions: LocalSession[] }[] = [];
+		const today = new Date().toLocaleDateString('en-CA');
+		const yesterday = new Date(Date.now() - 86400000).toLocaleDateString('en-CA');
 
-	function parseDateTimeInput(value: string): Date | null {
-		const parsed = new Date(value);
-		return Number.isNaN(parsed.getTime()) ? null : parsed;
-	}
-
-	function parseOptionalYield(value: string): number | null {
-		const trimmed = value.trim();
-		if (!trimmed) return null;
-		const parsed = Number(trimmed);
-		if (!Number.isFinite(parsed) || parsed < 0) {
-			throw new Error('Yield must be a non-negative number');
+		for (const s of sessions) {
+			const dateKey = new Date(s.started_at).toLocaleDateString('en-CA');
+			let group = groups.find((g) => g.dateKey === dateKey);
+			if (!group) {
+				const label =
+					dateKey === today
+						? 'Today'
+						: dateKey === yesterday
+							? 'Yesterday'
+							: new Date(s.started_at).toLocaleDateString([], {
+									weekday: 'short',
+									day: 'numeric',
+									month: 'short'
+								});
+				group = { dateKey, label, sessions: [] };
+				groups.push(group);
+			}
+			group.sessions.push(s);
 		}
-		return Math.round(parsed);
+		return groups;
+	});
+
+	function handleEdit(s: LocalSession) {
+		editingSession = s;
 	}
 
-	function openEditSessionModal(sessionItem: (typeof sessions)[number]) {
-		editingSession = sessionItem;
-		editSide = sessionItem.side;
-		editStartedAt = formatDateTimeInput(sessionItem.startedAt);
-		editEndedAt = sessionItem.endedAt ? formatDateTimeInput(sessionItem.endedAt) : '';
-		editYieldLeftMl = sessionItem.yieldLeftMl !== null ? String(sessionItem.yieldLeftMl) : '';
-		editYieldRightMl = sessionItem.yieldRightMl !== null ? String(sessionItem.yieldRightMl) : '';
-	}
-
-	function closeEditSessionModal() {
+	async function handleSave(updated: LocalSession) {
+		const babyId = babyState.selectedBabyId;
+		if (!babyId) return;
+		if (updated.type === 'feeding') {
+			await updateFeedingLocal(updated.id, {
+				side: updated.side as FeedingSide,
+				started_at: updated.started_at,
+				ended_at: updated.ended_at,
+				_sync: 'pending'
+			});
+		} else if (updated.type === 'sleep') {
+			await updateSleepLocal(updated.id, {
+				side: updated.side as HeadSide,
+				started_at: updated.started_at,
+				ended_at: updated.ended_at,
+				_sync: 'pending'
+			});
+		} else if (updated.type === 'breast_pump') {
+			await updateBreastPumpLocal(updated.id, {
+				side: updated.side as PumpSide,
+				started_at: updated.started_at,
+				ended_at: updated.ended_at,
+				yield_left_ml: updated.yield_left_ml ?? null,
+				yield_right_ml: updated.yield_right_ml ?? null,
+				_sync: 'pending'
+			});
+		} else if (updated.type === 'diaper_change') {
+			await updateDiaperChangeLocal(updated.id, {
+				started_at: updated.started_at,
+				has_poop: updated.has_poop ?? false,
+				has_pee: updated.has_pee ?? false,
+				_sync: 'pending'
+			});
+		}
 		editingSession = null;
-		editSide = '';
-		editStartedAt = '';
-		editEndedAt = '';
-		editYieldLeftMl = '';
-		editYieldRightMl = '';
+		await loadHistory(babyId);
+		sync.syncNow();
 	}
 
-	async function saveSessionEdits() {
-		if (!editingSession) return;
-		const allowedSides: string[] =
-			editingSession.type === 'sleep'
-				? SLEEP_SIDES
-				: editingSession.type === 'breast_pump'
-					? PUMP_SIDES
-					: editingSession.type === 'diaper_change'
-						? [...DIAPER_CONTENTS]
-						: FEEDING_SIDES;
-		const nextSide = editSide.trim().toLowerCase();
-		if (!allowedSides.includes(nextSide)) {
-			error = 'Invalid side selection';
-			return;
-		}
-
-		const startedAt = parseDateTimeInput(editStartedAt.trim());
-		if (!startedAt) {
-			error = 'Invalid start time';
-			return;
-		}
-
-		const endedAt = editEndedAt.trim() ? parseDateTimeInput(editEndedAt.trim()) : null;
-		if (editEndedAt.trim() && !endedAt) {
-			error = 'Invalid end time';
-			return;
-		}
-		if (endedAt && endedAt < startedAt) {
-			error = 'End time cannot be before start time';
-			return;
-		}
-
-		if (!selectedBabyId) return;
-		try {
-			if (editingSession.type === 'feeding') {
-				await updateFeedingLocal(editingSession.id, {
-					side: nextSide as FeedingSide,
-					started_at: startedAt.toISOString(),
-					ended_at: endedAt ? endedAt.toISOString() : null,
-					_sync: 'pending'
-				});
-			} else if (editingSession.type === 'breast_pump') {
-				await updateBreastPumpLocal(editingSession.id, {
-					side: nextSide as PumpSide,
-					started_at: startedAt.toISOString(),
-					ended_at: endedAt ? endedAt.toISOString() : null,
-					yield_left_ml: parseOptionalYield(editYieldLeftMl),
-					yield_right_ml: parseOptionalYield(editYieldRightMl),
-					_sync: 'pending'
-				});
-			} else if (editingSession.type === 'sleep') {
-				await updateSleepLocal(editingSession.id, {
-					side: nextSide as HeadSide,
-					started_at: startedAt.toISOString(),
-					ended_at: endedAt ? endedAt.toISOString() : null,
-					_sync: 'pending'
-				});
-			} else if (editingSession.type === 'diaper_change') {
-				await updateDiaperChangeLocal(editingSession.id, {
-					started_at: startedAt.toISOString(),
-					has_poop: nextSide === 'poop' || nextSide === 'both',
-					has_pee: nextSide === 'pee' || nextSide === 'both',
-					_sync: 'pending'
-				});
-			} else {
-				throw new Error(`Unsupported session type: ${editingSession.type}`);
-			}
-			closeEditSessionModal();
-			await loadHistory(selectedBabyId);
-			sync.syncNow();
-		} catch (e) {
-			error = e instanceof Error ? e.message : 'Failed to edit session';
-		}
-	}
-
-	function openDeleteSessionModal(sessionItem: (typeof sessions)[number]) {
-		pendingDeleteSession = sessionItem;
-	}
-
-	function closeDeleteSessionModal() {
-		pendingDeleteSession = null;
-	}
-
-	async function confirmRemoveSession() {
-		if (!pendingDeleteSession) return;
-		if (!selectedBabyId) return;
-		try {
-			if (pendingDeleteSession.type === 'feeding') {
-				await deleteFeedingLocal(pendingDeleteSession.id);
-			} else if (pendingDeleteSession.type === 'breast_pump') {
-				await deleteBreastPumpLocal(pendingDeleteSession.id);
-			} else if (pendingDeleteSession.type === 'diaper_change') {
-				await deleteDiaperChangeLocal(pendingDeleteSession.id);
-			} else {
-				await deleteSleepLocal(pendingDeleteSession.id);
-			}
-			closeDeleteSessionModal();
-			await loadHistory(selectedBabyId);
-			sync.syncNow();
-		} catch (e) {
-			error = e instanceof Error ? e.message : 'Failed to remove session';
-		}
+	async function handleDelete(s: LocalSession) {
+		const babyId = babyState.selectedBabyId;
+		if (!babyId) return;
+		if (s.type === 'feeding') await deleteFeedingLocal(s.id);
+		else if (s.type === 'sleep') await deleteSleepLocal(s.id);
+		else if (s.type === 'breast_pump') await deleteBreastPumpLocal(s.id);
+		else if (s.type === 'diaper_change') await deleteDiaperChangeLocal(s.id);
+		editingSession = null;
+		await loadHistory(babyId);
+		sync.syncNow();
 	}
 </script>
 
-<section class="section">
-	<div class="container">
-		<h1 class="title">History</h1>
+<div class="page">
+	<h1 class="page-title">History</h1>
 
-		{#if error}
-			<div class="notification is-danger is-light">{error}</div>
-		{/if}
+	{#if error}
+		<p class="error-msg" role="alert">{error}</p>
+	{/if}
 
-		{#if babies.length > 1}
-			<div class="field mb-4">
-				<div class="control">
-					<div class="select">
-						<select
-							value={selectedBabyId}
-							onchange={(e) => (selectedBabyId = (e.target as HTMLSelectElement).value)}
-						>
-							{#each babies as baby (baby.id)}
-								<option value={baby.id}>{baby.name}</option>
-							{/each}
-						</select>
-					</div>
+	{#if !babyState.selectedBabyId}
+		<p class="empty-msg">Select a baby to see history.</p>
+	{:else if loading}
+		<p class="loading-msg">Loading…</p>
+	{:else if grouped.length === 0}
+		<p class="empty-msg">No sessions yet. Start tracking!</p>
+	{:else}
+		{#each grouped as group (group.dateKey)}
+			<div class="date-group">
+				<h2 class="date-header">{group.label}</h2>
+				<div class="session-list">
+					{#each group.sessions as s, i (s.id)}
+						<SessionRow
+							session={s}
+							onedit={handleEdit}
+							ondelete={handleDelete}
+							isLast={i === group.sessions.length - 1}
+						/>
+					{/each}
 				</div>
 			</div>
-		{/if}
+		{/each}
+	{/if}
+</div>
 
-		<SessionList
-			{sessions}
-			{loading}
-			onedit={openEditSessionModal}
-			onremove={openDeleteSessionModal}
-		/>
-	</div>
-</section>
+<SessionEditSheet
+	session={editingSession}
+	onclose={() => (editingSession = null)}
+	onsave={handleSave}
+	ondelete={handleDelete}
+/>
 
-{#if editingSession}
-	<div class="modal is-active">
-		<button
-			class="modal-background"
-			type="button"
-			aria-label="Close edit session modal"
-			onclick={closeEditSessionModal}
-		></button>
-		<div class="modal-card">
-			<header class="modal-card-head">
-				<p class="modal-card-title">Edit Session</p>
-				<button class="delete" aria-label="Close" type="button" onclick={closeEditSessionModal}
-				></button>
-			</header>
-			<section class="modal-card-body">
-				<div class="field">
-					<label class="label" for="edit-session-side">Side</label>
-					<div class="control">
-						<div class="select is-fullwidth">
-							<select id="edit-session-side" bind:value={editSide}>
-								{#each editingSession.type === 'sleep' ? SLEEP_SIDES : editingSession.type === 'breast_pump' ? PUMP_SIDES : editingSession.type === 'diaper_change' ? DIAPER_CONTENTS : FEEDING_SIDES as sideOption}
-									<option value={sideOption}>{sideOption}</option>
-								{/each}
-							</select>
-						</div>
-					</div>
-				</div>
-				<div class="field">
-					<label class="label" for="edit-session-start">Start time</label>
-					<div class="control">
-						<input
-							id="edit-session-start"
-							class="input"
-							type="datetime-local"
-							bind:value={editStartedAt}
-						/>
-					</div>
-				</div>
-				<div class="field">
-					<label class="label" for="edit-session-end">End time</label>
-					<div class="control">
-						<input
-							id="edit-session-end"
-							class="input"
-							type="datetime-local"
-							bind:value={editEndedAt}
-						/>
-					</div>
-					<p class="help">Leave blank for active session.</p>
-				</div>
-				{#if editingSession.type === 'breast_pump'}
-					<div class="field">
-						<label class="label" for="edit-session-yield-left">Left yield (ml)</label>
-						<div class="control">
-							<input
-								id="edit-session-yield-left"
-								class="input"
-								type="number"
-								min="0"
-								step="1"
-								bind:value={editYieldLeftMl}
-							/>
-						</div>
-					</div>
-					<div class="field">
-						<label class="label" for="edit-session-yield-right">Right yield (ml)</label>
-						<div class="control">
-							<input
-								id="edit-session-yield-right"
-								class="input"
-								type="number"
-								min="0"
-								step="1"
-								bind:value={editYieldRightMl}
-							/>
-						</div>
-					</div>
-				{/if}
-			</section>
-			<footer class="modal-card-foot">
-				<button class="button is-primary" type="button" onclick={saveSessionEdits}>Save</button>
-				<button class="button" type="button" onclick={closeEditSessionModal}>Cancel</button>
-			</footer>
-		</div>
-	</div>
-{/if}
+<style>
+	.page {
+		padding: var(--space-4) var(--space-4) calc(var(--bottom-nav-h) + var(--space-6));
+		max-width: 720px;
+		margin: 0 auto;
+	}
 
-{#if pendingDeleteSession}
-	<div class="modal is-active">
-		<button
-			class="modal-background"
-			type="button"
-			aria-label="Close delete session modal"
-			onclick={closeDeleteSessionModal}
-		></button>
-		<div class="modal-card">
-			<header class="modal-card-head">
-				<p class="modal-card-title">Delete Session</p>
-				<button class="delete" aria-label="Close" type="button" onclick={closeDeleteSessionModal}
-				></button>
-			</header>
-			<section class="modal-card-body">
-				<p>Are you sure you want to delete this session?</p>
-			</section>
-			<footer class="modal-card-foot">
-				<button class="button is-danger" type="button" onclick={confirmRemoveSession}>Delete</button
-				>
-				<button class="button" type="button" onclick={closeDeleteSessionModal}>Cancel</button>
-			</footer>
-		</div>
-	</div>
-{/if}
+	.page-title {
+		font-size: var(--font-size-5);
+		font-weight: var(--fw-bold);
+		color: var(--text);
+		margin: 0 0 var(--space-5);
+	}
+
+	.date-header {
+		font-size: var(--font-size-2);
+		font-weight: var(--fw-semibold);
+		color: var(--text-2);
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
+		margin: var(--space-5) 0 var(--space-2);
+	}
+
+	.session-list {
+		border: 1px solid var(--border);
+		border-radius: var(--radius-3);
+		overflow: hidden;
+	}
+
+	.error-msg {
+		color: var(--danger);
+		font-size: var(--font-size-2);
+		margin-bottom: var(--space-3);
+	}
+
+	.loading-msg,
+	.empty-msg {
+		color: var(--text-2);
+		text-align: center;
+		padding: var(--space-6) 0;
+	}
+</style>
