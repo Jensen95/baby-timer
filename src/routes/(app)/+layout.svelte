@@ -43,8 +43,8 @@
 </script>
 
 {#if session.loading}
-	<div class="is-flex is-justify-content-center is-align-items-center" style="min-height: 100vh">
-		<progress class="progress is-primary is-small" max="100">Loading</progress>
+	<div style="min-height: 100vh; display: flex; align-items: center; justify-content: center;">
+		<progress style="width: 200px; accent-color: var(--brand);" max="100">Loading</progress>
 	</div>
 {:else}
 	{#if !session.user}

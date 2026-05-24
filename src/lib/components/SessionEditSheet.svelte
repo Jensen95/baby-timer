@@ -18,14 +18,12 @@
 
 	const open = $derived(session !== null);
 
-	// Editable fields
 	let editStartedAt = $state('');
 	let editEndedAt = $state('');
 	let editSide = $state('');
 	let editYieldLeftMl = $state('');
 	let editYieldRightMl = $state('');
 
-	// UI state
 	let saving = $state(false);
 	let deleting = $state(false);
 	let confirmDelete = $state(false);
@@ -49,7 +47,6 @@
 		return Math.round(n);
 	}
 
-	// Re-initialise form whenever session changes
 	$effect(() => {
 		if (!session) {
 			editStartedAt = '';
@@ -76,7 +73,6 @@
 		confirmDelete = false;
 	});
 
-	// OptionGrid option sets
 	const FEEDING_OPTIONS = [
 		{ value: 'left', label: 'Left' },
 		{ value: 'right', label: 'Right' },
@@ -204,161 +200,150 @@
 </script>
 
 <Sheet {open} title="Edit session" onclose={handleClose}>
-	{#snippet children()}
-		{#if session}
-			<div class="form">
-				{#if session.type === 'diaper_change'}
+	{#if session}
+		<div class="form">
+			{#if session.type === 'diaper_change'}
+				<div class="field">
+					<label class="field-label" for="edit-started-at">Time</label>
+					<input
+						id="edit-started-at"
+						class="time-input"
+						type="datetime-local"
+						bind:value={editStartedAt}
+					/>
+				</div>
+				<div class="field">
+					<span class="field-label">Contents</span>
+					<OptionGrid
+						options={DIAPER_OPTIONS}
+						value={editSide}
+						columns={3}
+						onchange={(v) => (editSide = v as string)}
+					/>
+				</div>
+			{:else if session.type === 'feeding'}
+				<div class="field">
+					<label class="field-label" for="edit-started-at">Start time</label>
+					<input
+						id="edit-started-at"
+						class="time-input"
+						type="datetime-local"
+						bind:value={editStartedAt}
+					/>
+				</div>
+				<div class="field">
+					<label class="field-label" for="edit-ended-at"
+						>End time <span class="optional">(optional)</span></label
+					>
+					<input
+						id="edit-ended-at"
+						class="time-input"
+						type="datetime-local"
+						bind:value={editEndedAt}
+					/>
+				</div>
+				<div class="field">
+					<span class="field-label">Side</span>
+					<OptionGrid
+						options={FEEDING_OPTIONS}
+						value={editSide}
+						columns={3}
+						onchange={(v) => (editSide = v as string)}
+					/>
+				</div>
+			{:else if session.type === 'sleep'}
+				<div class="field">
+					<label class="field-label" for="edit-started-at">Start time</label>
+					<input
+						id="edit-started-at"
+						class="time-input"
+						type="datetime-local"
+						bind:value={editStartedAt}
+					/>
+				</div>
+				<div class="field">
+					<label class="field-label" for="edit-ended-at"
+						>End time <span class="optional">(optional)</span></label
+					>
+					<input
+						id="edit-ended-at"
+						class="time-input"
+						type="datetime-local"
+						bind:value={editEndedAt}
+					/>
+				</div>
+				<div class="field">
+					<span class="field-label">Head position</span>
+					<OptionGrid
+						options={SLEEP_OPTIONS}
+						value={editSide}
+						columns={3}
+						onchange={(v) => (editSide = v as string)}
+					/>
+				</div>
+			{:else if session.type === 'breast_pump'}
+				<div class="field">
+					<label class="field-label" for="edit-started-at">Start time</label>
+					<input
+						id="edit-started-at"
+						class="time-input"
+						type="datetime-local"
+						bind:value={editStartedAt}
+					/>
+				</div>
+				<div class="field">
+					<label class="field-label" for="edit-ended-at"
+						>End time <span class="optional">(optional)</span></label
+					>
+					<input
+						id="edit-ended-at"
+						class="time-input"
+						type="datetime-local"
+						bind:value={editEndedAt}
+					/>
+				</div>
+				<div class="field">
+					<span class="field-label">Side</span>
+					<OptionGrid
+						options={PUMP_OPTIONS}
+						value={editSide}
+						columns={3}
+						onchange={(v) => (editSide = v as string)}
+					/>
+				</div>
+				{#if showYieldLeft}
 					<div class="field">
-						<label class="field-label" for="edit-started-at">Time</label>
+						<label class="field-label" for="edit-yield-left">Left yield (ml)</label>
 						<input
-							id="edit-started-at"
-							class="time-input"
-							type="datetime-local"
-							bind:value={editStartedAt}
+							id="edit-yield-left"
+							class="number-input"
+							type="number"
+							min="0"
+							step="1"
+							bind:value={editYieldLeftMl}
 						/>
 					</div>
-
-					<div class="field">
-						<span class="field-label">Contents</span>
-						<OptionGrid
-							options={DIAPER_OPTIONS}
-							value={editSide}
-							columns={3}
-							onchange={(v) => (editSide = v as string)}
-						/>
-					</div>
-				{:else if session.type === 'feeding'}
-					<div class="field">
-						<label class="field-label" for="edit-started-at">Start time</label>
-						<input
-							id="edit-started-at"
-							class="time-input"
-							type="datetime-local"
-							bind:value={editStartedAt}
-						/>
-					</div>
-
-					<div class="field">
-						<label class="field-label" for="edit-ended-at"
-							>End time <span class="optional">(optional)</span></label
-						>
-						<input
-							id="edit-ended-at"
-							class="time-input"
-							type="datetime-local"
-							bind:value={editEndedAt}
-						/>
-					</div>
-
-					<div class="field">
-						<span class="field-label">Side</span>
-						<OptionGrid
-							options={FEEDING_OPTIONS}
-							value={editSide}
-							columns={3}
-							onchange={(v) => (editSide = v as string)}
-						/>
-					</div>
-				{:else if session.type === 'sleep'}
-					<div class="field">
-						<label class="field-label" for="edit-started-at">Start time</label>
-						<input
-							id="edit-started-at"
-							class="time-input"
-							type="datetime-local"
-							bind:value={editStartedAt}
-						/>
-					</div>
-
-					<div class="field">
-						<label class="field-label" for="edit-ended-at"
-							>End time <span class="optional">(optional)</span></label
-						>
-						<input
-							id="edit-ended-at"
-							class="time-input"
-							type="datetime-local"
-							bind:value={editEndedAt}
-						/>
-					</div>
-
-					<div class="field">
-						<span class="field-label">Head position</span>
-						<OptionGrid
-							options={SLEEP_OPTIONS}
-							value={editSide}
-							columns={3}
-							onchange={(v) => (editSide = v as string)}
-						/>
-					</div>
-				{:else if session.type === 'breast_pump'}
-					<div class="field">
-						<label class="field-label" for="edit-started-at">Start time</label>
-						<input
-							id="edit-started-at"
-							class="time-input"
-							type="datetime-local"
-							bind:value={editStartedAt}
-						/>
-					</div>
-
-					<div class="field">
-						<label class="field-label" for="edit-ended-at"
-							>End time <span class="optional">(optional)</span></label
-						>
-						<input
-							id="edit-ended-at"
-							class="time-input"
-							type="datetime-local"
-							bind:value={editEndedAt}
-						/>
-					</div>
-
-					<div class="field">
-						<span class="field-label">Side</span>
-						<OptionGrid
-							options={PUMP_OPTIONS}
-							value={editSide}
-							columns={3}
-							onchange={(v) => (editSide = v as string)}
-						/>
-					</div>
-
-					{#if showYieldLeft}
-						<div class="field">
-							<label class="field-label" for="edit-yield-left">Left yield (ml)</label>
-							<input
-								id="edit-yield-left"
-								class="number-input"
-								type="number"
-								min="0"
-								step="1"
-								bind:value={editYieldLeftMl}
-							/>
-						</div>
-					{/if}
-
-					{#if showYieldRight}
-						<div class="field">
-							<label class="field-label" for="edit-yield-right">Right yield (ml)</label>
-							<input
-								id="edit-yield-right"
-								class="number-input"
-								type="number"
-								min="0"
-								step="1"
-								bind:value={editYieldRightMl}
-							/>
-						</div>
-					{/if}
 				{/if}
-
-				{#if validationError}
-					<p class="validation-error" role="alert">{validationError}</p>
+				{#if showYieldRight}
+					<div class="field">
+						<label class="field-label" for="edit-yield-right">Right yield (ml)</label>
+						<input
+							id="edit-yield-right"
+							class="number-input"
+							type="number"
+							min="0"
+							step="1"
+							bind:value={editYieldRightMl}
+						/>
+					</div>
 				{/if}
-			</div>
-		{/if}
-	{/snippet}
+			{/if}
+
+			{#if validationError}
+				<p class="validation-error" role="alert">{validationError}</p>
+			{/if}
+		</div>
+	{/if}
 
 	{#snippet footer()}
 		{#if confirmDelete}

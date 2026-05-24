@@ -84,10 +84,10 @@
 	{#if onedit || onremove}
 		<div class="session-actions">
 			{#if onedit}
-				<button class="button is-small is-light" type="button" onclick={onedit}>Edit</button>
+				<button class="action-btn" type="button" onclick={onedit}>Edit</button>
 			{/if}
 			{#if onremove}
-				<button class="button is-small is-danger is-light" type="button" onclick={onremove}
+				<button class="action-btn action-btn--danger" type="button" onclick={onremove}
 					>Delete</button
 				>
 			{/if}
