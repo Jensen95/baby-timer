@@ -240,6 +240,27 @@ test.describe('Timer', () => {
 		await expect(page.locator('.session-type').first()).toContainText('side');
 	});
 
+	test('breast pump can start while sleep timer is running', async ({ page }) => {
+		await mockSupabaseUnauthenticated(page);
+		await page.goto('/app');
+		await page.waitForLoadState('networkidle');
+
+		await seedBaby(page);
+		await page.reload();
+		await page.waitForLoadState('networkidle');
+
+		const sleepCard = page.locator('.timer-card').filter({ hasText: 'Sleep' }).first();
+		const breastPumpCard = page.locator('.timer-card').filter({ hasText: 'Breast Pump' }).first();
+
+		await sleepCard.locator('.timer-btn--start').click();
+		await expect(sleepCard.locator('.timer-btn--stop')).toBeVisible({ timeout: 3000 });
+
+		const breastPumpStart = breastPumpCard.locator('.timer-btn--start');
+		await expect(breastPumpStart).toBeEnabled({ timeout: 3000 });
+		await breastPumpStart.click();
+		await expect(breastPumpCard.locator('.timer-btn--stop')).toBeVisible({ timeout: 3000 });
+	});
+
 	test('session can be edited and deleted from recent sessions', async ({ page }) => {
 		await mockSupabaseUnauthenticated(page);
 		await page.goto('/app');

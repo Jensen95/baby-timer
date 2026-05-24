@@ -694,7 +694,7 @@
 						side={breastPumpSide}
 						yieldLeftMl={breastPumpYieldLeftMl}
 						yieldRightMl={breastPumpYieldRightMl}
-						disabled={feedingTimer.running || sleepTimer.running}
+						disabled={feedingTimer.running}
 						onstart={handleStartBreastPump}
 						onstop={handleStopBreastPump}
 						onsidechange={handleBreastPumpSideChange}
