@@ -48,11 +48,11 @@ test.describe('Guest mode', () => {
 		await page.waitForLoadState('networkidle');
 
 		// Empty state heading
-		await expect(page.getByRole('heading', { name: 'Welcome to Baby Timer' })).toBeVisible();
+		await expect(page.getByRole('heading', { name: 'No babies yet' })).toBeVisible();
 
-		// "Add Baby" link pointing to babies management page
-		const addBabyLink = page.getByRole('link', { name: 'Add Baby' });
+		// "Add a baby" link pointing to family management page
+		const addBabyLink = page.getByRole('link', { name: 'Add a baby' });
 		await expect(addBabyLink).toBeVisible();
-		await expect(addBabyLink).toHaveAttribute('href', '/app/babies');
+		await expect(addBabyLink).toHaveAttribute('href', '/app/family');
 	});
 });

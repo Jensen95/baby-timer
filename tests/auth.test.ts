@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 test.describe('Authentication', () => {
 	test('login page renders the magic link form', async ({ page }) => {
 		await page.goto('/login');
-		await expect(page.getByRole('heading', { name: 'Baby Timer' })).toBeVisible();
+		await expect(page.getByRole('heading', { name: 'Baby Tracker' })).toBeVisible();
 		await expect(page.getByLabel('Email')).toBeVisible();
 		await expect(page.getByRole('button', { name: /send magic link/i })).toBeVisible();
 	});

@@ -80,19 +80,18 @@ test.describe('Timer', () => {
 		await page.reload();
 		await page.waitForLoadState('networkidle');
 
-		// Feeding Start button should be present
-		const startBtn = page.locator('.timer-btn--start').first();
-		await expect(startBtn).toBeVisible({ timeout: 5000 });
+		// Feed tile should be present — tap it to open the start sheet
+		const feedTile = page.locator('button.tile.type-feed');
+		await expect(feedTile).toBeVisible({ timeout: 5000 });
 
-		// Capture the initial digit display
+		// Start the timer via the sheet
+		await feedTile.click();
+		await page.getByRole('button', { name: 'Start', exact: true }).click();
+
+		// Timer digits should now be visible inside TimerHero
 		const timerDigits = page.locator('.timer-digits').first();
+		await expect(timerDigits).toBeVisible({ timeout: 3000 });
 		const initialText = await timerDigits.innerText();
-
-		// Start the timer
-		await startBtn.click();
-
-		// Timer digits should be visible
-		await expect(timerDigits).toBeVisible();
 
 		// Wait over one second and confirm the display has advanced
 		await page.waitForTimeout(1100);
@@ -110,24 +109,22 @@ test.describe('Timer', () => {
 		await page.waitForLoadState('networkidle');
 
 		// Start feeding timer
-		const startBtn = page.locator('.timer-btn--start').first();
-		await expect(startBtn).toBeVisible({ timeout: 5000 });
-		await startBtn.click();
+		const feedTile = page.locator('button.tile.type-feed');
+		await expect(feedTile).toBeVisible({ timeout: 5000 });
+		await feedTile.click();
+		await page.getByRole('button', { name: 'Start', exact: true }).click();
 
-		// A "Live" badge should appear in the recent sessions area
-		await expect(page.locator('.session-live')).toBeVisible({ timeout: 3000 });
+		// TimerHero digits appear while the timer is in progress
+		await expect(page.locator('.timer-digits')).toBeVisible({ timeout: 3000 });
 
 		// Stop the timer
-		const stopBtn = page.locator('.timer-btn--stop').first();
-		await expect(stopBtn).toBeVisible({ timeout: 3000 });
-		await stopBtn.click();
+		await page.locator('.stop-button').first().click();
 
-		// The Live badge should disappear
-		await expect(page.locator('.session-live')).not.toBeVisible({ timeout: 3000 });
+		// Timer digits disappear after stopping
+		await expect(page.locator('.timer-digits')).not.toBeVisible({ timeout: 3000 });
 
-		// The session entry should now show a duration (not the in-progress placeholder)
-		await expect(page.locator('.session-entry').first()).toBeVisible();
-		await expect(page.locator('.session-in-progress')).not.toBeVisible();
+		// The session entry should now appear in the recent sessions list
+		await expect(page.locator('.row-wrapper').first()).toBeVisible({ timeout: 3000 });
 	});
 
 	test('bottom nav is visible on mobile viewport', async ({ page }) => {
@@ -140,11 +137,10 @@ test.describe('Timer', () => {
 		await expect(nav).toBeVisible();
 
 		// Verify all expected navigation labels are present
-		await expect(nav.getByText('Home')).toBeVisible();
+		await expect(nav.getByText('Track')).toBeVisible();
 		await expect(nav.getByText('History')).toBeVisible();
-		await expect(nav.getByText('Stats')).toBeVisible();
-		await expect(nav.getByText('Babies')).toBeVisible();
-		await expect(nav.getByText('Family')).toBeVisible();
+		await expect(nav.getByText('Insights')).toBeVisible();
+		await expect(nav.getByText('More')).toBeVisible();
 	});
 
 	test('bottom nav is hidden on desktop viewport', async ({ page }) => {
@@ -173,7 +169,7 @@ test.describe('Timer', () => {
 		await page.waitForLoadState('networkidle');
 
 		// Stop button visible without any user interaction proves auto-resume
-		const stopBtn = page.locator('.timer-btn--stop').first();
+		const stopBtn = page.locator('.stop-button').first();
 		await expect(stopBtn).toBeVisible({ timeout: 5000 });
 
 		// Timer digits are visible and not at zero (resumed from ~5 min ago)
@@ -215,12 +211,18 @@ test.describe('Timer', () => {
 		await page.reload();
 		await page.waitForLoadState('networkidle');
 
-		const feedingCard = page.locator('.timer-card').filter({ hasText: 'Feeding' }).first();
-		await feedingCard.locator('.timer-btn--start').click();
-		await feedingCard.getByRole('button', { name: 'Right' }).click();
-		await feedingCard.locator('.timer-btn--stop').click();
+		// Start feeding timer via tile + sheet (default side is left)
+		await page.locator('button.tile.type-feed').click();
+		await page.getByRole('button', { name: 'Start', exact: true }).click();
 
-		await expect(page.locator('.session-type').first()).toContainText('right');
+		// Switch to Right side in the TimerHero OptionGrid
+		await page.getByRole('radio', { name: 'Right' }).click();
+
+		// Stop the timer
+		await page.locator('.stop-button').first().click();
+
+		// Session label should reflect the updated side
+		await expect(page.locator('.row-wrapper .label').first()).toContainText(/right/i);
 	});
 
 	test('sleep timer supports side sleeping option', async ({ page }) => {
@@ -232,12 +234,16 @@ test.describe('Timer', () => {
 		await page.reload();
 		await page.waitForLoadState('networkidle');
 
-		const sleepCard = page.locator('.timer-card').filter({ hasText: 'Sleep' }).first();
-		await sleepCard.getByRole('button', { name: 'Side position' }).click();
-		await sleepCard.locator('.timer-btn--start').click();
-		await sleepCard.locator('.timer-btn--stop').click();
+		// Open sleep start sheet and select the 'Side' position
+		await page.locator('button.tile.type-sleep').click();
+		await page.getByRole('radio', { name: 'Side' }).click();
+		await page.getByRole('button', { name: 'Start', exact: true }).click();
 
-		await expect(page.locator('.session-type').first()).toContainText('side');
+		// Stop the timer
+		await page.locator('.stop-button').first().click();
+
+		// Session label should reflect the 'side' position
+		await expect(page.locator('.row-wrapper .label').first()).toContainText(/side/i);
 	});
 
 	test('breast pump can start while sleep timer is running', async ({ page }) => {
@@ -249,16 +255,21 @@ test.describe('Timer', () => {
 		await page.reload();
 		await page.waitForLoadState('networkidle');
 
-		const sleepCard = page.locator('.timer-card').filter({ hasText: 'Sleep' }).first();
-		const breastPumpCard = page.locator('.timer-card').filter({ hasText: 'Breast Pump' }).first();
+		// Start sleep timer
+		await page.locator('button.tile.type-sleep').click();
+		await page.getByRole('button', { name: 'Start', exact: true }).click();
+		await expect(page.locator('section.hero.type-sleep')).toBeVisible({ timeout: 3000 });
 
-		await sleepCard.locator('.timer-btn--start').click();
-		await expect(sleepCard.locator('.timer-btn--stop')).toBeVisible({ timeout: 3000 });
+		// Pump tile should still be enabled while sleep is running
+		const pumpTile = page.locator('button.tile.type-pump');
+		await expect(pumpTile).toBeEnabled({ timeout: 3000 });
 
-		const breastPumpStart = breastPumpCard.locator('.timer-btn--start');
-		await expect(breastPumpStart).toBeEnabled({ timeout: 3000 });
-		await breastPumpStart.click();
-		await expect(breastPumpCard.locator('.timer-btn--stop')).toBeVisible({ timeout: 3000 });
+		// Start pump timer
+		await pumpTile.click();
+		await page.getByRole('button', { name: 'Start', exact: true }).click();
+
+		// Both timers should now be running
+		await expect(page.locator('section.hero.type-pump')).toBeVisible({ timeout: 3000 });
 	});
 
 	test('session can be edited and deleted from recent sessions', async ({ page }) => {
@@ -270,29 +281,35 @@ test.describe('Timer', () => {
 		await page.reload();
 		await page.waitForLoadState('networkidle');
 
-		const feedingCard = page.locator('.timer-card').filter({ hasText: 'Feeding' }).first();
-		await feedingCard.locator('.timer-btn--start').click();
-		await feedingCard.locator('.timer-btn--stop').click();
-		await expect(page.locator('.session-entry').first()).toBeVisible();
+		// Start and stop a feeding timer to create a session
+		await page.locator('button.tile.type-feed').click();
+		await page.getByRole('button', { name: 'Start', exact: true }).click();
+		await page.locator('.stop-button').first().click();
+		await expect(page.locator('.row-wrapper').first()).toBeVisible({ timeout: 3000 });
 
-		const sessionEntry = page.locator('.session-entry').first();
-		const editButton = sessionEntry.getByRole('button', { name: 'Edit' });
-		const deleteButton = sessionEntry.getByRole('button', { name: 'Delete' });
+		// Open overflow menu and edit the session
+		await page.locator('.row-wrapper').first().locator('.menu-btn').click();
+		await page.getByRole('menuitem', { name: 'Edit' }).click();
 
-		await editButton.click();
-		await expect(page.getByText('Edit Session')).toBeVisible();
-		await page.getByLabel('Side').selectOption('both');
-		await page.getByLabel('Start time').fill('2026-01-01T01:00');
-		await page.getByLabel('End time').fill('2026-01-01T01:05');
+		// Edit sheet should open with the session title
+		await expect(page.getByText('Edit session')).toBeVisible();
+
+		// Change side to 'Both'
+		await page.getByRole('radio', { name: 'Both' }).click();
+
+		// Change start and end times using input IDs (labels have mixed text content)
+		await page.locator('#edit-started-at').fill('2026-01-01T01:00');
+		await page.locator('#edit-ended-at').fill('2026-01-01T01:05');
+
 		await page.getByRole('button', { name: 'Save' }).click();
 
-		await expect(sessionEntry.locator('.session-type')).toContainText('both');
+		// Session label should now show 'Both'
+		await expect(page.locator('.row-wrapper .label').first()).toContainText('Both');
 
-		await deleteButton.click();
-		const deleteModal = page.locator('.modal.is-active').filter({ hasText: 'Delete Session' });
-		await expect(deleteModal).toBeVisible();
-		await deleteModal.getByRole('button', { name: 'Delete', exact: true }).click();
+		// Open overflow menu and delete the session (direct delete — no modal on home page)
+		await page.locator('.row-wrapper').first().locator('.menu-btn').click();
+		await page.getByRole('menuitem', { name: 'Delete' }).click();
 
-		await expect(page.locator('.session-entry')).toHaveCount(0);
+		await expect(page.locator('.row-wrapper')).toHaveCount(0);
 	});
 });

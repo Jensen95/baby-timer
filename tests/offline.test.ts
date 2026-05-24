@@ -69,25 +69,26 @@ test.describe('Offline mode', () => {
 		await page.reload();
 		await page.waitForLoadState('networkidle');
 
-		// Click Start on the feeding timer
-		const startBtn = page.locator('.timer-btn--start').first();
-		await expect(startBtn).toBeVisible({ timeout: 5000 });
-		await startBtn.click();
+		// Tap the feed tile to open the start sheet, then start the timer
+		const feedTile = page.locator('button.tile.type-feed');
+		await expect(feedTile).toBeVisible({ timeout: 5000 });
+		await feedTile.click();
+		await page.getByRole('button', { name: 'Start', exact: true }).click();
 
 		// Timer digits should be visible and the timer running
 		const timerDigits = page.locator('.timer-digits').first();
-		await expect(timerDigits).toBeVisible();
+		await expect(timerDigits).toBeVisible({ timeout: 3000 });
 
 		// Wait more than one tick so the counter has a chance to advance
 		await page.waitForTimeout(1100);
 
 		// Click Stop
-		const stopBtn = page.locator('.timer-btn--stop').first();
+		const stopBtn = page.locator('.stop-button').first();
 		await expect(stopBtn).toBeVisible({ timeout: 3000 });
 		await stopBtn.click();
 
 		// A session entry should appear in the recent sessions list
-		await expect(page.locator('.session-entry').first()).toBeVisible({ timeout: 3000 });
+		await expect(page.locator('.row-wrapper').first()).toBeVisible({ timeout: 3000 });
 	});
 
 	test('IndexedDB is initialized with correct tables', async ({ page }) => {
@@ -117,7 +118,8 @@ test.describe('Offline mode', () => {
 		await seedBaby(page);
 		await page.reload();
 		await page.waitForLoadState('networkidle');
-		await expect(page.getByText('Test Baby')).toBeVisible({ timeout: 5000 });
+		// Tiles are visible, meaning the baby was loaded from IndexedDB (not showing empty state)
+		await expect(page.locator('button.tile.type-feed')).toBeVisible({ timeout: 5000 });
 	});
 
 	test('can create a baby without logging in', async ({ page }) => {
@@ -125,15 +127,15 @@ test.describe('Offline mode', () => {
 		await page.goto('/app/babies');
 		await page.waitForLoadState('networkidle');
 
-		// Should be on babies page — no redirect to login
-		await expect(page).toHaveURL(/\/app\/babies/);
+		// /app/babies redirects to /app/family
+		await expect(page).toHaveURL(/\/app\/family/);
 
 		// Open add baby form
-		await page.getByRole('button', { name: /\+ add baby/i }).click();
+		await page.getByRole('button', { name: /\+ add/i }).click();
 
 		// Fill in and submit the form
-		await page.getByLabel('Name').fill('Guest Baby');
-		await page.getByRole('button', { name: 'Add', exact: true }).click();
+		await page.getByPlaceholder('Baby name').fill('Guest Baby');
+		await page.getByRole('button', { name: 'Save', exact: true }).click();
 
 		// Baby should appear in the list
 		await expect(page.getByText('Guest Baby')).toBeVisible({ timeout: 3000 });
