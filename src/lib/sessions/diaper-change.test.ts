@@ -56,6 +56,10 @@ describe('getDiaperContent', () => {
 		expect(getDiaperContent(false, true)).toBe('pee');
 		expect(getDiaperContent(true, true)).toBe('both');
 	});
+
+	it('throws when neither poop nor pee is selected', () => {
+		expect(() => getDiaperContent(false, false)).toThrow(/At least one diaper content type/);
+	});
 });
 
 describe('formatDiaperContentLabel', () => {
