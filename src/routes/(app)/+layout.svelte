@@ -8,6 +8,7 @@
 	import { createBabyState, BABY_STATE_KEY } from '$lib/state/baby.svelte';
 	import { createFamily } from '$lib/db/family';
 	import { supabase } from '$lib/supabase';
+	import ActiveTimerBar from '$lib/components/ActiveTimerBar.svelte';
 
 	const session = getContext<SessionStore>(SESSION_KEY);
 	const sync = getContext<SyncEngineStore>(SYNC_KEY);
@@ -53,6 +54,7 @@
 		</div>
 	{/if}
 	{@render children()}
+	<ActiveTimerBar babyId={babyState?.selectedBabyId ?? null} />
 {/if}
 
 <style>
