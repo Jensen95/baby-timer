@@ -49,7 +49,7 @@
 	import type { FeedingSide } from '$lib/sessions/feeding';
 	import type { HeadSide } from '$lib/sessions/sleep';
 	import type { PumpSide } from '$lib/sessions/breast-pump';
-	import { buildDiaperChangePayload } from '$lib/sessions/diaper-change';
+	import { buildDiaperChangePayload, getDiaperContent } from '$lib/sessions/diaper-change';
 
 	const session = getContext<SessionStore>(SESSION_KEY);
 	const sync = getContext<SyncEngineStore>(SYNC_KEY);
@@ -103,14 +103,6 @@
 	const SLEEP_SIDES: HeadSide[] = ['left', 'right', 'back', 'tummy', 'side'];
 	const PUMP_SIDES: PumpSide[] = ['left', 'right', 'both'];
 	const DIAPER_CONTENTS = ['poop', 'pee', 'both'] as const;
-
-	function formatDiaperContent(
-		hasPoop: boolean,
-		hasPee: boolean
-	): (typeof DIAPER_CONTENTS)[number] {
-		if (hasPoop && hasPee) return 'both';
-		return hasPoop ? 'poop' : 'pee';
-	}
 
 	$effect(() => {
 		(async () => {
@@ -239,7 +231,7 @@
 			...diaperSessions.map((s) => ({
 				id: s.id,
 				type: 'diaper_change' as const,
-				side: formatDiaperContent(s.has_poop, s.has_pee),
+				side: getDiaperContent(s.has_poop, s.has_pee),
 				startedAt: new Date(s.started_at),
 				endedAt: new Date(s.started_at),
 				durationSeconds: 0,

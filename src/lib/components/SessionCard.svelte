@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { formatDuration, formatDateTime } from '$lib/timer/format';
+	import { formatDiaperContentLabel, type DiaperContent } from '$lib/sessions/diaper-change';
 	interface Props {
 		type: 'feeding' | 'sleep' | 'breast_pump' | 'diaper_change';
 		side: string;
@@ -39,6 +40,14 @@
 	const typeLabel = $derived(TYPE_LABELS[type]);
 	const typeName = $derived(TYPE_NAMES[type]);
 	const isActive = $derived(endedAt === null);
+	const showDuration = $derived(type !== 'diaper_change');
+	const sideLabel = $derived.by(() => {
+		if (type !== 'diaper_change') return side;
+		if (side === 'poop' || side === 'pee' || side === 'both') {
+			return formatDiaperContentLabel(side as DiaperContent);
+		}
+		return side;
+	});
 	const yieldText = $derived.by(() => {
 		if (type !== 'breast_pump') return null;
 		const parts = [];
@@ -58,18 +67,20 @@
 	<div class="session-icon">{typeLabel}</div>
 	<div class="session-body">
 		<div class="session-header">
-			<span class="session-type">{typeName} · {side}</span>
+			<span class="session-type">{typeName} · {sideLabel}</span>
 			{#if isActive}<span class="session-live">Live</span>{/if}
 		</div>
 		<div class="session-time">{formatDateTime(startedAt)}</div>
 		{#if yieldText}<div class="session-note">{yieldText}</div>{/if}
 		{#if note}<div class="session-note">{note}</div>{/if}
 	</div>
-	<div class="session-duration">
-		{#if durationSeconds !== null}{formatDuration(durationSeconds)}{:else}<span
-				class="session-in-progress">…</span
-			>{/if}
-	</div>
+	{#if showDuration}
+		<div class="session-duration">
+			{#if durationSeconds !== null}{formatDuration(durationSeconds)}{:else}<span
+					class="session-in-progress">…</span
+				>{/if}
+		</div>
+	{/if}
 	{#if onedit || onremove}
 		<div class="session-actions">
 			{#if onedit}

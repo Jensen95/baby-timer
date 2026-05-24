@@ -15,6 +15,7 @@
 		getSleepSessionMinutes,
 		type SleepPositionBalance
 	} from '$lib/sessions/sleep-balance';
+	import { buildDailyDiaperChangeCounts } from '$lib/sessions/diaper-change';
 
 	interface DaySummary {
 		date: string;
@@ -22,6 +23,7 @@
 		feedMinutes: number;
 		sleepCount: number;
 		sleepMinutes: number;
+		diaperCount: number;
 	}
 
 	const session = getContext<SessionStore>(SESSION_KEY);
@@ -108,6 +110,15 @@
 					return t >= dateRangeStart && t <= dateRangeEnd;
 				})
 				.toArray();
+			const diaperChanges = await db.diaper_change_sessions
+				.where('baby_id')
+				.equals(babyId)
+				.filter((s) => {
+					const t = new Date(s.started_at);
+					return t >= dateRangeStart && t <= dateRangeEnd;
+				})
+				.toArray();
+			const diaperCountsByDay = buildDailyDiaperChangeCounts(dayList, diaperChanges);
 			const sleepEntries = sleeps
 				.map((s) => {
 					const startedAt = new Date(s.started_at);
@@ -161,7 +172,8 @@
 						feedCount: feedings.length,
 						feedMinutes,
 						sleepCount: daySleeps.length,
-						sleepMinutes
+						sleepMinutes,
+						diaperCount: diaperCountsByDay[day] ?? 0
 					};
 				})
 			);
@@ -184,10 +196,12 @@
 
 	let maxFeedMinutes = $derived(Math.max(...summaries.map((s) => s.feedMinutes), 1));
 	let maxSleepMinutes = $derived(Math.max(...summaries.map((s) => s.sleepMinutes), 1));
+	let maxDiaperCount = $derived(Math.max(...summaries.map((s) => s.diaperCount), 1));
 	let totalFeedings = $derived(summaries.reduce((acc, s) => acc + s.feedCount, 0));
 	let totalSleepHours = $derived(
 		Math.round((summaries.reduce((acc, s) => acc + s.sleepMinutes, 0) / 60) * 10) / 10
 	);
+	let totalDiaperChanges = $derived(summaries.reduce((acc, s) => acc + s.diaperCount, 0));
 	let avgFeedingsPerDay = $derived(
 		summaries.length > 0 ? Math.round((totalFeedings / summaries.length) * 10) / 10 : 0
 	);
@@ -257,6 +271,12 @@
 						<p class="title">{totalSleepHours}h</p>
 					</div>
 				</div>
+				<div class="column">
+					<div class="box has-text-centered">
+						<p class="heading">Diaper Changes</p>
+						<p class="title">{totalDiaperChanges}</p>
+					</div>
+				</div>
 			</div>
 
 			<div class="box mb-4">
@@ -306,6 +326,38 @@
 									fill="#555"
 								>
 									{s.feedMinutes}
+								</text>
+							{/if}
+						</g>
+					{/each}
+				</svg>
+			</div>
+
+			<div class="box">
+				<h3 class="subtitle is-6 mb-3">Diaper changes (count/day)</h3>
+				<svg width="100%" viewBox="0 0 280 110" preserveAspectRatio="xMidYMid meet">
+					{#each summaries as s, i}
+						<g transform="translate({i * 40 + 10}, 0)">
+							<rect
+								x="5"
+								y={90 - barHeight(s.diaperCount, maxDiaperCount)}
+								width="25"
+								height={barHeight(s.diaperCount, maxDiaperCount)}
+								fill="hsl(176, 60%, 55%)"
+								rx="2"
+							/>
+							<text x="17" y="105" text-anchor="middle" font-size="9" fill="#888">
+								{shortDay(s.date)}
+							</text>
+							{#if s.diaperCount > 0}
+								<text
+									x="17"
+									y={86 - barHeight(s.diaperCount, maxDiaperCount)}
+									text-anchor="middle"
+									font-size="8"
+									fill="#555"
+								>
+									{s.diaperCount}
 								</text>
 							{/if}
 						</g>
