@@ -9,6 +9,7 @@
 		type?: 'button' | 'submit' | 'reset';
 		href?: string;
 		class?: string;
+		ariaLabel?: string;
 		onclick?: (e: MouseEvent) => void;
 		children: Snippet;
 		leadingIcon?: Snippet;
@@ -23,6 +24,7 @@
 		type = 'button',
 		href,
 		class: className,
+		ariaLabel,
 		onclick,
 		children,
 		leadingIcon,
@@ -38,6 +40,7 @@
 		class="btn btn--{variant} btn--{size} {className ?? ''}"
 		class:btn--loading={loading}
 		class:btn--disabled={disabled}
+		aria-label={ariaLabel}
 		aria-disabled={disabled || undefined}
 		aria-busy={loading || undefined}
 		onclick={interactive ? onclick : undefined}
@@ -60,6 +63,7 @@
 		{disabled}
 		class="btn btn--{variant} btn--{size} {className ?? ''}"
 		class:btn--loading={loading}
+		aria-label={ariaLabel}
 		aria-disabled={disabled || undefined}
 		aria-busy={loading || undefined}
 		{onclick}

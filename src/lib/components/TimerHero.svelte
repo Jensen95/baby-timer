@@ -95,8 +95,15 @@
 		<OptionGrid {options} value={selected} columns={3} onchange={handleSideChange} />
 	</div>
 
-	<div class="stop-wrapper" aria-label="Stop {timer.type} timer">
-		<Button variant="danger" size="lg" loading={stopping} onclick={handleStop} class="stop-button">
+	<div class="stop-wrapper">
+		<Button
+			variant="danger"
+			size="lg"
+			loading={stopping}
+			ariaLabel="Stop {timer.type} timer"
+			onclick={handleStop}
+			class="stop-button"
+		>
 			STOP
 		</Button>
 	</div>
