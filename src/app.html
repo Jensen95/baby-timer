@@ -1,6 +1,19 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="light">
 	<head>
+		<script>
+			(function () {
+				var stored = localStorage.getItem('baby-tracker:theme');
+				var valid = ['light', 'dark', 'night', 'grey'];
+				var theme =
+					valid.indexOf(stored) !== -1
+						? stored
+						: window.matchMedia('(prefers-color-scheme: dark)').matches
+							? 'dark'
+							: 'light';
+				document.documentElement.dataset.theme = theme;
+			})();
+		</script>
 		<meta charset="utf-8" />
 		<link rel="icon" type="image/svg+xml" href="%sveltekit.assets%/favicon.svg" />
 		<link rel="alternate icon" href="%sveltekit.assets%/favicon.png" />
