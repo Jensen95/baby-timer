@@ -1,5 +1,5 @@
 <script lang="ts">
-	import '../app.scss';
+	import '../app.css';
 	import { setContext } from 'svelte';
 	import { createSession } from '$lib/auth/session.svelte';
 	import { SESSION_KEY } from '$lib/auth/context';
