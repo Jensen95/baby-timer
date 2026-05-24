@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { buildDiaperChangePayload } from './diaper-change';
+import {
+	buildDiaperChangePayload,
+	buildDailyDiaperChangeCounts,
+	formatDiaperContentLabel,
+	getDiaperContent
+} from './diaper-change';
 
 const base = {
 	babyId: 'baby-123',
@@ -42,5 +47,44 @@ describe('buildDiaperChangePayload', () => {
 				hasPee: false
 			})
 		).toThrow(/At least one/);
+	});
+});
+
+describe('getDiaperContent', () => {
+	it('maps selected diaper contents to key', () => {
+		expect(getDiaperContent(true, false)).toBe('poop');
+		expect(getDiaperContent(false, true)).toBe('pee');
+		expect(getDiaperContent(true, true)).toBe('both');
+	});
+
+	it('throws when neither poop nor pee is selected', () => {
+		expect(() => getDiaperContent(false, false)).toThrow(/At least one diaper content type/);
+	});
+});
+
+describe('formatDiaperContentLabel', () => {
+	it('formats diaper content keys into display labels', () => {
+		expect(formatDiaperContentLabel('poop')).toBe('Poop');
+		expect(formatDiaperContentLabel('pee')).toBe('Pee');
+		expect(formatDiaperContentLabel('both')).toBe('Poop + Pee');
+	});
+});
+
+describe('buildDailyDiaperChangeCounts', () => {
+	it('returns daily diaper change counts for trend charts', () => {
+		const counts = buildDailyDiaperChangeCounts(
+			['2024-01-01', '2024-01-02', '2024-01-03'],
+			[
+				{ started_at: '2024-01-01T10:00:00.000Z' },
+				{ started_at: '2024-01-01T11:00:00.000Z' },
+				{ started_at: '2024-01-03T09:30:00.000Z' }
+			]
+		);
+
+		expect(counts).toEqual({
+			'2024-01-01': 2,
+			'2024-01-02': 0,
+			'2024-01-03': 1
+		});
 	});
 });
