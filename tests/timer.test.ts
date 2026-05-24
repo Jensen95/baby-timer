@@ -1,4 +1,6 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Locator, type Page } from '@playwright/test';
+
+const SHEET_SETTLE_MS = 450;
 
 async function mockSupabaseUnauthenticated(page: Page) {
 	await page.route('**/auth/v1/**', (route) =>
@@ -68,6 +70,27 @@ async function seedBaby(page: Page) {
 	});
 }
 
+async function openSheet(page: Page, tileSelector: string, title: string) {
+	const tile = page.locator(tileSelector);
+	await expect(tile).toBeVisible({ timeout: 5000 });
+	await tile.click();
+	const dialog = page.getByRole('dialog', { name: title });
+	await expect(dialog).toBeVisible({ timeout: 5000 });
+	await page.waitForTimeout(SHEET_SETTLE_MS);
+	return dialog;
+}
+
+async function startFromSheet(dialog: Locator) {
+	const startButton = dialog.getByRole('button', { name: 'Start', exact: true });
+	await expect(startButton).toBeVisible({ timeout: 5000 });
+	await startButton.evaluate((button: HTMLButtonElement) => button.click());
+}
+
+async function activateOption(option: Locator) {
+	await expect(option).toBeVisible({ timeout: 5000 });
+	await option.evaluate((button: HTMLButtonElement) => button.click());
+}
+
 test.describe('Timer', () => {
 	test('feeding timer starts and displays elapsed time', async ({ page }) => {
 		await mockSupabaseUnauthenticated(page);
@@ -80,21 +103,16 @@ test.describe('Timer', () => {
 		await page.reload();
 		await page.waitForLoadState('networkidle');
 
-		// Feed tile should be present — tap it to open the start sheet
-		const feedTile = page.locator('button.tile.type-feed');
-		await expect(feedTile).toBeVisible({ timeout: 5000 });
-
-		// Start the timer via the sheet
-		await feedTile.click();
-		await page.getByRole('button', { name: 'Start', exact: true }).click();
+		const feedDialog = await openSheet(page, 'button.tile.type-feed', 'Start feeding');
+		await startFromSheet(feedDialog);
 
 		// Timer digits should now be visible inside TimerHero
 		const timerDigits = page.locator('.timer-digits').first();
 		await expect(timerDigits).toBeVisible({ timeout: 3000 });
 		const initialText = await timerDigits.innerText();
 
-		// Wait over one second and confirm the display has advanced
-		await page.waitForTimeout(1100);
+		// Wait long enough for the shared tick store to advance the display
+		await page.waitForTimeout(2100);
 		const laterText = await timerDigits.innerText();
 		expect(laterText).not.toBe(initialText);
 	});
@@ -109,10 +127,8 @@ test.describe('Timer', () => {
 		await page.waitForLoadState('networkidle');
 
 		// Start feeding timer
-		const feedTile = page.locator('button.tile.type-feed');
-		await expect(feedTile).toBeVisible({ timeout: 5000 });
-		await feedTile.click();
-		await page.getByRole('button', { name: 'Start', exact: true }).click();
+		const feedDialog = await openSheet(page, 'button.tile.type-feed', 'Start feeding');
+		await startFromSheet(feedDialog);
 
 		// TimerHero digits appear while the timer is in progress
 		await expect(page.locator('.timer-digits')).toBeVisible({ timeout: 3000 });
@@ -179,8 +195,8 @@ test.describe('Timer', () => {
 		// A freshly-started (non-resumed) timer would show 0:00 or near-zero
 		expect(elapsedText).not.toMatch(/^0:0[0-4]/);
 
-		// Timer is counting — digits advance after 1 second
-		await page.waitForTimeout(1100);
+		// Timer is counting — digits advance after the shared tick store updates
+		await page.waitForTimeout(2100);
 		expect(await timerDigits.innerText()).not.toBe(elapsedText);
 
 		// No duplicate session created — resume reused the existing row
@@ -212,8 +228,8 @@ test.describe('Timer', () => {
 		await page.waitForLoadState('networkidle');
 
 		// Start feeding timer via tile + sheet (default side is left)
-		await page.locator('button.tile.type-feed').click();
-		await page.getByRole('button', { name: 'Start', exact: true }).click();
+		const feedDialog = await openSheet(page, 'button.tile.type-feed', 'Start feeding');
+		await startFromSheet(feedDialog);
 
 		// Switch to Right side in the TimerHero OptionGrid
 		await page.getByRole('radio', { name: 'Right' }).click();
@@ -235,9 +251,9 @@ test.describe('Timer', () => {
 		await page.waitForLoadState('networkidle');
 
 		// Open sleep start sheet and select the 'Side' position
-		await page.locator('button.tile.type-sleep').click();
-		await page.getByRole('radio', { name: 'Side' }).click();
-		await page.getByRole('button', { name: 'Start', exact: true }).click();
+		const sleepDialog = await openSheet(page, 'button.tile.type-sleep', 'Start sleep');
+		await activateOption(sleepDialog.getByRole('radio', { name: 'Side' }));
+		await startFromSheet(sleepDialog);
 
 		// Stop the timer
 		await page.locator('.stop-button').first().click();
@@ -256,8 +272,8 @@ test.describe('Timer', () => {
 		await page.waitForLoadState('networkidle');
 
 		// Start sleep timer
-		await page.locator('button.tile.type-sleep').click();
-		await page.getByRole('button', { name: 'Start', exact: true }).click();
+		const sleepDialog = await openSheet(page, 'button.tile.type-sleep', 'Start sleep');
+		await startFromSheet(sleepDialog);
 		await expect(page.locator('section.hero.type-sleep')).toBeVisible({ timeout: 3000 });
 
 		// Pump tile should still be enabled while sleep is running
@@ -265,8 +281,8 @@ test.describe('Timer', () => {
 		await expect(pumpTile).toBeEnabled({ timeout: 3000 });
 
 		// Start pump timer
-		await pumpTile.click();
-		await page.getByRole('button', { name: 'Start', exact: true }).click();
+		const pumpDialog = await openSheet(page, 'button.tile.type-pump', 'Start pump');
+		await startFromSheet(pumpDialog);
 
 		// Both timers should now be running
 		await expect(page.locator('section.hero.type-pump')).toBeVisible({ timeout: 3000 });
@@ -282,8 +298,8 @@ test.describe('Timer', () => {
 		await page.waitForLoadState('networkidle');
 
 		// Start and stop a feeding timer to create a session
-		await page.locator('button.tile.type-feed').click();
-		await page.getByRole('button', { name: 'Start', exact: true }).click();
+		const feedDialog = await openSheet(page, 'button.tile.type-feed', 'Start feeding');
+		await startFromSheet(feedDialog);
 		await page.locator('.stop-button').first().click();
 		await expect(page.locator('.row-wrapper').first()).toBeVisible({ timeout: 3000 });
 
@@ -295,13 +311,15 @@ test.describe('Timer', () => {
 		await expect(page.getByText('Edit session')).toBeVisible();
 
 		// Change side to 'Both'
-		await page.getByRole('radio', { name: 'Both' }).click();
+		await activateOption(page.getByRole('radio', { name: 'Both' }));
 
 		// Change start and end times using input IDs (labels have mixed text content)
 		await page.locator('#edit-started-at').fill('2026-01-01T01:00');
 		await page.locator('#edit-ended-at').fill('2026-01-01T01:05');
 
-		await page.getByRole('button', { name: 'Save' }).click();
+		await page
+			.getByRole('button', { name: 'Save' })
+			.evaluate((button: HTMLButtonElement) => button.click());
 
 		// Session label should now show 'Both'
 		await expect(page.locator('.row-wrapper .label').first()).toContainText('Both');

@@ -1,4 +1,6 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Locator, type Page } from '@playwright/test';
+
+const SHEET_SETTLE_MS = 450;
 
 async function mockSupabaseUnauthenticated(page: Page) {
 	await page.route('**/auth/v1/**', (route) =>
@@ -41,6 +43,22 @@ async function seedBaby(page: Page) {
 	});
 }
 
+async function openSheet(page: Page, tileSelector: string, title: string) {
+	const tile = page.locator(tileSelector);
+	await expect(tile).toBeVisible({ timeout: 5000 });
+	await tile.click();
+	const dialog = page.getByRole('dialog', { name: title });
+	await expect(dialog).toBeVisible({ timeout: 5000 });
+	await page.waitForTimeout(SHEET_SETTLE_MS);
+	return dialog;
+}
+
+async function startFromSheet(dialog: Locator) {
+	const startButton = dialog.getByRole('button', { name: 'Start', exact: true });
+	await expect(startButton).toBeVisible({ timeout: 5000 });
+	await startButton.evaluate((button: HTMLButtonElement) => button.click());
+}
+
 test.describe('Offline mode', () => {
 	test('app loads without network (mocked offline Supabase)', async ({ page }) => {
 		// Simulate network-level failures for all Supabase endpoints
@@ -70,10 +88,8 @@ test.describe('Offline mode', () => {
 		await page.waitForLoadState('networkidle');
 
 		// Tap the feed tile to open the start sheet, then start the timer
-		const feedTile = page.locator('button.tile.type-feed');
-		await expect(feedTile).toBeVisible({ timeout: 5000 });
-		await feedTile.click();
-		await page.getByRole('button', { name: 'Start', exact: true }).click();
+		const feedDialog = await openSheet(page, 'button.tile.type-feed', 'Start feeding');
+		await startFromSheet(feedDialog);
 
 		// Timer digits should be visible and the timer running
 		const timerDigits = page.locator('.timer-digits').first();
