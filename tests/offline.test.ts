@@ -1,7 +1,5 @@
 import { test, expect, type Locator, type Page } from '@playwright/test';
 
-const SHEET_SETTLE_MS = 450;
-
 async function mockSupabaseUnauthenticated(page: Page) {
 	await page.route('**/auth/v1/**', (route) =>
 		route.fulfill({
@@ -49,7 +47,10 @@ async function openSheet(page: Page, tileSelector: string, title: string) {
 	await tile.click();
 	const dialog = page.getByRole('dialog', { name: title });
 	await expect(dialog).toBeVisible({ timeout: 5000 });
-	await page.waitForTimeout(SHEET_SETTLE_MS);
+	await dialog.evaluate(async (element) => {
+		const animations = element.getAnimations?.() ?? [];
+		await Promise.all(animations.map((animation) => animation.finished.catch(() => undefined)));
+	});
 	return dialog;
 }
 

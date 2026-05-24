@@ -1,6 +1,8 @@
 import { test, expect, type Locator, type Page } from '@playwright/test';
 
-const SHEET_SETTLE_MS = 450;
+// TimerHero mounts its shared 1s tick after the sheet closes, so wait just over 2s
+// to guarantee the visible clock advances at least once in CI.
+const TICK_ADVANCE_MS = 2100;
 
 async function mockSupabaseUnauthenticated(page: Page) {
 	await page.route('**/auth/v1/**', (route) =>
@@ -76,7 +78,10 @@ async function openSheet(page: Page, tileSelector: string, title: string) {
 	await tile.click();
 	const dialog = page.getByRole('dialog', { name: title });
 	await expect(dialog).toBeVisible({ timeout: 5000 });
-	await page.waitForTimeout(SHEET_SETTLE_MS);
+	await dialog.evaluate(async (element) => {
+		const animations = element.getAnimations?.() ?? [];
+		await Promise.all(animations.map((animation) => animation.finished.catch(() => undefined)));
+	});
 	return dialog;
 }
 
@@ -112,7 +117,7 @@ test.describe('Timer', () => {
 		const initialText = await timerDigits.innerText();
 
 		// Wait long enough for the shared tick store to advance the display
-		await page.waitForTimeout(2100);
+		await page.waitForTimeout(TICK_ADVANCE_MS);
 		const laterText = await timerDigits.innerText();
 		expect(laterText).not.toBe(initialText);
 	});
@@ -196,7 +201,7 @@ test.describe('Timer', () => {
 		expect(elapsedText).not.toMatch(/^0:0[0-4]/);
 
 		// Timer is counting — digits advance after the shared tick store updates
-		await page.waitForTimeout(2100);
+		await page.waitForTimeout(TICK_ADVANCE_MS);
 		expect(await timerDigits.innerText()).not.toBe(elapsedText);
 
 		// No duplicate session created — resume reused the existing row
