@@ -4,6 +4,7 @@
 	import { createSession } from '$lib/auth/session.svelte';
 	import { SESSION_KEY } from '$lib/auth/context';
 	import { createSyncEngine, SYNC_KEY } from '$lib/db/sync.svelte';
+	import { createBabyState, BABY_STATE_KEY } from '$lib/state/baby.svelte';
 	import AppBar from '$lib/components/AppBar.svelte';
 	import BottomNav from '$lib/components/BottomNav.svelte';
 
@@ -12,6 +13,9 @@
 
 	const sync = createSyncEngine();
 	setContext(SYNC_KEY, sync);
+
+	const babyState = createBabyState();
+	setContext(BABY_STATE_KEY, babyState);
 
 	let { children } = $props();
 

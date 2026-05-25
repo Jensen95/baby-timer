@@ -5,15 +5,15 @@
 	import type { SessionStore } from '$lib/auth/context';
 	import { SYNC_KEY } from '$lib/db/sync.svelte';
 	import type { SyncEngineStore } from '$lib/db/sync.svelte';
-	import { createBabyState, BABY_STATE_KEY } from '$lib/state/baby.svelte';
+	import { BABY_STATE_KEY } from '$lib/state/baby.svelte';
+	import type { BabyState } from '$lib/state/baby.svelte';
 	import { createFamily } from '$lib/db/family';
 	import { supabase } from '$lib/supabase';
 	import ActiveTimerBar from '$lib/components/ActiveTimerBar.svelte';
 
 	const session = getContext<SessionStore>(SESSION_KEY);
 	const sync = getContext<SyncEngineStore>(SYNC_KEY);
-	const babyState = createBabyState();
-	setContext(BABY_STATE_KEY, babyState);
+	const babyState = getContext<BabyState>(BABY_STATE_KEY);
 
 	let { children } = $props();
 
