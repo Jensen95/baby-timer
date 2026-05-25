@@ -18,19 +18,27 @@ jobs:
         with:
           github-token: '${{ secrets.GITHUB_TOKEN }}'
 
-      - name: Approve minor and patch updates
-        continue-on-error: true
+      - name: Require auto-approve token
         if: steps.metadata.outputs.update-type == 'version-update:semver-minor' || steps.metadata.outputs.update-type == 'version-update:semver-patch'
         run: |
-          gh pr review --approve "$PR_URL" || \
-            echo "Approval skipped: enable 'Allow GitHub Actions to create and approve pull requests' in repo settings."
+          if [ -z "$GH_TOKEN" ]; then
+            echo "Missing DEPENDABOT_AUTO_APPROVE_TOKEN secret."
+            echo "Create a classic PAT with repo scope, or a fine-grained token with Pull requests: Read and write + Contents: Read and write."
+            exit 1
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.DEPENDABOT_AUTO_APPROVE_TOKEN }}
+
+      - name: Approve minor and patch updates
+        if: steps.metadata.outputs.update-type == 'version-update:semver-minor' || steps.metadata.outputs.update-type == 'version-update:semver-patch'
+        run: gh pr review --approve "$PR_URL"
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.DEPENDABOT_AUTO_APPROVE_TOKEN }}
 
       - name: Enable auto-merge for minor and patch updates
         if: steps.metadata.outputs.update-type == 'version-update:semver-minor' || steps.metadata.outputs.update-type == 'version-update:semver-patch'
         run: gh pr merge --auto --squash "$PR_URL"
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.DEPENDABOT_AUTO_APPROVE_TOKEN }}
