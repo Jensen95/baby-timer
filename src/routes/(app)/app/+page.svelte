@@ -1,364 +1,359 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
+	import type { Component } from 'svelte';
 	import { base } from '$app/paths';
+	import { Milk, Moon, Wind, Baby } from '@lucide/svelte';
+	import type { IconProps } from '@lucide/svelte';
 	import { SESSION_KEY } from '$lib/auth/context';
 	import type { SessionStore } from '$lib/auth/context';
 	import { SYNC_KEY } from '$lib/db/sync.svelte';
 	import type { SyncEngineStore } from '$lib/db/sync.svelte';
+	import { BABY_STATE_KEY } from '$lib/state/baby.svelte';
+	import type { BabyState } from '$lib/state/baby.svelte';
 	import { supabase } from '$lib/supabase';
-	import { createTimer } from '$lib/timer/timer.svelte';
-	import { buildTimerResult } from '$lib/timer/timer-logic';
+	import { getLocalFamily, putLocalFamily } from '$lib/db/local-family';
+	import { getUserFamilies } from '$lib/db/family';
 	import {
 		listFeedingSessionsLocal,
-		getActiveFeedingSessionLocal,
-		createFeedingLocal,
 		updateFeedingLocal,
-		deleteFeedingLocal,
-		type LocalFeeding
+		deleteFeedingLocal
 	} from '$lib/db/local-feeding';
-	import {
-		listSleepSessionsLocal,
-		getActiveSleepSessionLocal,
-		createSleepLocal,
-		updateSleepLocal,
-		deleteSleepLocal,
-		type LocalSleep
-	} from '$lib/db/local-sleep';
+	import { listSleepSessionsLocal, updateSleepLocal, deleteSleepLocal } from '$lib/db/local-sleep';
 	import {
 		listBreastPumpSessionsLocal,
-		getActiveBreastPumpSessionLocal,
-		createBreastPumpLocal,
 		updateBreastPumpLocal,
-		deleteBreastPumpLocal,
-		type LocalBreastPump
+		deleteBreastPumpLocal
 	} from '$lib/db/local-breast-pump';
 	import {
 		listDiaperChangeSessionsLocal,
-		createDiaperChangeLocal,
 		updateDiaperChangeLocal,
-		deleteDiaperChangeLocal,
-		type LocalDiaperChange
+		deleteDiaperChangeLocal
 	} from '$lib/db/local-diaper-change';
-	import { listBabiesLocal, type LocalBaby } from '$lib/db/local-babies';
-	import { getLocalFamily, putLocalFamily } from '$lib/db/local-family';
-	import { getUserFamilies } from '$lib/db/family';
-	import FeedingTimerCard from '$lib/components/FeedingTimerCard.svelte';
-	import SleepTimerCard from '$lib/components/SleepTimerCard.svelte';
-	import BreastPumpTimerCard from '$lib/components/BreastPumpTimerCard.svelte';
-	import SessionList from '$lib/components/SessionList.svelte';
+	import {
+		getActiveTimer,
+		canStartTimer,
+		restoreActiveTimers,
+		startFeedingTimer,
+		stopFeedingTimer,
+		updateFeedingSide,
+		startSleepTimer,
+		stopSleepTimer,
+		updateSleepHeadSide,
+		startPumpTimer,
+		stopPumpTimer,
+		updatePumpSide,
+		logDiaperChange
+	} from '$lib/timer/active-timers.svelte';
+	import type { ActiveTimer } from '$lib/timer/active-timers.svelte';
+	import type { LocalSession } from '$lib/sessions/local-session';
 	import type { FeedingSide } from '$lib/sessions/feeding';
 	import type { HeadSide } from '$lib/sessions/sleep';
 	import type { PumpSide } from '$lib/sessions/breast-pump';
-	import { buildDiaperChangePayload, getDiaperContent } from '$lib/sessions/diaper-change';
+	import type { DiaperContent } from '$lib/sessions/diaper-change';
+	import { getNow } from '$lib/state/time.svelte';
+	import TrackTile from '$lib/components/TrackTile.svelte';
+	import TimerHero from '$lib/components/TimerHero.svelte';
+	import Sheet from '$lib/components/Sheet.svelte';
+	import Button from '$lib/components/Button.svelte';
+	import OptionGrid from '$lib/components/OptionGrid.svelte';
+	import SessionRow from '$lib/components/SessionRow.svelte';
+	import SessionEditSheet from '$lib/components/SessionEditSheet.svelte';
 
 	const session = getContext<SessionStore>(SESSION_KEY);
 	const sync = getContext<SyncEngineStore>(SYNC_KEY);
+	const babyState = getContext<BabyState>(BABY_STATE_KEY);
 
-	let babies = $state<LocalBaby[]>([]);
-	let selectedBabyId = $state<string | null>(null);
 	let familyId = $state<string | null>(null);
 	let pageLoading = $state(true);
 	let error = $state<string | null>(null);
 
-	let activeFeedingSession = $state<LocalFeeding | null>(null);
-	let activeSleepSession = $state<LocalSleep | null>(null);
-	let activeBreastPumpSession = $state<LocalBreastPump | null>(null);
+	let recentSessions = $state<LocalSession[]>([]);
+	let editingSession = $state<LocalSession | null>(null);
 
-	let recentSessions = $state<
-		Array<{
-			id: string;
-			type: 'feeding' | 'sleep' | 'breast_pump' | 'diaper_change';
-			side: string;
-			startedAt: Date;
-			endedAt: Date | null;
-			durationSeconds: number | null;
-			yieldLeftMl: number | null;
-			yieldRightMl: number | null;
-			note: string | null;
-		}>
-	>([]);
-	let editingSession = $state<(typeof recentSessions)[number] | null>(null);
-	let pendingDeleteSession = $state<(typeof recentSessions)[number] | null>(null);
-	let editSide = $state('');
-	let editStartedAt = $state('');
-	let editEndedAt = $state('');
-	let editYieldLeftMl = $state('');
-	let editYieldRightMl = $state('');
+	const feedIcon = Milk as unknown as Component<IconProps>;
+	const sleepIcon = Moon as unknown as Component<IconProps>;
+	const pumpIcon = Wind as unknown as Component<IconProps>;
+	const diaperIcon = Baby as unknown as Component<IconProps>;
 
-	const feedingTimer = createTimer();
-	const sleepTimer = createTimer();
-	const breastPumpTimer = createTimer();
+	const FEEDING_OPTIONS = [
+		{ value: 'left', label: 'Left' },
+		{ value: 'right', label: 'Right' },
+		{ value: 'both', label: 'Both' }
+	];
+	const SLEEP_OPTIONS = [
+		{ value: 'back', label: 'Back' },
+		{ value: 'left', label: 'Head Left' },
+		{ value: 'right', label: 'Head Right' },
+		{ value: 'tummy', label: 'Tummy' },
+		{ value: 'side', label: 'Side' }
+	];
+	const PUMP_OPTIONS = [
+		{ value: 'left', label: 'Left' },
+		{ value: 'right', label: 'Right' },
+		{ value: 'both', label: 'Both' }
+	];
+	const DIAPER_OPTIONS = [
+		{ value: 'poop', label: 'Poop' },
+		{ value: 'pee', label: 'Pee' },
+		{ value: 'both', label: 'Both' }
+	];
 
-	let feedingSide = $state<FeedingSide>('left');
+	let feedSheetOpen = $state(false);
+	let feedSide = $state<FeedingSide>('left');
+	let sleepSheetOpen = $state(false);
 	let sleepSide = $state<HeadSide>('back');
-	let breastPumpSide = $state<PumpSide>('both');
-	let breastPumpYieldLeftMl = $state('');
-	let breastPumpYieldRightMl = $state('');
-	let diaperHasPoop = $state(false);
-	let diaperHasPee = $state(false);
+	let pumpSheetOpen = $state(false);
+	let pumpSide = $state<PumpSide>('both');
+	let diaperSheetOpen = $state(false);
+	let diaperContent = $state<DiaperContent>('poop');
 
-	let selectedBaby = $derived(babies.find((b) => b.id === selectedBabyId) ?? null);
+	let pumpCompleteOpen = $state(false);
+	let pumpYieldLeft = $state('');
+	let pumpYieldRight = $state('');
+	let pumpStopping = $state(false);
 
-	const FEEDING_SIDES: FeedingSide[] = ['left', 'right', 'both'];
-	const SLEEP_SIDES: HeadSide[] = ['left', 'right', 'back', 'tummy', 'side'];
-	const PUMP_SIDES: PumpSide[] = ['left', 'right', 'both'];
-	const DIAPER_CONTENTS = ['poop', 'pee', 'both'] as const;
+	let babyId = $derived(babyState.selectedBabyId);
+	let selectedBaby = $derived(babyState.selectedBaby);
+
+	let feedTimer = $derived(babyId ? getActiveTimer(babyId, 'feed') : null);
+	let sleepTimer = $derived(babyId ? getActiveTimer(babyId, 'sleep') : null);
+	let pumpTimer = $derived(babyId ? getActiveTimer(babyId, 'pump') : null);
+
+	let feedCanStart = $derived(babyId ? canStartTimer(babyId, 'feed') : null);
+	let sleepCanStart = $derived(babyId ? canStartTimer(babyId, 'sleep') : null);
+	let pumpCanStart = $derived(babyId ? canStartTimer(babyId, 'pump') : null);
+
+	let loaded = false;
 
 	$effect(() => {
+		if (session.loading || loaded) return;
+		loaded = true;
+		pageLoading = false;
+		const userId = session.user?.id;
+		if (!userId) {
+			babyState.loadBabies(null).catch((e: unknown) => {
+				error = e instanceof Error ? e.message : 'Failed to load babies';
+			});
+			return;
+		}
 		(async () => {
 			try {
-				if (session.user) {
-					let localFamily = await getLocalFamily();
-					if (!localFamily) {
-						const families = await getUserFamilies(supabase);
-						if (families.length > 0) {
-							await putLocalFamily({
-								id: families[0].id,
-								name: families[0].name,
-								created_at: families[0].created_at
-							});
-							localFamily = {
-								id: families[0].id,
-								name: families[0].name,
-								created_at: families[0].created_at
-							};
-						}
+				let localFamily = await getLocalFamily();
+				if (!localFamily) {
+					const families = await getUserFamilies(supabase);
+					if (families.length > 0) {
+						await putLocalFamily({
+							id: families[0].id,
+							name: families[0].name,
+							created_at: families[0].created_at
+						});
+						localFamily = {
+							id: families[0].id,
+							name: families[0].name,
+							created_at: families[0].created_at
+						};
 					}
-					familyId = localFamily?.id ?? null;
-				} else {
-					familyId = null;
 				}
-
-				babies = await listBabiesLocal(familyId);
-				if (babies.length > 0) {
-					selectedBabyId = babies[0].id;
-				}
+				const fid = localFamily?.id ?? null;
+				familyId = fid;
+				babyState.loadBabies(fid).catch((e: unknown) => {
+					error = e instanceof Error ? e.message : 'Failed to load babies';
+				});
 			} catch (e) {
 				error = e instanceof Error ? e.message : 'Failed to load data';
-			} finally {
-				pageLoading = false;
 			}
 		})();
 	});
 
 	$effect(() => {
-		if (!selectedBabyId) return;
-		loadSessionsForBaby(selectedBabyId);
+		const id = babyId;
+		if (!id) {
+			recentSessions = [];
+			return;
+		}
+		restoreActiveTimers(id);
+		loadSessions(id);
 	});
 
-	async function loadSessionsForBaby(babyId: string) {
-		const [
-			activeFeeding,
-			activeSleep,
-			activePump,
-			feedingSessions,
-			sleepSessions,
-			pumpSessions,
-			diaperSessions
-		] = await Promise.all([
-			getActiveFeedingSessionLocal(babyId),
-			getActiveSleepSessionLocal(babyId),
-			getActiveBreastPumpSessionLocal(babyId),
-			listFeedingSessionsLocal(babyId, 20),
-			listSleepSessionsLocal(babyId, 20),
-			listBreastPumpSessionsLocal(babyId, 20),
-			listDiaperChangeSessionsLocal(babyId, 20)
-		]);
-
-		activeFeedingSession = activeFeeding;
-		activeSleepSession = activeSleep;
-		activeBreastPumpSession = activePump;
-
-		if (activeFeeding && !feedingTimer.running) {
-			feedingTimer.resume(new Date(activeFeeding.started_at));
-			feedingSide = activeFeeding.side;
-		}
-
-		if (activeSleep && !sleepTimer.running) {
-			sleepTimer.resume(new Date(activeSleep.started_at));
-			sleepSide = activeSleep.side;
-		}
-
-		if (activePump && !breastPumpTimer.running) {
-			breastPumpTimer.resume(new Date(activePump.started_at));
-			breastPumpSide = activePump.side;
-			breastPumpYieldLeftMl =
-				activePump.yield_left_ml !== null ? String(activePump.yield_left_ml) : '';
-			breastPumpYieldRightMl =
-				activePump.yield_right_ml !== null ? String(activePump.yield_right_ml) : '';
-		}
-
-		const combined = [
-			...feedingSessions.map((s) => ({
-				id: s.id,
-				type: 'feeding' as const,
-				side: s.side,
-				startedAt: new Date(s.started_at),
-				endedAt: s.ended_at ? new Date(s.ended_at) : null,
-				durationSeconds: s.ended_at
-					? buildTimerResult(new Date(s.started_at), new Date(s.ended_at)).durationSeconds
-					: null,
-				yieldLeftMl: null,
-				yieldRightMl: null,
-				note: s.note
-			})),
-			...sleepSessions.map((s) => ({
-				id: s.id,
-				type: 'sleep' as const,
-				side: s.side,
-				startedAt: new Date(s.started_at),
-				endedAt: s.ended_at ? new Date(s.ended_at) : null,
-				durationSeconds: s.ended_at
-					? buildTimerResult(new Date(s.started_at), new Date(s.ended_at)).durationSeconds
-					: null,
-				yieldLeftMl: null,
-				yieldRightMl: null,
-				note: s.note
-			})),
-			...pumpSessions.map((s) => ({
-				id: s.id,
-				type: 'breast_pump' as const,
-				side: s.side,
-				startedAt: new Date(s.started_at),
-				endedAt: s.ended_at ? new Date(s.ended_at) : null,
-				durationSeconds: s.ended_at
-					? buildTimerResult(new Date(s.started_at), new Date(s.ended_at)).durationSeconds
-					: null,
-				yieldLeftMl: s.yield_left_ml,
-				yieldRightMl: s.yield_right_ml,
-				note: s.note
-			})),
-			...diaperSessions.map((s) => ({
-				id: s.id,
-				type: 'diaper_change' as const,
-				side: getDiaperContent(s.has_poop, s.has_pee),
-				startedAt: new Date(s.started_at),
-				endedAt: new Date(s.started_at),
-				durationSeconds: 0,
-				yieldLeftMl: null,
-				yieldRightMl: null,
-				note: s.note
-			}))
-		].sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime());
-
-		recentSessions = combined.slice(0, 20);
-	}
-
-	async function handleStartFeeding(side: FeedingSide) {
-		if (!selectedBabyId) return;
-		feedingSide = side;
-		feedingTimer.start();
+	async function loadSessions(id: string) {
 		try {
-			const id = crypto.randomUUID();
-			const now = feedingTimer.startedAt!.toISOString();
-			const payload: LocalFeeding = {
-				id,
-				baby_id: selectedBabyId,
-				family_id: familyId,
-				side,
-				started_at: now,
-				ended_at: null,
-				note: null,
-				created_at: now,
-				_sync: 'pending'
-			};
-			await createFeedingLocal(payload);
-			activeFeedingSession = payload;
-			await loadSessionsForBaby(selectedBabyId!);
-			sync.syncNow();
+			const [feedings, sleeps, pumps, diapers] = await Promise.all([
+				listFeedingSessionsLocal(id, 10),
+				listSleepSessionsLocal(id, 10),
+				listBreastPumpSessionsLocal(id, 10),
+				listDiaperChangeSessionsLocal(id, 10)
+			]);
+
+			const combined: LocalSession[] = [
+				...feedings.map((s) => ({
+					id: s.id,
+					type: 'feeding' as const,
+					baby_id: s.baby_id,
+					family_id: s.family_id,
+					started_at: s.started_at,
+					ended_at: s.ended_at,
+					side: s.side,
+					note: s.note,
+					_sync: s._sync
+				})),
+				...sleeps.map((s) => ({
+					id: s.id,
+					type: 'sleep' as const,
+					baby_id: s.baby_id,
+					family_id: s.family_id,
+					started_at: s.started_at,
+					ended_at: s.ended_at,
+					side: s.side,
+					note: s.note,
+					_sync: s._sync
+				})),
+				...pumps.map((s) => ({
+					id: s.id,
+					type: 'breast_pump' as const,
+					baby_id: s.baby_id,
+					family_id: s.family_id,
+					started_at: s.started_at,
+					ended_at: s.ended_at,
+					side: s.side,
+					yield_left_ml: s.yield_left_ml,
+					yield_right_ml: s.yield_right_ml,
+					note: s.note,
+					_sync: s._sync
+				})),
+				...diapers.map((s) => ({
+					id: s.id,
+					type: 'diaper_change' as const,
+					baby_id: s.baby_id,
+					family_id: s.family_id,
+					started_at: s.started_at,
+					ended_at: null,
+					has_poop: s.has_poop,
+					has_pee: s.has_pee,
+					note: s.note,
+					_sync: s._sync
+				}))
+			];
+
+			combined.sort((a, b) => new Date(b.started_at).getTime() - new Date(a.started_at).getTime());
+			recentSessions = combined.slice(0, 10);
 		} catch (e) {
-			feedingTimer.reset();
-			error = e instanceof Error ? e.message : 'Failed to start feeding';
+			error = e instanceof Error ? e.message : 'Failed to load sessions';
 		}
 	}
 
-	async function handleFeedingSideChange(side: FeedingSide) {
-		feedingSide = side;
-		if (!activeFeedingSession || !selectedBabyId || activeFeedingSession.side === side) return;
+	function relativeAgo(iso: string): string {
+		const seconds = Math.max(0, Math.floor((getNow() - new Date(iso).getTime()) / 1000));
+		if (seconds < 60) return 'just now';
+		const minutes = Math.floor(seconds / 60);
+		if (minutes < 60) return `${minutes}m ago`;
+		const hours = Math.floor(minutes / 60);
+		if (hours < 24) {
+			const remMinutes = minutes % 60;
+			return remMinutes > 0 ? `${hours}h ${remMinutes}m ago` : `${hours}h ago`;
+		}
+		const days = Math.floor(hours / 24);
+		return `${days}d ago`;
+	}
+
+	function capitalize(value: string): string {
+		return value.charAt(0).toUpperCase() + value.slice(1);
+	}
+
+	function summaryFor(type: LocalSession['type']): string | undefined {
+		const last = recentSessions.find((s) => s.type === type);
+		if (!last) return undefined;
+		const when = relativeAgo(last.started_at);
+		if (type === 'diaper_change') {
+			const hasPoop = last.has_poop ?? false;
+			const hasPee = last.has_pee ?? false;
+			const detail = hasPoop && hasPee ? 'Both' : hasPoop ? 'Poop' : 'Pee';
+			return `${when} · ${detail}`;
+		}
+		if (last.side) {
+			return `${when} · ${capitalize(last.side)}`;
+		}
+		return when;
+	}
+
+	let feedSummary = $derived(summaryFor('feeding'));
+	let sleepSummary = $derived(summaryFor('sleep'));
+	let pumpSummary = $derived(summaryFor('breast_pump'));
+	let diaperSummary = $derived(summaryFor('diaper_change'));
+
+	async function refresh() {
+		if (babyId) await loadSessions(babyId);
+		sync.syncNow();
+	}
+
+	async function withError(action: () => Promise<void>, fallback: string) {
 		try {
-			await updateFeedingLocal(activeFeedingSession.id, { side, _sync: 'pending' });
-			activeFeedingSession = { ...activeFeedingSession, side, _sync: 'pending' };
-			await loadSessionsForBaby(selectedBabyId);
-			sync.syncNow();
+			await action();
 		} catch (e) {
-			error = e instanceof Error ? e.message : 'Failed to update feeding side';
+			error = e instanceof Error ? e.message : fallback;
 		}
 	}
 
-	async function handleStopFeeding() {
-		if (!activeFeedingSession) return;
-		const result = feedingTimer.stop();
-		if (!result) return;
-		try {
-			const endedAt = result.endedAt.toISOString();
-			await updateFeedingLocal(activeFeedingSession.id, { ended_at: endedAt, _sync: 'pending' });
-			activeFeedingSession = null;
-			await loadSessionsForBaby(selectedBabyId!);
-			sync.syncNow();
-		} catch (e) {
-			error = e instanceof Error ? e.message : 'Failed to stop feeding';
-		}
+	async function confirmStartFeed() {
+		if (!babyId) return;
+		await withError(async () => {
+			await startFeedingTimer(babyId!, familyId, feedSide);
+			feedSheetOpen = false;
+			await refresh();
+		}, 'Failed to start feeding');
 	}
 
-	async function handleStartSleep(side: HeadSide) {
-		if (!selectedBabyId) return;
-		sleepSide = side;
-		sleepTimer.start();
-		try {
-			const id = crypto.randomUUID();
-			const now = sleepTimer.startedAt!.toISOString();
-			const payload: LocalSleep = {
-				id,
-				baby_id: selectedBabyId,
-				family_id: familyId,
-				side,
-				started_at: now,
-				ended_at: null,
-				note: null,
-				created_at: now,
-				_sync: 'pending'
-			};
-			await createSleepLocal(payload);
-			activeSleepSession = payload;
-			await loadSessionsForBaby(selectedBabyId!);
-			sync.syncNow();
-		} catch (e) {
-			sleepTimer.reset();
-			error = e instanceof Error ? e.message : 'Failed to start sleep';
-		}
+	async function confirmStartSleep() {
+		if (!babyId) return;
+		await withError(async () => {
+			await startSleepTimer(babyId!, familyId, sleepSide);
+			sleepSheetOpen = false;
+			await refresh();
+		}, 'Failed to start sleep');
 	}
 
-	async function handleSleepSideChange(side: HeadSide) {
-		sleepSide = side;
-		if (!activeSleepSession || !selectedBabyId || activeSleepSession.side === side) return;
-		try {
-			await updateSleepLocal(activeSleepSession.id, { side, _sync: 'pending' });
-			activeSleepSession = { ...activeSleepSession, side, _sync: 'pending' };
-			await loadSessionsForBaby(selectedBabyId);
-			sync.syncNow();
-		} catch (e) {
-			error = e instanceof Error ? e.message : 'Failed to update sleep side';
-		}
+	async function confirmStartPump() {
+		if (!babyId) return;
+		await withError(async () => {
+			await startPumpTimer(babyId!, familyId, pumpSide);
+			pumpSheetOpen = false;
+			await refresh();
+		}, 'Failed to start pump');
+	}
+
+	async function confirmLogDiaper() {
+		if (!babyId) return;
+		await withError(async () => {
+			await logDiaperChange(babyId!, familyId, diaperContent);
+			diaperSheetOpen = false;
+			await refresh();
+		}, 'Failed to log diaper change');
+	}
+
+	async function handleStopFeed() {
+		if (!babyId) return;
+		await withError(async () => {
+			await stopFeedingTimer(babyId!);
+			await refresh();
+		}, 'Failed to stop feeding');
 	}
 
 	async function handleStopSleep() {
-		if (!activeSleepSession) return;
-		const result = sleepTimer.stop();
-		if (!result) return;
-		try {
-			const endedAt = result.endedAt.toISOString();
-			await updateSleepLocal(activeSleepSession.id, { ended_at: endedAt, _sync: 'pending' });
-			activeSleepSession = null;
-			await loadSessionsForBaby(selectedBabyId!);
-			sync.syncNow();
-		} catch (e) {
-			error = e instanceof Error ? e.message : 'Failed to stop sleep';
-		}
+		if (!babyId) return;
+		await withError(async () => {
+			await stopSleepTimer(babyId!);
+			await refresh();
+		}, 'Failed to stop sleep');
 	}
 
-	function parseOptionalYield(value: string): number | null {
+	async function handleStopPump() {
+		pumpYieldLeft = '';
+		pumpYieldRight = '';
+		pumpCompleteOpen = true;
+	}
+
+	function parseOptionalYield(value: string): number | undefined {
 		const trimmed = value.trim();
-		if (!trimmed) return null;
+		if (!trimmed) return undefined;
 		const parsed = Number(trimmed);
 		if (!Number.isFinite(parsed) || parsed < 0) {
 			throw new Error('Yield must be a non-negative number');
@@ -366,480 +361,405 @@
 		return Math.round(parsed);
 	}
 
-	async function handleStartBreastPump(state: {
-		side: PumpSide;
-		yieldLeftMl: string;
-		yieldRightMl: string;
-	}) {
-		if (!selectedBabyId) return;
+	async function confirmPumpComplete() {
+		if (!babyId || pumpStopping) return;
+		pumpStopping = true;
 		try {
-			const yieldLeftMl = parseOptionalYield(state.yieldLeftMl);
-			const yieldRightMl = parseOptionalYield(state.yieldRightMl);
-			breastPumpSide = state.side;
-			breastPumpYieldLeftMl = state.yieldLeftMl;
-			breastPumpYieldRightMl = state.yieldRightMl;
-			breastPumpTimer.start();
-			const id = crypto.randomUUID();
-			const now = breastPumpTimer.startedAt!.toISOString();
-			const payload: LocalBreastPump = {
-				id,
-				baby_id: selectedBabyId,
-				family_id: familyId,
-				side: state.side,
-				started_at: now,
-				ended_at: null,
-				yield_left_ml: yieldLeftMl,
-				yield_right_ml: yieldRightMl,
-				note: null,
-				created_at: now,
-				_sync: 'pending'
-			};
-			await createBreastPumpLocal(payload);
-			activeBreastPumpSession = payload;
-			await loadSessionsForBaby(selectedBabyId);
-			sync.syncNow();
+			const left = parseOptionalYield(pumpYieldLeft);
+			const right = parseOptionalYield(pumpYieldRight);
+			await stopPumpTimer(babyId, left, right);
+			pumpCompleteOpen = false;
+			await refresh();
 		} catch (e) {
-			breastPumpTimer.reset();
-			error = e instanceof Error ? e.message : 'Failed to start breast pump session';
+			error = e instanceof Error ? e.message : 'Failed to stop pump';
+		} finally {
+			pumpStopping = false;
 		}
 	}
 
-	async function handleBreastPumpSideChange(side: PumpSide) {
-		breastPumpSide = side;
-		if (!activeBreastPumpSession || !selectedBabyId || activeBreastPumpSession.side === side)
-			return;
-		try {
-			await updateBreastPumpLocal(activeBreastPumpSession.id, { side, _sync: 'pending' });
-			activeBreastPumpSession = { ...activeBreastPumpSession, side, _sync: 'pending' };
-			await loadSessionsForBaby(selectedBabyId);
-			sync.syncNow();
-		} catch (e) {
-			error = e instanceof Error ? e.message : 'Failed to update breast pump side';
-		}
-	}
-
-	async function handleStopBreastPump() {
-		if (!activeBreastPumpSession) return;
-		const result = breastPumpTimer.stop();
-		if (!result) return;
-		try {
-			const endedAt = result.endedAt.toISOString();
-			await updateBreastPumpLocal(activeBreastPumpSession.id, {
-				ended_at: endedAt,
-				_sync: 'pending'
-			});
-			activeBreastPumpSession = null;
-			await loadSessionsForBaby(selectedBabyId!);
-			sync.syncNow();
-		} catch (e) {
-			error = e instanceof Error ? e.message : 'Failed to stop breast pump session';
-		}
-	}
-
-	async function handleCreateDiaperChange() {
-		if (!selectedBabyId) return;
-		try {
-			const now = new Date();
-			if (!diaperHasPoop && !diaperHasPee) {
-				throw new Error('Please select poop, pee, or both');
+	async function handleSideChange(timer: ActiveTimer, side: string) {
+		if (!babyId) return;
+		await withError(async () => {
+			if (timer.type === 'feed') {
+				await updateFeedingSide(babyId!, side as FeedingSide);
+			} else if (timer.type === 'sleep') {
+				await updateSleepHeadSide(babyId!, side as HeadSide);
+			} else {
+				await updatePumpSide(babyId!, side as PumpSide);
 			}
-			const payload =
-				familyId !== null
-					? buildDiaperChangePayload({
-							babyId: selectedBabyId,
-							familyId,
-							changedAt: now,
-							hasPoop: diaperHasPoop,
-							hasPee: diaperHasPee
-						})
-					: null;
-			const localPayload: LocalDiaperChange = {
-				id: crypto.randomUUID(),
-				baby_id: selectedBabyId,
-				family_id: familyId,
-				started_at: payload?.started_at ?? now.toISOString(),
-				has_poop: payload?.has_poop ?? diaperHasPoop,
-				has_pee: payload?.has_pee ?? diaperHasPee,
-				note: payload?.note ?? null,
-				created_at: now.toISOString(),
-				_sync: 'pending'
-			};
-			await createDiaperChangeLocal(localPayload);
-			diaperHasPoop = false;
-			diaperHasPee = false;
-			await loadSessionsForBaby(selectedBabyId);
-			sync.syncNow();
-		} catch (e) {
-			error = e instanceof Error ? e.message : 'Failed to save diaper change';
-		}
+			await refresh();
+		}, 'Failed to update side');
 	}
 
-	function formatDateTimeInput(date: Date): string {
-		const pad = (value: number) => String(value).padStart(2, '0');
-		return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-	}
-
-	function parseDateTimeInput(value: string): Date | null {
-		const parsed = new Date(value);
-		return Number.isNaN(parsed.getTime()) ? null : parsed;
-	}
-
-	function openEditSessionModal(sessionItem: (typeof recentSessions)[number]) {
-		editingSession = sessionItem;
-		editSide = sessionItem.side;
-		editStartedAt = formatDateTimeInput(sessionItem.startedAt);
-		editEndedAt = sessionItem.endedAt ? formatDateTimeInput(sessionItem.endedAt) : '';
-		editYieldLeftMl = sessionItem.yieldLeftMl !== null ? String(sessionItem.yieldLeftMl) : '';
-		editYieldRightMl = sessionItem.yieldRightMl !== null ? String(sessionItem.yieldRightMl) : '';
-	}
-
-	function closeEditSessionModal() {
-		editingSession = null;
-		editSide = '';
-		editStartedAt = '';
-		editEndedAt = '';
-		editYieldLeftMl = '';
-		editYieldRightMl = '';
-	}
-
-	async function saveSessionEdits() {
-		if (!editingSession) return;
-		const allowedSides: string[] =
-			editingSession.type === 'sleep'
-				? SLEEP_SIDES
-				: editingSession.type === 'breast_pump'
-					? PUMP_SIDES
-					: editingSession.type === 'diaper_change'
-						? [...DIAPER_CONTENTS]
-						: FEEDING_SIDES;
-		const nextSide = editSide.trim().toLowerCase();
-		if (!allowedSides.includes(nextSide)) {
-			error = 'Invalid side selection';
-			return;
-		}
-
-		const startedAt = parseDateTimeInput(editStartedAt.trim());
-		if (!startedAt) {
-			error = 'Invalid start time';
-			return;
-		}
-
-		const endedAt = editEndedAt.trim() ? parseDateTimeInput(editEndedAt.trim()) : null;
-		if (editEndedAt.trim() && !endedAt) {
-			error = 'Invalid end time';
-			return;
-		}
-		if (endedAt && endedAt < startedAt) {
-			error = 'End time cannot be before start time';
-			return;
-		}
-
-		if (!selectedBabyId) return;
-		try {
-			if (editingSession.type === 'feeding') {
-				await updateFeedingLocal(editingSession.id, {
-					side: nextSide as FeedingSide,
-					started_at: startedAt.toISOString(),
-					ended_at: endedAt ? endedAt.toISOString() : null,
+	async function handleSave(updated: LocalSession) {
+		await withError(async () => {
+			if (updated.type === 'feeding') {
+				await updateFeedingLocal(updated.id, {
+					side: (updated.side ?? 'left') as FeedingSide,
+					started_at: updated.started_at,
+					ended_at: updated.ended_at,
 					_sync: 'pending'
 				});
-			} else if (editingSession.type === 'breast_pump') {
-				await updateBreastPumpLocal(editingSession.id, {
-					side: nextSide as PumpSide,
-					started_at: startedAt.toISOString(),
-					ended_at: endedAt ? endedAt.toISOString() : null,
-					yield_left_ml: parseOptionalYield(editYieldLeftMl),
-					yield_right_ml: parseOptionalYield(editYieldRightMl),
+			} else if (updated.type === 'sleep') {
+				await updateSleepLocal(updated.id, {
+					side: (updated.side ?? 'back') as HeadSide,
+					started_at: updated.started_at,
+					ended_at: updated.ended_at,
 					_sync: 'pending'
 				});
-			} else if (editingSession.type === 'sleep') {
-				await updateSleepLocal(editingSession.id, {
-					side: nextSide as HeadSide,
-					started_at: startedAt.toISOString(),
-					ended_at: endedAt ? endedAt.toISOString() : null,
-					_sync: 'pending'
-				});
-			} else if (editingSession.type === 'diaper_change') {
-				await updateDiaperChangeLocal(editingSession.id, {
-					started_at: startedAt.toISOString(),
-					has_poop: nextSide === 'poop' || nextSide === 'both',
-					has_pee: nextSide === 'pee' || nextSide === 'both',
+			} else if (updated.type === 'breast_pump') {
+				await updateBreastPumpLocal(updated.id, {
+					side: (updated.side ?? 'both') as PumpSide,
+					started_at: updated.started_at,
+					ended_at: updated.ended_at,
+					yield_left_ml: updated.yield_left_ml ?? null,
+					yield_right_ml: updated.yield_right_ml ?? null,
 					_sync: 'pending'
 				});
 			} else {
-				throw new Error(`Unsupported session type: ${editingSession.type}`);
+				await updateDiaperChangeLocal(updated.id, {
+					started_at: updated.started_at,
+					has_poop: updated.has_poop ?? false,
+					has_pee: updated.has_pee ?? false,
+					_sync: 'pending'
+				});
 			}
-			closeEditSessionModal();
-			await loadSessionsForBaby(selectedBabyId);
-			sync.syncNow();
-		} catch (e) {
-			error = e instanceof Error ? e.message : 'Failed to edit session';
-		}
+			editingSession = null;
+			await refresh();
+		}, 'Failed to save session');
 	}
 
-	function openDeleteSessionModal(sessionItem: (typeof recentSessions)[number]) {
-		pendingDeleteSession = sessionItem;
-	}
-
-	function closeDeleteSessionModal() {
-		pendingDeleteSession = null;
-	}
-
-	async function confirmRemoveSession() {
-		if (!pendingDeleteSession) return;
-		if (!selectedBabyId) return;
-		try {
-			if (pendingDeleteSession.type === 'feeding') {
-				await deleteFeedingLocal(pendingDeleteSession.id);
-				if (activeFeedingSession?.id === pendingDeleteSession.id) {
-					activeFeedingSession = null;
-					feedingTimer.reset();
-				}
-			} else if (pendingDeleteSession.type === 'breast_pump') {
-				await deleteBreastPumpLocal(pendingDeleteSession.id);
-				if (activeBreastPumpSession?.id === pendingDeleteSession.id) {
-					activeBreastPumpSession = null;
-					breastPumpTimer.reset();
-				}
-			} else if (pendingDeleteSession.type === 'diaper_change') {
-				await deleteDiaperChangeLocal(pendingDeleteSession.id);
+	async function handleDelete(deleted: LocalSession) {
+		await withError(async () => {
+			if (deleted.type === 'feeding') {
+				await deleteFeedingLocal(deleted.id);
+			} else if (deleted.type === 'sleep') {
+				await deleteSleepLocal(deleted.id);
+			} else if (deleted.type === 'breast_pump') {
+				await deleteBreastPumpLocal(deleted.id);
 			} else {
-				await deleteSleepLocal(pendingDeleteSession.id);
-				if (activeSleepSession?.id === pendingDeleteSession.id) {
-					activeSleepSession = null;
-					sleepTimer.reset();
-				}
+				await deleteDiaperChangeLocal(deleted.id);
 			}
-			closeDeleteSessionModal();
-			await loadSessionsForBaby(selectedBabyId);
-			sync.syncNow();
-		} catch (e) {
-			error = e instanceof Error ? e.message : 'Failed to remove session';
-		}
+			editingSession = null;
+			await refresh();
+		}, 'Failed to delete session');
 	}
 </script>
 
-<section class="section">
-	<div class="container">
-		{#if pageLoading}
-			<progress class="progress is-primary" max="100">Loading</progress>
-		{:else if error}
-			<div class="notification is-danger">
-				<button class="delete" aria-label="Dismiss error" onclick={() => (error = null)}></button>
-				{error}
-			</div>
-		{:else if babies.length === 0}
-			<div class="has-text-centered py-6">
-				<h2 class="title is-4">Welcome to Baby Timer!</h2>
-				<p class="subtitle">Add a baby to get started.</p>
-				<a href="{base}/app/babies" class="button is-primary">Add Baby</a>
-			</div>
-		{:else}
-			{#if babies.length > 1}
-				<div class="field mb-4">
-					<label class="label" for="baby-select">Baby</label>
-					<div class="control">
-						<div class="select">
-							<select
-								id="baby-select"
-								value={selectedBabyId}
-								onchange={(e) => (selectedBabyId = (e.target as HTMLSelectElement).value)}
-							>
-								{#each babies as baby (baby.id)}
-									<option value={baby.id}>{baby.name}</option>
-								{/each}
-							</select>
-						</div>
-					</div>
+<div class="page">
+	{#if pageLoading}
+		<p class="loading-msg">Loading…</p>
+	{:else if !babyId}
+		{#if error}
+			<p class="error-msg" role="alert">{error}</p>
+		{/if}
+		<div class="empty">
+			<h2 class="empty-title">No babies yet</h2>
+			<p class="empty-text">Add a baby to start tracking.</p>
+			<Button variant="primary" href="{base}/app/family">Add a baby</Button>
+		</div>
+	{:else}
+		{#if error}
+			<p class="error-msg" role="alert">{error}</p>
+		{/if}
+
+		<div class="tiles">
+			{#if feedTimer}
+				<div class="hero-slot">
+					<TimerHero
+						timer={feedTimer}
+						babyName={selectedBaby?.name}
+						onstop={handleStopFeed}
+						onsidechange={(side) => handleSideChange(feedTimer!, side)}
+					/>
 				</div>
-			{:else if selectedBaby}
-				<h2 class="title is-4 mb-4">{selectedBaby.name}</h2>
+			{:else}
+				<TrackTile
+					type="feed"
+					label="Feed"
+					icon={feedIcon}
+					lastSummary={feedSummary}
+					disabled={!feedCanStart?.allowed}
+					disabledReason={feedCanStart?.reason ?? undefined}
+					onstart={() => (feedSheetOpen = true)}
+				/>
 			{/if}
 
-			<div class="columns">
-				<div class="column">
-					<FeedingTimerCard
-						running={feedingTimer.running}
-						elapsed={feedingTimer.elapsed}
-						side={feedingSide}
-						disabled={sleepTimer.running || breastPumpTimer.running}
-						onstart={handleStartFeeding}
-						onstop={handleStopFeeding}
-						onsidechange={handleFeedingSideChange}
-					/>
-				</div>
-				<div class="column">
-					<SleepTimerCard
-						running={sleepTimer.running}
-						elapsed={sleepTimer.elapsed}
-						side={sleepSide}
-						disabled={feedingTimer.running || breastPumpTimer.running}
-						onstart={handleStartSleep}
+			{#if sleepTimer}
+				<div class="hero-slot">
+					<TimerHero
+						timer={sleepTimer}
+						babyName={selectedBaby?.name}
 						onstop={handleStopSleep}
-						onsidechange={handleSleepSideChange}
+						onsidechange={(side) => handleSideChange(sleepTimer!, side)}
 					/>
 				</div>
-				<div class="column">
-					<BreastPumpTimerCard
-						running={breastPumpTimer.running}
-						elapsed={breastPumpTimer.elapsed}
-						side={breastPumpSide}
-						yieldLeftMl={breastPumpYieldLeftMl}
-						yieldRightMl={breastPumpYieldRightMl}
-						disabled={feedingTimer.running}
-						onstart={handleStartBreastPump}
-						onstop={handleStopBreastPump}
-						onsidechange={handleBreastPumpSideChange}
-						onyieldleftchange={(value) => (breastPumpYieldLeftMl = value)}
-						onyieldrightchange={(value) => (breastPumpYieldRightMl = value)}
-					/>
-				</div>
-				<div class="column">
-					<div class="box">
-						<h3 class="title is-6">Diaper Change</h3>
-						<div class="field">
-							<label class="checkbox mr-4">
-								<input type="checkbox" bind:checked={diaperHasPoop} />
-								Poop
-							</label>
-							<label class="checkbox">
-								<input type="checkbox" bind:checked={diaperHasPee} />
-								Pee
-							</label>
-						</div>
-						<button
-							class="button is-link is-light is-fullwidth"
-							type="button"
-							disabled={!selectedBabyId || (!diaperHasPoop && !diaperHasPee)}
-							onclick={handleCreateDiaperChange}
-						>
-							Log diaper change
-						</button>
-					</div>
-				</div>
-			</div>
-
-			<div class="mt-5">
-				<h3 class="title is-5">Recent Sessions</h3>
-				<SessionList
-					sessions={recentSessions}
-					onedit={openEditSessionModal}
-					onremove={openDeleteSessionModal}
+			{:else}
+				<TrackTile
+					type="sleep"
+					label="Sleep"
+					icon={sleepIcon}
+					lastSummary={sleepSummary}
+					disabled={!sleepCanStart?.allowed}
+					disabledReason={sleepCanStart?.reason ?? undefined}
+					onstart={() => (sleepSheetOpen = true)}
 				/>
-			</div>
-		{/if}
-	</div>
-</section>
+			{/if}
 
-{#if editingSession}
-	<div class="modal is-active">
-		<button
-			class="modal-background"
-			type="button"
-			aria-label="Close edit session modal"
-			onclick={closeEditSessionModal}
-		></button>
-		<div class="modal-card">
-			<header class="modal-card-head">
-				<p class="modal-card-title">Edit Session</p>
-				<button class="delete" aria-label="Close" type="button" onclick={closeEditSessionModal}
-				></button>
-			</header>
-			<section class="modal-card-body">
-				<div class="field">
-					<label class="label" for="edit-session-side">Side</label>
-					<div class="control">
-						<div class="select is-fullwidth">
-							<select id="edit-session-side" bind:value={editSide}>
-								{#each editingSession.type === 'sleep' ? SLEEP_SIDES : editingSession.type === 'breast_pump' ? PUMP_SIDES : editingSession.type === 'diaper_change' ? DIAPER_CONTENTS : FEEDING_SIDES as sideOption}
-									<option value={sideOption}>{sideOption}</option>
-								{/each}
-							</select>
-						</div>
-					</div>
+			{#if pumpTimer}
+				<div class="hero-slot">
+					<TimerHero
+						timer={pumpTimer}
+						babyName={selectedBaby?.name}
+						onstop={handleStopPump}
+						onsidechange={(side) => handleSideChange(pumpTimer!, side)}
+					/>
 				</div>
-				<div class="field">
-					<label class="label" for="edit-session-start">Start time</label>
-					<div class="control">
-						<input
-							id="edit-session-start"
-							class="input"
-							type="datetime-local"
-							bind:value={editStartedAt}
+			{:else}
+				<TrackTile
+					type="pump"
+					label="Pump"
+					icon={pumpIcon}
+					lastSummary={pumpSummary}
+					disabled={!pumpCanStart?.allowed}
+					disabledReason={pumpCanStart?.reason ?? undefined}
+					onstart={() => (pumpSheetOpen = true)}
+				/>
+			{/if}
+
+			<TrackTile
+				type="diaper"
+				label="Diaper"
+				icon={diaperIcon}
+				lastSummary={diaperSummary}
+				onstart={() => (diaperSheetOpen = true)}
+			/>
+		</div>
+
+		<section class="recent">
+			<h2 class="recent-title">Recent</h2>
+			{#if recentSessions.length === 0}
+				<p class="recent-empty">No sessions yet.</p>
+			{:else}
+				<div class="recent-list">
+					{#each recentSessions as item, i (item.id)}
+						<SessionRow
+							session={item}
+							onedit={(s) => (editingSession = s)}
+							ondelete={handleDelete}
+							isLast={i === recentSessions.length - 1}
 						/>
-					</div>
+					{/each}
 				</div>
-				<div class="field">
-					<label class="label" for="edit-session-end">End time</label>
-					<div class="control">
-						<input
-							id="edit-session-end"
-							class="input"
-							type="datetime-local"
-							bind:value={editEndedAt}
-						/>
-					</div>
-					<p class="help">Leave blank for active session.</p>
-				</div>
-				{#if editingSession.type === 'breast_pump'}
-					<div class="field">
-						<label class="label" for="edit-session-yield-left">Left yield (ml)</label>
-						<div class="control">
-							<input
-								id="edit-session-yield-left"
-								class="input"
-								type="number"
-								min="0"
-								step="1"
-								bind:value={editYieldLeftMl}
-							/>
-						</div>
-					</div>
-					<div class="field">
-						<label class="label" for="edit-session-yield-right">Right yield (ml)</label>
-						<div class="control">
-							<input
-								id="edit-session-yield-right"
-								class="input"
-								type="number"
-								min="0"
-								step="1"
-								bind:value={editYieldRightMl}
-							/>
-						</div>
-					</div>
-				{/if}
-			</section>
-			<footer class="modal-card-foot">
-				<button class="button is-primary" type="button" onclick={saveSessionEdits}>Save</button>
-				<button class="button" type="button" onclick={closeEditSessionModal}>Cancel</button>
-			</footer>
+			{/if}
+		</section>
+	{/if}
+</div>
+
+<Sheet open={feedSheetOpen} title="Start feeding" onclose={() => (feedSheetOpen = false)}>
+	<span class="sheet-label">Side</span>
+	<OptionGrid
+		options={FEEDING_OPTIONS}
+		value={feedSide}
+		columns={3}
+		onchange={(v) => (feedSide = v as FeedingSide)}
+	/>
+	{#snippet footer()}
+		<Button variant="primary" class="full" onclick={confirmStartFeed}>Start</Button>
+	{/snippet}
+</Sheet>
+
+<Sheet open={sleepSheetOpen} title="Start sleep" onclose={() => (sleepSheetOpen = false)}>
+	<span class="sheet-label">Head position</span>
+	<OptionGrid
+		options={SLEEP_OPTIONS}
+		value={sleepSide}
+		columns={3}
+		onchange={(v) => (sleepSide = v as HeadSide)}
+	/>
+	{#snippet footer()}
+		<Button variant="primary" class="full" onclick={confirmStartSleep}>Start</Button>
+	{/snippet}
+</Sheet>
+
+<Sheet open={pumpSheetOpen} title="Start pump" onclose={() => (pumpSheetOpen = false)}>
+	<span class="sheet-label">Side</span>
+	<OptionGrid
+		options={PUMP_OPTIONS}
+		value={pumpSide}
+		columns={3}
+		onchange={(v) => (pumpSide = v as PumpSide)}
+	/>
+	{#snippet footer()}
+		<Button variant="primary" class="full" onclick={confirmStartPump}>Start</Button>
+	{/snippet}
+</Sheet>
+
+<Sheet open={diaperSheetOpen} title="Log diaper change" onclose={() => (diaperSheetOpen = false)}>
+	<span class="sheet-label">Contents</span>
+	<OptionGrid
+		options={DIAPER_OPTIONS}
+		value={diaperContent}
+		columns={3}
+		onchange={(v) => (diaperContent = v as DiaperContent)}
+	/>
+	{#snippet footer()}
+		<Button variant="primary" class="full" onclick={confirmLogDiaper}>Log</Button>
+	{/snippet}
+</Sheet>
+
+<Sheet open={pumpCompleteOpen} title="Pump complete" onclose={() => (pumpCompleteOpen = false)}>
+	<div class="yield-fields">
+		<div class="field">
+			<label class="sheet-label" for="pump-yield-left">Left yield (ml)</label>
+			<input
+				id="pump-yield-left"
+				class="number-input"
+				type="number"
+				min="0"
+				step="1"
+				placeholder="optional"
+				bind:value={pumpYieldLeft}
+			/>
+		</div>
+		<div class="field">
+			<label class="sheet-label" for="pump-yield-right">Right yield (ml)</label>
+			<input
+				id="pump-yield-right"
+				class="number-input"
+				type="number"
+				min="0"
+				step="1"
+				placeholder="optional"
+				bind:value={pumpYieldRight}
+			/>
 		</div>
 	</div>
-{/if}
+	{#snippet footer()}
+		<Button variant="primary" class="full" loading={pumpStopping} onclick={confirmPumpComplete}>
+			Done
+		</Button>
+	{/snippet}
+</Sheet>
 
-{#if pendingDeleteSession}
-	<div class="modal is-active">
-		<button
-			class="modal-background"
-			type="button"
-			aria-label="Close delete session modal"
-			onclick={closeDeleteSessionModal}
-		></button>
-		<div class="modal-card">
-			<header class="modal-card-head">
-				<p class="modal-card-title">Delete Session</p>
-				<button class="delete" aria-label="Close" type="button" onclick={closeDeleteSessionModal}
-				></button>
-			</header>
-			<section class="modal-card-body">
-				<p>Are you sure you want to delete this session?</p>
-			</section>
-			<footer class="modal-card-foot">
-				<button class="button is-danger" type="button" onclick={confirmRemoveSession}>Delete</button
-				>
-				<button class="button" type="button" onclick={closeDeleteSessionModal}>Cancel</button>
-			</footer>
-		</div>
-	</div>
-{/if}
+<SessionEditSheet
+	session={editingSession}
+	onclose={() => (editingSession = null)}
+	onsave={handleSave}
+	ondelete={handleDelete}
+/>
+
+<style>
+	.page {
+		padding: var(--space-4) var(--space-4) calc(var(--bottom-nav-h) + var(--space-6));
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-6);
+	}
+
+	.loading-msg {
+		color: var(--text-2);
+		text-align: center;
+		padding: var(--space-6) 0;
+	}
+
+	.error-msg {
+		color: var(--danger);
+		margin: 0;
+	}
+
+	.empty {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: var(--space-3);
+		text-align: center;
+		padding: var(--space-6) var(--space-4);
+	}
+
+	.empty-title {
+		margin: 0;
+		font-size: var(--font-size-5);
+		font-weight: var(--fw-bold);
+		color: var(--text);
+	}
+
+	.empty-text {
+		margin: 0;
+		color: var(--text-2);
+	}
+
+	.tiles {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: var(--space-4);
+	}
+
+	.hero-slot {
+		grid-column: 1 / -1;
+	}
+
+	.recent-title {
+		margin: 0 0 var(--space-3);
+		font-size: var(--font-size-4);
+		font-weight: var(--fw-bold);
+		color: var(--text);
+	}
+
+	.recent-empty {
+		color: var(--text-2);
+		margin: 0;
+	}
+
+	.recent-list {
+		background: var(--surface);
+		border-radius: var(--radius-3);
+		overflow: hidden;
+		border: 1px solid var(--border);
+	}
+
+	.sheet-label {
+		display: block;
+		font-size: var(--font-size-2);
+		font-weight: var(--fw-semibold);
+		color: var(--text-2);
+		margin-bottom: var(--space-2);
+	}
+
+	.yield-fields {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-4);
+	}
+
+	.field {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-2);
+	}
+
+	.number-input {
+		width: 100%;
+		min-height: var(--tap-comfortable);
+		padding: var(--space-3) var(--space-4);
+		border: 1.5px solid var(--border);
+		border-radius: var(--radius-2);
+		background: var(--surface);
+		color: var(--text);
+		font-family: var(--font-body);
+		font-size: var(--font-size-3);
+		appearance: none;
+		-webkit-appearance: none;
+		box-sizing: border-box;
+	}
+
+	.number-input:focus {
+		outline: 2px solid var(--brand);
+		outline-offset: 2px;
+		border-color: var(--brand);
+	}
+
+	:global(.btn.full) {
+		width: 100%;
+	}
+</style>

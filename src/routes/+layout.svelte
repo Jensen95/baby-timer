@@ -1,10 +1,10 @@
 <script lang="ts">
-	import '../app.scss';
+	import '../app.css';
 	import { setContext } from 'svelte';
 	import { createSession } from '$lib/auth/session.svelte';
 	import { SESSION_KEY } from '$lib/auth/context';
 	import { createSyncEngine, SYNC_KEY } from '$lib/db/sync.svelte';
-	import Nav from '$lib/components/Nav.svelte';
+	import AppBar from '$lib/components/AppBar.svelte';
 	import BottomNav from '$lib/components/BottomNav.svelte';
 
 	const session = createSession();
@@ -23,7 +23,7 @@
 
 <div class="app">
 	{#if session.user}
-		<Nav />
+		<AppBar />
 	{/if}
 	<main>
 		{@render children()}

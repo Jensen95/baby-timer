@@ -1,13 +1,20 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 	import { base } from '$app/paths';
+	import { Timer, List, ChartNoAxesColumn, Ellipsis } from '@lucide/svelte';
 
-	const navItems = [
-		{ href: `${base}/app`, label: 'Home', icon: '🏠', exact: true },
-		{ href: `${base}/app/history`, label: 'History', icon: '📋', exact: false },
-		{ href: `${base}/app/stats`, label: 'Stats', icon: '📊', exact: false },
-		{ href: `${base}/app/babies`, label: 'Babies', icon: '👶', exact: false },
-		{ href: `${base}/app/family`, label: 'Family', icon: '👨‍👩‍👧', exact: false }
+	interface NavItem {
+		href: string;
+		label: string;
+		icon: any;
+		exact: boolean;
+	}
+
+	const navItems: NavItem[] = [
+		{ href: `${base}/app`, label: 'Track', icon: Timer, exact: true },
+		{ href: `${base}/app/history`, label: 'History', icon: List, exact: false },
+		{ href: `${base}/app/stats`, label: 'Insights', icon: ChartNoAxesColumn, exact: false },
+		{ href: `${base}/app/settings`, label: 'More', icon: Ellipsis, exact: false }
 	];
 
 	function isActive(href: string, exact: boolean): boolean {
@@ -18,14 +25,12 @@
 
 <nav class="bottom-nav" aria-label="bottom navigation">
 	{#each navItems as item}
-		<a
-			href={item.href}
-			class="bottom-nav-item"
-			class:bottom-nav-item--active={isActive(item.href, item.exact)}
-			aria-label={item.label}
-		>
-			<span class="bottom-nav-icon">{item.icon}</span>
-			<span class="bottom-nav-label">{item.label}</span>
+		{@const active = isActive(item.href, item.exact)}
+		<a href={item.href} class="bottom-nav-item" class:active aria-label={item.label}>
+			<span class="icon-wrapper" class:icon-active={active}>
+				<svelte:component this={item.icon} size={22} />
+			</span>
+			<span class="label">{item.label}</span>
 		</a>
 	{/each}
 </nav>
@@ -36,13 +41,13 @@
 		bottom: 0;
 		left: 0;
 		right: 0;
-		height: var(--bottom-nav-height, 64px);
-		background: var(--color-surface, #fff);
-		border-top: 1px solid var(--color-border, #f0e8ed);
+		height: var(--bottom-nav-h);
+		background: var(--surface);
+		border-top: 1px solid var(--border);
 		display: flex;
 		align-items: stretch;
+		padding-bottom: max(var(--space-2), env(safe-area-inset-bottom));
 		z-index: 100;
-		box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.06);
 	}
 
 	@media (min-width: 769px) {
@@ -57,29 +62,38 @@
 		flex-direction: column;
 		align-items: center;
 		justify-content: center;
-		gap: 0.15rem;
+		gap: var(--space-1);
+		padding: var(--space-2) var(--space-1);
+		min-height: var(--tap-min);
 		text-decoration: none;
-		color: var(--color-text-secondary, #888);
-		font-size: 0.7rem;
-		font-weight: 600;
-		transition: color 0.15s ease;
-	}
-
-	.bottom-nav-item--active {
-		color: var(--color-primary, hsl(340, 65%, 70%));
+		color: var(--text-2);
+		font-size: var(--font-size-1);
+		transition: color var(--duration-fast) ease;
 	}
 
 	.bottom-nav-item:hover {
-		text-decoration: none;
-		color: var(--color-primary, hsl(340, 65%, 70%));
+		color: var(--text);
 	}
 
-	.bottom-nav-icon {
-		font-size: 1.3rem;
-		line-height: 1;
+	.bottom-nav-item.active {
+		color: var(--brand);
 	}
 
-	.bottom-nav-label {
+	.icon-wrapper {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		color: currentColor;
+	}
+
+	.icon-wrapper.icon-active {
+		background: var(--brand-subtle);
+		border-radius: var(--radius-pill);
+		padding: 2px 12px;
+	}
+
+	.label {
 		line-height: 1;
+		font-weight: var(--fw-semibold);
 	}
 </style>

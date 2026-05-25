@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Locator, type Page } from '@playwright/test';
 
 async function mockSupabaseUnauthenticated(page: Page) {
 	await page.route('**/auth/v1/**', (route) =>
@@ -41,6 +41,25 @@ async function seedBaby(page: Page) {
 	});
 }
 
+async function openSheet(page: Page, tileSelector: string, title: string) {
+	const tile = page.locator(tileSelector);
+	await expect(tile).toBeVisible({ timeout: 5000 });
+	await tile.click();
+	const dialog = page.getByRole('dialog', { name: title });
+	await expect(dialog).toBeVisible({ timeout: 5000 });
+	await dialog.evaluate(async (element) => {
+		const animations = element.getAnimations?.() ?? [];
+		await Promise.all(animations.map((animation) => animation.finished.catch(() => undefined)));
+	});
+	return dialog;
+}
+
+async function startFromSheet(dialog: Locator) {
+	const startButton = dialog.getByRole('button', { name: 'Start', exact: true });
+	await expect(startButton).toBeVisible({ timeout: 5000 });
+	await startButton.evaluate((button: HTMLButtonElement) => button.click());
+}
+
 test.describe('Offline mode', () => {
 	test('app loads without network (mocked offline Supabase)', async ({ page }) => {
 		// Simulate network-level failures for all Supabase endpoints
@@ -68,26 +87,25 @@ test.describe('Offline mode', () => {
 		await seedBaby(page);
 		await page.reload();
 		await page.waitForLoadState('networkidle');
+		await expect(page.locator('.loading-msg')).not.toBeVisible({ timeout: 10_000 });
 
-		// Click Start on the feeding timer
-		const startBtn = page.locator('.timer-btn--start').first();
-		await expect(startBtn).toBeVisible({ timeout: 5000 });
-		await startBtn.click();
+		// Tap the feed tile to open the start sheet, then start the timer
+		const feedDialog = await openSheet(page, 'button.tile.type-feed', 'Start feeding');
+		await startFromSheet(feedDialog);
 
-		// Timer digits should be visible and the timer running
+		// Timer digits should be visible and advancing
 		const timerDigits = page.locator('.timer-digits').first();
-		await expect(timerDigits).toBeVisible();
-
-		// Wait more than one tick so the counter has a chance to advance
-		await page.waitForTimeout(1100);
+		await expect(timerDigits).toBeVisible({ timeout: 3000 });
+		const initialText = await timerDigits.innerText();
+		await expect.poll(() => timerDigits.innerText(), { timeout: 5000 }).not.toBe(initialText);
 
 		// Click Stop
-		const stopBtn = page.locator('.timer-btn--stop').first();
+		const stopBtn = page.locator('.stop-button').first();
 		await expect(stopBtn).toBeVisible({ timeout: 3000 });
 		await stopBtn.click();
 
 		// A session entry should appear in the recent sessions list
-		await expect(page.locator('.session-entry').first()).toBeVisible({ timeout: 3000 });
+		await expect(page.locator('.row-wrapper').first()).toBeVisible({ timeout: 3000 });
 	});
 
 	test('IndexedDB is initialized with correct tables', async ({ page }) => {
@@ -117,23 +135,22 @@ test.describe('Offline mode', () => {
 		await seedBaby(page);
 		await page.reload();
 		await page.waitForLoadState('networkidle');
-		await expect(page.getByText('Test Baby')).toBeVisible({ timeout: 5000 });
+		await expect(page.locator('.loading-msg')).not.toBeVisible({ timeout: 10_000 });
+		// Tiles are visible, meaning the baby was loaded from IndexedDB (not showing empty state)
+		await expect(page.locator('button.tile.type-feed')).toBeVisible({ timeout: 5000 });
 	});
 
 	test('can create a baby without logging in', async ({ page }) => {
 		await mockSupabaseUnauthenticated(page);
-		await page.goto('/app/babies');
+		await page.goto('/app/family');
 		await page.waitForLoadState('networkidle');
 
-		// Should be on babies page — no redirect to login
-		await expect(page).toHaveURL(/\/app\/babies/);
-
 		// Open add baby form
-		await page.getByRole('button', { name: /\+ add baby/i }).click();
+		await page.getByRole('button', { name: /\+ add/i }).click();
 
 		// Fill in and submit the form
-		await page.getByLabel('Name').fill('Guest Baby');
-		await page.getByRole('button', { name: 'Add', exact: true }).click();
+		await page.getByPlaceholder('Baby name').fill('Guest Baby');
+		await page.getByRole('button', { name: 'Save', exact: true }).click();
 
 		// Baby should appear in the list
 		await expect(page.getByText('Guest Baby')).toBeVisible({ timeout: 3000 });

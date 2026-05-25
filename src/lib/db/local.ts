@@ -100,3 +100,11 @@ class BabyTimerDB extends Dexie {
 }
 
 export const db = new BabyTimerDB();
+
+// Open eagerly in the browser so the object stores exist immediately on page
+// load, independent of when the first query runs. Without this, code (and tests)
+// that open the raw IndexedDB before the app issues its first Dexie query see an
+// empty, store-less database.
+if (typeof window !== 'undefined') {
+	db.open().catch(() => {});
+}

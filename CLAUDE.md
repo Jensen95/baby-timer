@@ -4,7 +4,7 @@
 
 A family baby tracker built with SvelteKit 2 + Svelte 5 (runes), Supabase (Auth + PostgreSQL + Realtime), deployed as a static SPA on GitHub Pages.
 
-**Stack:** SvelteKit 2 · Svelte 5 (runes) · TypeScript strict · Supabase JS · Bulma CSS · Vitest · Playwright
+**Stack:** SvelteKit 2 · Svelte 5 (runes) · TypeScript strict · Supabase JS · Token CSS · Vitest · Playwright
 
 ## Quick Start
 
@@ -91,6 +91,7 @@ We use `supabase.auth.getUser()` (validates JWT with Supabase server) for securi
 - `duration_seconds` is a **generated column** — never set it in INSERT/UPDATE
 - Entitlement/access is family-based via `family_members` join table
 - Never mirror `GENERATED ALWAYS` columns into Dexie — omit them from local schemas entirely (local interfaces correctly omit `duration_seconds`)
+- The UI layer uses `SessionType = 'feed' | 'sleep' | 'pump' | 'diaper'` (`$lib/types`); DB/`LocalSession` types are `'feeding' | 'sleep' | 'breast_pump' | 'diaper_change'`. Sub-agent briefs must include this distinction explicitly.
 
 ## Testing Philosophy
 
@@ -112,6 +113,7 @@ Pick the model for the task:
 - **Opus** — complex analysis, code review, architecture decisions, pressure-testing learnings
 - **Sonnet** — implementation, debugging, refactoring, writing (default)
 - **Haiku** — fast lookups, grep, summarising, formatting checks
+- After a worktree agent reports success, verify by reading the actual file in the main working tree — agents can push to their own worktree branch rather than the feature branch, silently not landing changes.
 
 ## Conventions
 

@@ -2,6 +2,8 @@
 	import { getContext } from 'svelte';
 	import { SESSION_KEY } from '$lib/auth/context';
 	import type { SessionStore } from '$lib/auth/context';
+	import { SYNC_KEY } from '$lib/db/sync.svelte';
+	import type { SyncEngineStore } from '$lib/db/sync.svelte';
 	import { supabase } from '$lib/supabase';
 	import {
 		getUserFamilies,
@@ -17,8 +19,17 @@
 		type PendingMembership
 	} from '$lib/db/family';
 	import { getLocalFamily, putLocalFamily } from '$lib/db/local-family';
+	import { listBabiesLocal, createBabyLocal, type LocalBaby } from '$lib/db/local-babies';
+	import Button from '$lib/components/Button.svelte';
 
 	const session = getContext<SessionStore>(SESSION_KEY);
+	const sync = getContext<SyncEngineStore>(SYNC_KEY);
+
+	let babies = $state<LocalBaby[]>([]);
+	let showAddBabyForm = $state(false);
+	let newBabyName = $state('');
+	let newBabyBirthDate = $state('');
+	let addingBaby = $state(false);
 
 	let members = $state<FamilyMemberDetails[]>([]);
 	let pendingInvites = $state<PendingMembership[]>([]);
@@ -47,7 +58,6 @@
 
 		(async () => {
 			try {
-				// Load pending invites the current user has not yet accepted
 				const pendingMemberships = await getPendingMemberships(supabase);
 				pendingInvites = pendingMemberships;
 
@@ -58,7 +68,6 @@
 					members = await listFamilyMemberDetails(supabase, localFamily.id);
 				} else {
 					const families = await getUserFamilies(supabase);
-					// Only use families where the user has fully joined (joined_at IS NOT NULL)
 					const joinedFamily = families.find(
 						(f) => !pendingMemberships.some((p) => p.family_id === f.id)
 					);
@@ -73,6 +82,8 @@
 						members = await listFamilyMemberDetails(supabase, joinedFamily.id);
 					}
 				}
+
+				babies = await listBabiesLocal(familyId);
 			} catch (e) {
 				error = e instanceof Error ? e.message : 'Failed to load';
 			} finally {
@@ -80,6 +91,32 @@
 			}
 		})();
 	});
+
+	async function handleAddBaby(e: Event) {
+		e.preventDefault();
+		if (!newBabyName.trim()) return;
+		addingBaby = true;
+		try {
+			const baby: LocalBaby = {
+				id: crypto.randomUUID(),
+				family_id: familyId,
+				name: newBabyName.trim(),
+				birth_date: newBabyBirthDate || null,
+				created_at: new Date().toISOString(),
+				_sync: 'pending'
+			};
+			await createBabyLocal(baby);
+			babies = [...babies, baby];
+			newBabyName = '';
+			newBabyBirthDate = '';
+			showAddBabyForm = false;
+			sync.syncNow();
+		} catch (e) {
+			error = e instanceof Error ? e.message : 'Failed to add baby';
+		} finally {
+			addingBaby = false;
+		}
+	}
 
 	async function handleCreateFamily(e: Event) {
 		e.preventDefault();
@@ -127,7 +164,6 @@
 		success = null;
 		try {
 			await acceptFamilyMembership(supabase, invite.family_id);
-			// Fetch the actual family record so we persist the correct created_at
 			const family = await getFamily(supabase, invite.family_id);
 			if (family) {
 				familyId = family.id;
@@ -160,174 +196,325 @@
 	}
 </script>
 
-<section class="section">
-	<div class="container" style="max-width: 600px">
-		<h1 class="title">Family</h1>
+<div class="page">
+	<h1 class="page-title">Family</h1>
 
-		{#if error}
-			<div class="notification is-danger is-light">
-				<button class="delete" aria-label="Dismiss error" onclick={() => (error = null)}></button>
-				{error}
-			</div>
-		{/if}
+	{#if error}
+		<div class="error-msg">{error}</div>
+	{/if}
 
-		{#if success}
-			<div class="notification is-success is-light">
-				<button class="delete" aria-label="Dismiss success message" onclick={() => (success = null)}
-				></button>
-				{success}
-			</div>
+	{#if success}
+		<div class="success-msg">{success}</div>
+	{/if}
+
+	<section class="section-card">
+		<div class="section-header">
+			<h2 class="section-title">Babies</h2>
+			<Button variant="ghost" size="sm" onclick={() => (showAddBabyForm = !showAddBabyForm)}>
+				+ Add
+			</Button>
+		</div>
+
+		{#if showAddBabyForm}
+			<form onsubmit={handleAddBaby} class="invite-form">
+				<input
+					class="form-input"
+					type="text"
+					bind:value={newBabyName}
+					placeholder="Baby name"
+					required
+				/>
+				<input class="form-input" type="date" bind:value={newBabyBirthDate} />
+				<div class="form-row">
+					<Button variant="ghost" size="sm" type="button" onclick={() => (showAddBabyForm = false)}>
+						Cancel
+					</Button>
+					<Button variant="primary" size="sm" type="submit" loading={addingBaby}>Save</Button>
+				</div>
+			</form>
 		{/if}
 
 		{#if loading}
-			<progress class="progress is-primary" max="100">Loading</progress>
-		{:else if !session.user}
-			<div class="has-text-centered py-6">
-				<p class="has-text-grey mb-4">Sign in to manage your family.</p>
-			</div>
+			<p class="empty">Loading...</p>
+		{:else if babies.length === 0}
+			<p class="empty">No babies yet.</p>
 		{:else}
-			{#if pendingInvites.length > 0}
-				<div class="box mb-4">
-					<h2 class="subtitle is-5">Pending invitations</h2>
-					{#each pendingInvites as invite (invite.family_id)}
-						<div class="level is-mobile mb-3">
-							<div class="level-left">
-								<div class="level-item">
-									<div>
-										<p class="has-text-weight-semibold">{invite.family_name}</p>
-										{#if invite.invited_by}
-											<p class="is-size-7 has-text-grey">Invited by {invite.invited_by}</p>
-										{/if}
-									</div>
-								</div>
-							</div>
-							<div class="level-right">
-								<div class="buttons level-item">
-									<button
-										class="button is-success is-small"
-										disabled={responding === invite.family_id}
-										onclick={() => handleAcceptInvite(invite)}
-									>
-										Accept
-									</button>
-									<button
-										class="button is-light is-small"
-										disabled={responding === invite.family_id}
-										onclick={() => handleDeclineInvite(invite)}
-									>
-										Decline
-									</button>
-								</div>
-							</div>
-						</div>
-					{/each}
-				</div>
-			{/if}
-
-			{#if !familyId}
-				<div class="has-text-centered py-6">
-					<p class="has-text-grey mb-4">You're not in a family yet.</p>
-					{#if showCreateForm}
-						<form onsubmit={handleCreateFamily} style="max-width: 300px; margin: 0 auto">
-							<div class="field">
-								<input
-									class="input"
-									type="text"
-									bind:value={newFamilyName}
-									placeholder="Family name"
-									required
-								/>
-							</div>
-							<div class="field is-grouped is-justify-content-center">
-								<div class="control">
-									<button class="button is-primary" type="submit" disabled={saving}>Create</button>
-								</div>
-								<div class="control">
-									<button class="button" type="button" onclick={() => (showCreateForm = false)}>
-										Cancel
-									</button>
-								</div>
-							</div>
-						</form>
-					{:else}
-						<button class="button is-primary" onclick={() => (showCreateForm = true)}>
-							Create Family
-						</button>
+			{#each babies as baby (baby.id)}
+				<div class="baby-row">
+					<span>{baby.name}</span>
+					{#if baby.birth_date}
+						<span class="birth-date">Born {baby.birth_date}</span>
 					{/if}
 				</div>
-			{:else}
-				<div class="box mb-4">
-					<p class="label">Family name</p>
-					<p class="is-size-5">{currentFamilyName}</p>
-				</div>
+			{/each}
+		{/if}
+	</section>
 
-				<h2 class="subtitle is-5">Members ({members.length})</h2>
-				{#each members as member (member.user_id ?? member.email)}
-					<div class="box py-3">
-						<div class="level is-mobile">
-							<div class="level-left">
-								<div class="level-item">
-									<div>
-										<p class="has-text-weight-semibold">
-											{getMemberDisplayLabel(member)}
-											{#if member.user_id === session.user?.id}
-												<span class="tag is-light ml-2">You</span>
-											{/if}
-										</p>
-										{#if member.display_name && member.email}
-											<p class="is-size-7 has-text-grey">{member.email}</p>
-										{/if}
-									</div>
-								</div>
-							</div>
-							<div class="level-right">
-								<div class="tags level-item">
-									<span class="tag {member.role === 'owner' ? 'is-primary' : 'is-light'}">
-										{member.role}
-									</span>
-									{#if member.status !== 'joined'}
-										<span class="tag is-warning is-light">
-											{member.status === 'pending' ? 'pending' : 'invited'}
-										</span>
-									{/if}
-								</div>
-							</div>
+	{#if !session.user}
+		<section class="section-card">
+			<p class="empty">Sign in to manage your family and sync data.</p>
+		</section>
+	{:else}
+		{#if pendingInvites.length > 0}
+			<section class="section-card">
+				<h2 class="section-title">Pending invitations</h2>
+				{#each pendingInvites as invite (invite.family_id)}
+					<div class="pending-invite-row">
+						<div>
+							<p class="member-name">{invite.family_name}</p>
+							{#if invite.invited_by}
+								<p class="member-email">Invited by {invite.invited_by}</p>
+							{/if}
+						</div>
+						<div class="pending-actions">
+							<Button
+								variant="primary"
+								size="sm"
+								loading={responding === invite.family_id}
+								onclick={() => handleAcceptInvite(invite)}
+							>
+								Accept
+							</Button>
+							<Button
+								variant="ghost"
+								size="sm"
+								loading={responding === invite.family_id}
+								onclick={() => handleDeclineInvite(invite)}
+							>
+								Decline
+							</Button>
 						</div>
 					</div>
 				{/each}
+			</section>
+		{/if}
 
-				{#if isOwner}
-					<div class="box mt-4">
-						<h2 class="subtitle is-5">Invite family member</h2>
-						<form onsubmit={handleInviteMember}>
-							<div class="field">
-								<label class="label" for="invite-email">Email</label>
-								<div class="control">
-									<input
-										id="invite-email"
-										class="input"
-										type="email"
-										bind:value={inviteEmail}
-										placeholder="partner@example.com"
-										required
-									/>
-								</div>
-								<p class="help">
-									An invitation will be sent. If they don't have an account yet, they'll receive a
-									link to join.
-								</p>
-							</div>
-							<div class="field">
-								<div class="control">
-									<button class="button is-primary" type="submit" disabled={inviting}>
-										{inviting ? 'Sending...' : 'Send invitation'}
-									</button>
-								</div>
-							</div>
-						</form>
-					</div>
+		{#if !familyId}
+			<section class="section-card">
+				<h2 class="section-title">Create a family</h2>
+				<p class="empty">You're not in a family yet.</p>
+				{#if showCreateForm}
+					<form onsubmit={handleCreateFamily} class="invite-form">
+						<input
+							class="form-input"
+							type="text"
+							bind:value={newFamilyName}
+							placeholder="Family name"
+							required
+						/>
+						<div class="form-row">
+							<Button
+								variant="ghost"
+								size="sm"
+								type="button"
+								onclick={() => (showCreateForm = false)}
+							>
+								Cancel
+							</Button>
+							<Button variant="primary" size="sm" type="submit" loading={saving}>Create</Button>
+						</div>
+					</form>
+				{:else}
+					<Button variant="primary" size="sm" onclick={() => (showCreateForm = true)}>
+						Create Family
+					</Button>
 				{/if}
+			</section>
+		{:else}
+			<section class="section-card">
+				<div class="section-header">
+					<h2 class="section-title">Members ({members.length})</h2>
+				</div>
+				{#each members as member (member.user_id ?? member.email)}
+					<div class="member-row">
+						<div>
+							<p class="member-name">
+								{getMemberDisplayLabel(member)}
+								{#if member.user_id === session.user?.id}
+									<span class="tag tag--you">You</span>
+								{/if}
+							</p>
+							{#if member.display_name && member.email}
+								<p class="member-email">{member.email}</p>
+							{/if}
+						</div>
+						<div>
+							<span class="tag {member.role === 'owner' ? 'tag--owner' : ''}">
+								{member.role}
+							</span>
+							{#if member.status !== 'joined'}
+								<span class="tag tag--pending">
+									{member.status === 'pending' ? 'pending' : 'invited'}
+								</span>
+							{/if}
+						</div>
+					</div>
+				{/each}
+			</section>
+
+			{#if isOwner}
+				<section class="section-card">
+					<h2 class="section-title">Invite family member</h2>
+					<form onsubmit={handleInviteMember} class="invite-form">
+						<input
+							id="invite-email"
+							class="form-input"
+							type="email"
+							bind:value={inviteEmail}
+							placeholder="partner@example.com"
+							required
+						/>
+						<div class="form-row">
+							<Button variant="primary" size="sm" type="submit" loading={inviting}>
+								Send invitation
+							</Button>
+						</div>
+					</form>
+				</section>
 			{/if}
 		{/if}
-	</div>
-</section>
+	{/if}
+</div>
+
+<style>
+	.page {
+		padding: var(--space-4) var(--space-4) calc(var(--bottom-nav-h) + var(--space-6));
+		max-width: 600px;
+		margin: 0 auto;
+	}
+	.page-title {
+		font-size: var(--font-size-5);
+		font-weight: var(--fw-bold);
+		margin: 0 0 var(--space-5);
+	}
+	.section-card {
+		background: var(--surface);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-3);
+		padding: var(--space-4);
+		margin-bottom: var(--space-4);
+	}
+	.section-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		margin-bottom: var(--space-3);
+	}
+	.section-title {
+		font-size: var(--font-size-4);
+		font-weight: var(--fw-semibold);
+		margin: 0;
+	}
+	.baby-row {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: var(--space-3) 0;
+		border-bottom: 1px solid var(--border);
+		font-weight: var(--fw-semibold);
+	}
+	.baby-row:last-child {
+		border-bottom: none;
+	}
+	.birth-date {
+		font-size: var(--font-size-1);
+		color: var(--text-2);
+		font-weight: normal;
+	}
+	.member-row {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: var(--space-3) 0;
+		border-bottom: 1px solid var(--border);
+	}
+	.member-row:last-child {
+		border-bottom: none;
+	}
+	.member-name {
+		font-weight: var(--fw-semibold);
+	}
+	.member-email {
+		font-size: var(--font-size-1);
+		color: var(--text-2);
+	}
+	.tag {
+		display: inline-flex;
+		padding: 2px 8px;
+		border-radius: var(--radius-pill);
+		font-size: var(--font-size-1);
+		font-weight: var(--fw-semibold);
+	}
+	.tag--owner {
+		background: var(--brand-subtle);
+		color: var(--brand);
+	}
+	.tag--pending {
+		background: hsl(45 100% 92%);
+		color: hsl(45 80% 30%);
+	}
+	.tag--you {
+		background: var(--surface-2);
+		color: var(--text-2);
+	}
+	.invite-form {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-3);
+		margin-top: var(--space-3);
+	}
+	.form-input {
+		width: 100%;
+		min-height: var(--tap-min);
+		padding: var(--space-3) var(--space-4);
+		border: 1.5px solid var(--border);
+		border-radius: var(--radius-2);
+		background: var(--surface);
+		color: var(--text);
+		font-family: inherit;
+		font-size: var(--font-size-3);
+		box-sizing: border-box;
+	}
+	.form-input:focus {
+		outline: 2px solid var(--brand);
+		border-color: var(--brand);
+	}
+	.form-row {
+		display: flex;
+		gap: var(--space-3);
+		justify-content: flex-end;
+	}
+	.empty {
+		color: var(--text-2);
+		font-size: var(--font-size-2);
+		padding: var(--space-3) 0;
+	}
+	.error-msg {
+		color: var(--danger);
+		background: hsl(0 80% 97%);
+		border: 1px solid hsl(0 80% 88%);
+		border-radius: var(--radius-2);
+		padding: var(--space-3) var(--space-4);
+		margin-bottom: var(--space-3);
+		font-size: var(--font-size-2);
+	}
+	.success-msg {
+		color: hsl(140 60% 25%);
+		background: hsl(140 60% 95%);
+		border: 1px solid hsl(140 60% 80%);
+		border-radius: var(--radius-2);
+		padding: var(--space-3) var(--space-4);
+		margin-bottom: var(--space-3);
+		font-size: var(--font-size-2);
+	}
+	.pending-invite-row {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: var(--space-3) 0;
+	}
+	.pending-actions {
+		display: flex;
+		gap: var(--space-2);
+	}
+</style>

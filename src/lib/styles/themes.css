@@ -1,0 +1,222 @@
+/* Light theme (default) */
+:root {
+	color-scheme: light;
+
+	/* Surfaces */
+	--bg: hsl(340 40% 99%);
+	--surface: hsl(0 0% 100%);
+	--surface-2: hsl(340 30% 97%);
+	--surface-3: hsl(340 25% 94%);
+	--scrim: hsl(330 30% 20% / 0.45);
+
+	/* Text */
+	--text: hsl(330 15% 16%);
+	--text-2: hsl(330 8% 42%);
+	--text-3: hsl(330 6% 60%);
+	--on-color: hsl(0 0% 100%);
+
+	/* Borders */
+	--border: hsl(340 25% 90%);
+	--border-strong: hsl(340 20% 82%);
+	--divider: hsl(340 25% 93%);
+
+	/* Brand */
+	--brand: hsl(340 70% 52%);
+	--brand-press: hsl(340 70% 44%);
+	--brand-subtle: hsl(340 70% 96%);
+	--on-brand: hsl(0 0% 100%);
+
+	/* Session types: -fill (pastel bg), -ink (text/icon on surface), -solid (button/active) */
+	--feed-fill: hsl(340 75% 94%);
+	--feed-ink: hsl(340 55% 38%);
+	--feed-solid: hsl(340 70% 51%);
+
+	--sleep-fill: hsl(245 70% 94%);
+	--sleep-ink: hsl(245 45% 45%);
+	--sleep-solid: hsl(245 60% 61%);
+
+	--pump-fill: hsl(45 85% 90%);
+	--pump-ink: hsl(38 70% 31%);
+	--pump-solid: hsl(43 80% 32%);
+
+	--diaper-fill: hsl(168 60% 91%);
+	--diaper-ink: hsl(172 60% 28%);
+	--diaper-solid: hsl(172 55% 32%);
+
+	/* Semantic */
+	--success: hsl(152 50% 42%);
+	--success-fill: hsl(152 55% 93%);
+	--warning: hsl(36 80% 44%);
+	--warning-fill: hsl(40 90% 92%);
+	--danger: hsl(4 70% 52%);
+	--danger-fill: hsl(4 80% 95%);
+	--info: hsl(210 65% 50%);
+	--info-fill: hsl(210 70% 94%);
+
+	/* Shadows */
+	--shadow-1: 0 1px 3px hsl(330 30% 30% / 0.08);
+	--shadow-2: 0 4px 16px hsl(330 30% 30% / 0.1);
+	--shadow-3: 0 12px 32px hsl(330 30% 25% / 0.16);
+}
+
+/* Dark theme */
+[data-theme='dark'] {
+	color-scheme: dark;
+
+	--bg: hsl(265 18% 9%);
+	--surface: hsl(265 16% 13%);
+	--surface-2: hsl(265 14% 17%);
+	--surface-3: hsl(265 12% 22%);
+	--scrim: hsl(265 30% 4% / 0.6);
+
+	--text: hsl(280 12% 92%);
+	--text-2: hsl(280 8% 70%);
+	--text-3: hsl(280 6% 52%);
+	--on-color: hsl(265 20% 10%);
+
+	--border: hsl(265 12% 24%);
+	--border-strong: hsl(265 12% 34%);
+	--divider: hsl(265 12% 20%);
+
+	--brand: hsl(340 65% 68%);
+	--brand-press: hsl(340 65% 74%);
+	--brand-subtle: hsl(340 30% 18%);
+	--on-brand: hsl(340 20% 8%);
+
+	--feed-fill: hsl(340 35% 20%);
+	--feed-ink: hsl(340 70% 80%);
+	--feed-solid: hsl(340 60% 64%);
+
+	--sleep-fill: hsl(245 35% 22%);
+	--sleep-ink: hsl(245 65% 82%);
+	--sleep-solid: hsl(245 55% 70%);
+
+	--pump-fill: hsl(43 35% 20%);
+	--pump-ink: hsl(45 80% 75%);
+	--pump-solid: hsl(43 70% 62%);
+
+	--diaper-fill: hsl(172 30% 18%);
+	--diaper-ink: hsl(168 60% 72%);
+	--diaper-solid: hsl(172 50% 56%);
+
+	--success: hsl(152 50% 64%);
+	--success-fill: hsl(152 30% 18%);
+	--warning: hsl(40 80% 66%);
+	--warning-fill: hsl(40 40% 18%);
+	--danger: hsl(4 75% 70%);
+	--danger-fill: hsl(4 40% 20%);
+	--info: hsl(210 65% 70%);
+	--info-fill: hsl(210 40% 20%);
+
+	--shadow-1: 0 1px 3px hsl(0 0% 0% / 0.4);
+	--shadow-2: 0 4px 16px hsl(0 0% 0% / 0.5);
+	--shadow-3: 0 12px 32px hsl(0 0% 0% / 0.6);
+}
+
+/* Night theme — warm amber near-black, low blue light for 3am nursing */
+[data-theme='night'] {
+	color-scheme: dark;
+
+	--bg: hsl(20 30% 4%);
+	--surface: hsl(22 26% 7%);
+	--surface-2: hsl(24 24% 10%);
+	--surface-3: hsl(26 22% 14%);
+	--scrim: hsl(20 40% 2% / 0.7);
+
+	--text: hsl(30 30% 70%);
+	--text-2: hsl(30 22% 52%);
+	--text-3: hsl(30 18% 38%);
+	--on-color: hsl(22 30% 6%);
+
+	--border: hsl(26 20% 16%);
+	--border-strong: hsl(28 20% 26%);
+	--divider: hsl(24 20% 13%);
+
+	--brand: hsl(20 50% 50%);
+	--brand-press: hsl(20 52% 58%);
+	--brand-subtle: hsl(20 30% 13%);
+	--on-brand: hsl(22 40% 6%);
+
+	--feed-fill: hsl(12 35% 14%);
+	--feed-ink: hsl(14 50% 60%);
+	--feed-solid: hsl(13 45% 52%);
+
+	--sleep-fill: hsl(30 30% 13%);
+	--sleep-ink: hsl(32 42% 58%);
+	--sleep-solid: hsl(31 38% 46%);
+
+	--pump-fill: hsl(40 38% 13%);
+	--pump-ink: hsl(42 55% 58%);
+	--pump-solid: hsl(41 48% 46%);
+
+	--diaper-fill: hsl(48 32% 12%);
+	--diaper-ink: hsl(46 45% 56%);
+	--diaper-solid: hsl(47 40% 44%);
+
+	--success: hsl(80 35% 50%);
+	--success-fill: hsl(70 25% 12%);
+	--warning: hsl(38 55% 54%);
+	--warning-fill: hsl(38 35% 12%);
+	--danger: hsl(10 55% 54%);
+	--danger-fill: hsl(10 35% 13%);
+	--info: hsl(28 45% 56%);
+	--info-fill: hsl(28 30% 12%);
+
+	--shadow-1: 0 1px 3px hsl(0 0% 0% / 0.6);
+	--shadow-2: 0 4px 16px hsl(0 0% 0% / 0.7);
+	--shadow-3: 0 12px 32px hsl(0 0% 0% / 0.8);
+}
+
+/* Grey theme — GitHub Primer-inspired cool neutral */
+[data-theme='grey'] {
+	color-scheme: light;
+
+	--bg: hsl(210 29% 97%);
+	--surface: hsl(0 0% 100%);
+	--surface-2: hsl(210 24% 98%);
+	--surface-3: hsl(210 18% 93%);
+	--scrim: hsl(215 21% 11% / 0.5);
+
+	--text: hsl(215 14% 16%);
+	--text-2: hsl(212 12% 42%);
+	--text-3: hsl(214 10% 58%);
+	--on-color: hsl(0 0% 100%);
+
+	--border: hsl(210 18% 84%);
+	--border-strong: hsl(212 12% 72%);
+	--divider: hsl(210 22% 90%);
+
+	--brand: hsl(340 58% 52%);
+	--brand-press: hsl(340 56% 43%);
+	--brand-subtle: hsl(340 60% 96%);
+	--on-brand: hsl(0 0% 100%);
+
+	--feed-fill: hsl(346 72% 94%);
+	--feed-ink: hsl(346 64% 40%);
+	--feed-solid: hsl(346 66% 52%);
+
+	--sleep-fill: hsl(245 60% 95%);
+	--sleep-ink: hsl(245 55% 46%);
+	--sleep-solid: hsl(245 58% 61%);
+
+	--pump-fill: hsl(185 56% 92%);
+	--pump-ink: hsl(187 70% 30%);
+	--pump-solid: hsl(186 64% 33%);
+
+	--diaper-fill: hsl(42 88% 90%);
+	--diaper-ink: hsl(33 78% 33%);
+	--diaper-solid: hsl(38 84% 33%);
+
+	--success: hsl(137 55% 36%);
+	--success-fill: hsl(137 47% 93%);
+	--warning: hsl(35 84% 38%);
+	--warning-fill: hsl(44 92% 90%);
+	--danger: hsl(356 64% 49%);
+	--danger-fill: hsl(356 72% 95%);
+	--info: hsl(212 78% 46%);
+	--info-fill: hsl(210 80% 95%);
+
+	--shadow-1: 0 1px 0 hsl(215 25% 27% / 0.04), 0 1px 3px hsl(215 25% 27% / 0.12);
+	--shadow-2: 0 3px 6px hsl(215 25% 27% / 0.1), 0 1px 2px hsl(215 25% 27% / 0.12);
+	--shadow-3: 0 8px 24px hsl(215 25% 27% / 0.16), 0 2px 6px hsl(215 25% 27% / 0.1);
+}

@@ -8,6 +8,7 @@
 	import { createBabyState, BABY_STATE_KEY } from '$lib/state/baby.svelte';
 	import { createFamily } from '$lib/db/family';
 	import { supabase } from '$lib/supabase';
+	import ActiveTimerBar from '$lib/components/ActiveTimerBar.svelte';
 
 	const session = getContext<SessionStore>(SESSION_KEY);
 	const sync = getContext<SyncEngineStore>(SYNC_KEY);
@@ -42,8 +43,8 @@
 </script>
 
 {#if session.loading}
-	<div class="is-flex is-justify-content-center is-align-items-center" style="min-height: 100vh">
-		<progress class="progress is-primary is-small" max="100">Loading</progress>
+	<div style="min-height: 100vh; display: flex; align-items: center; justify-content: center;">
+		<progress style="width: 200px; accent-color: var(--brand);" max="100">Loading</progress>
 	</div>
 {:else}
 	{#if !session.user}
@@ -53,6 +54,7 @@
 		</div>
 	{/if}
 	{@render children()}
+	<ActiveTimerBar babyId={babyState?.selectedBabyId ?? null} />
 {/if}
 
 <style>

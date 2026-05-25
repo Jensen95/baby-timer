@@ -1,405 +1,538 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
-	import { SESSION_KEY } from '$lib/auth/context';
-	import type { SessionStore } from '$lib/auth/context';
-	import { supabase } from '$lib/supabase';
-	import { listBabiesLocal, type LocalBaby } from '$lib/db/local-babies';
-	import { getLocalFamily, putLocalFamily } from '$lib/db/local-family';
-	import { getUserFamilies } from '$lib/db/family';
+	import { BABY_STATE_KEY } from '$lib/state/baby.svelte';
+	import type { BabyState } from '$lib/state/baby.svelte';
 	import { db } from '$lib/db/local';
-	import { buildTimerResult } from '$lib/timer/timer-logic';
+	import BarChart from '$lib/components/charts/BarChart.svelte';
+	import StackedBar from '$lib/components/charts/StackedBar.svelte';
+	import Timeline from '$lib/components/charts/Timeline.svelte';
 	import {
-		HEAD_SIDES,
+		computeDailyTotals,
+		computeFeedingInsights,
+		computeSleepInsights,
+		buildTimelineSegments,
+		formatMinutes,
+		type DailyTotals,
+		type FeedingInsights,
+		type SleepInsights,
+		type TimelineSegment
+	} from '$lib/insights/metrics';
+	import {
 		analyzeSleepPositionBalance,
 		formatHeadSideLabel,
-		getSleepSessionMinutes,
+		HEAD_SIDES,
 		type SleepPositionBalance
 	} from '$lib/sessions/sleep-balance';
-	import { buildDailyDiaperChangeCounts } from '$lib/sessions/diaper-change';
 
-	interface DaySummary {
-		date: string;
-		feedCount: number;
-		feedMinutes: number;
-		sleepCount: number;
-		sleepMinutes: number;
-		diaperCount: number;
-	}
+	const babyState = getContext<BabyState>(BABY_STATE_KEY);
 
-	const session = getContext<SessionStore>(SESSION_KEY);
-
-	let babies = $state<LocalBaby[]>([]);
-	let selectedBabyId = $state<string | null>(null);
-	let familyId = $state<string | null>(null);
-	let loading = $state(true);
+	let activeTab = $state<'overview' | 'feeding' | 'sleep' | 'diaper'>('overview');
+	let loading = $state(false);
 	let error = $state<string | null>(null);
-	let summaries = $state<DaySummary[]>([]);
+
+	let dailyTotals = $state<DailyTotals[]>([]);
+	let feedingInsights = $state<FeedingInsights | null>(null);
+	let sleepInsights = $state<SleepInsights | null>(null);
 	let sleepBalance = $state<SleepPositionBalance | null>(null);
+	let todaySegments = $state<TimelineSegment[]>([]);
+	let todayDiaperEvents = $state<{ atMs: number; label: string }[]>([]);
+	let days = $state<string[]>([]);
 
-	const days = Array.from({ length: 7 }, (_, i) => {
-		const d = new Date();
-		d.setDate(d.getDate() - (6 - i));
-		return d.toISOString().split('T')[0];
-	});
-
-	$effect(() => {
-		(async () => {
-			try {
-				if (session.user) {
-					let localFamily = await getLocalFamily();
-					if (!localFamily) {
-						const families = await getUserFamilies(supabase);
-						if (families.length > 0) {
-							await putLocalFamily({
-								id: families[0].id,
-								name: families[0].name,
-								created_at: families[0].created_at
-							});
-							localFamily = {
-								id: families[0].id,
-								name: families[0].name,
-								created_at: families[0].created_at
-							};
-						}
-					}
-					familyId = localFamily?.id ?? null;
-				} else {
-					familyId = null;
-				}
-
-				babies = await listBabiesLocal(familyId);
-				if (babies.length > 0) {
-					selectedBabyId = babies[0].id;
-				}
-			} catch (e) {
-				error = e instanceof Error ? e.message : 'Failed to load';
-			} finally {
-				loading = false;
-			}
-		})();
-	});
-
-	$effect(() => {
-		if (!selectedBabyId) return;
-		loadStats(selectedBabyId);
-	});
-
-	function getLast7Days(): string[] {
-		const result = [];
+	function getLast7DayRange(): { start: Date; end: Date; days: string[] } {
+		const dayList: string[] = [];
 		for (let i = 6; i >= 0; i--) {
 			const d = new Date();
 			d.setDate(d.getDate() - i);
-			result.push(d.toISOString().split('T')[0]);
+			dayList.push(d.toISOString().split('T')[0]);
 		}
-		return result;
-	}
-
-	async function loadStats(babyId: string) {
-		loading = true;
-		error = null;
-		sleepBalance = null;
-		try {
-			const dayList = getLast7Days();
-			const dateRangeStart = new Date(dayList[0] + 'T00:00:00');
-			const dateRangeEnd = new Date(dayList[dayList.length - 1] + 'T23:59:59.999');
-			const sleeps = await db.sleep_sessions
-				.where('baby_id')
-				.equals(babyId)
-				.filter((s) => {
-					const t = new Date(s.started_at);
-					return t >= dateRangeStart && t <= dateRangeEnd;
-				})
-				.toArray();
-			const diaperChanges = await db.diaper_change_sessions
-				.where('baby_id')
-				.equals(babyId)
-				.filter((s) => {
-					const t = new Date(s.started_at);
-					return t >= dateRangeStart && t <= dateRangeEnd;
-				})
-				.toArray();
-			const diaperCountsByDay = buildDailyDiaperChangeCounts(dayList, diaperChanges);
-			const sleepEntries = sleeps
-				.map((s) => {
-					const startedAt = new Date(s.started_at);
-					const endedAt = s.ended_at ? new Date(s.ended_at) : null;
-					const minutes = getSleepSessionMinutes({
-						side: s.side,
-						startedAt,
-						endedAt
-					});
-					return {
-						side: s.side,
-						day: startedAt.toISOString().split('T')[0],
-						startedAt,
-						endedAt,
-						minutes
-					};
-				})
-				.filter((s) => s.minutes > 0);
-			sleepBalance = analyzeSleepPositionBalance(
-				sleepEntries.map((s) => ({
-					side: s.side,
-					startedAt: s.startedAt,
-					endedAt: s.endedAt
-				}))
-			);
-			summaries = await Promise.all(
-				dayList.map(async (day) => {
-					const dayStart = new Date(day + 'T00:00:00');
-					const dayEnd = new Date(day + 'T23:59:59.999');
-					const feedings = await db.feeding_sessions
-						.where('baby_id')
-						.equals(babyId)
-						.filter((s) => {
-							const t = new Date(s.started_at);
-							return t >= dayStart && t <= dayEnd && s.ended_at !== null;
-						})
-						.toArray();
-					const daySleeps = sleepEntries.filter((s) => s.day === day);
-					const feedMinutes = Math.round(
-						feedings.reduce(
-							(sum, s) =>
-								sum +
-								buildTimerResult(new Date(s.started_at), new Date(s.ended_at!)).durationSeconds /
-									60,
-							0
-						)
-					);
-					const sleepMinutes = daySleeps.reduce((sum, s) => sum + s.minutes, 0);
-					return {
-						date: day,
-						feedCount: feedings.length,
-						feedMinutes,
-						sleepCount: daySleeps.length,
-						sleepMinutes,
-						diaperCount: diaperCountsByDay[day] ?? 0
-					};
-				})
-			);
-		} catch (e) {
-			error = e instanceof Error ? e.message : 'Failed to load stats';
-			sleepBalance = null;
-		} finally {
-			loading = false;
-		}
+		return {
+			start: new Date(dayList[0] + 'T00:00:00'),
+			end: new Date(dayList[dayList.length - 1] + 'T23:59:59.999'),
+			days: dayList
+		};
 	}
 
 	function shortDay(dateStr: string): string {
 		return new Date(dateStr + 'T12:00:00').toLocaleDateString([], { weekday: 'short' });
 	}
 
-	function barHeight(value: number, max: number): number {
-		if (max === 0) return 0;
-		return Math.round((value / max) * 80);
+	async function loadStats(babyId: string) {
+		loading = true;
+		error = null;
+		try {
+			const { start, end, days: dayList } = getLast7DayRange();
+			days = dayList;
+
+			const [rawFeedings, rawSleeps, rawPumps, rawDiapers] = await Promise.all([
+				db.feeding_sessions
+					.where('baby_id')
+					.equals(babyId)
+					.filter((s) => {
+						const t = new Date(s.started_at);
+						return t >= start && t <= end;
+					})
+					.toArray(),
+				db.sleep_sessions
+					.where('baby_id')
+					.equals(babyId)
+					.filter((s) => {
+						const t = new Date(s.started_at);
+						return t >= start && t <= end;
+					})
+					.toArray(),
+				db.breast_pump_sessions
+					.where('baby_id')
+					.equals(babyId)
+					.filter((s) => {
+						const t = new Date(s.started_at);
+						return t >= start && t <= end;
+					})
+					.toArray(),
+				db.diaper_change_sessions
+					.where('baby_id')
+					.equals(babyId)
+					.filter((s) => {
+						const t = new Date(s.started_at);
+						return t >= start && t <= end;
+					})
+					.toArray()
+			]);
+
+			const feedings = rawFeedings.map((f) => ({
+				id: f.id,
+				side: f.side,
+				startedAt: new Date(f.started_at),
+				endedAt: f.ended_at ? new Date(f.ended_at) : null
+			}));
+
+			const sleepSessions = rawSleeps.map((s) => ({
+				id: s.id,
+				side: s.side,
+				startedAt: new Date(s.started_at),
+				endedAt: s.ended_at ? new Date(s.ended_at) : null
+			}));
+
+			const pumps = rawPumps.map((p) => ({
+				id: p.id,
+				startedAt: new Date(p.started_at),
+				endedAt: p.ended_at ? new Date(p.ended_at) : null,
+				yieldLeftMl: p.yield_left_ml,
+				yieldRightMl: p.yield_right_ml
+			}));
+
+			const diapers = rawDiapers.map((d) => ({
+				id: d.id,
+				startedAt: new Date(d.started_at),
+				hasPoop: d.has_poop,
+				hasPee: d.has_pee
+			}));
+
+			dailyTotals = computeDailyTotals(feedings, sleepSessions, pumps, diapers, [
+				dayList[0],
+				dayList[dayList.length - 1]
+			]);
+
+			feedingInsights = computeFeedingInsights(feedings);
+			sleepInsights = computeSleepInsights(sleepSessions);
+
+			sleepBalance = analyzeSleepPositionBalance(
+				sleepSessions.map((s) => ({
+					side: s.side,
+					startedAt: s.startedAt,
+					endedAt: s.endedAt
+				}))
+			);
+
+			const todayIso = dayList[dayList.length - 1];
+			const todayStart = new Date(todayIso + 'T00:00:00');
+			const todayEnd = new Date(todayIso + 'T23:59:59.999');
+
+			todaySegments = buildTimelineSegments(feedings, sleepSessions, pumps, todayStart, todayEnd);
+
+			todayDiaperEvents = diapers
+				.filter((d) => {
+					const iso = d.startedAt.toISOString().split('T')[0];
+					return iso === todayIso;
+				})
+				.map((d) => ({
+					atMs: d.startedAt.getTime(),
+					label: `Diaper · ${d.hasPoop && d.hasPee ? 'Poop+Pee' : d.hasPoop ? 'Poop' : 'Pee'}`
+				}));
+		} catch (e) {
+			error = e instanceof Error ? e.message : 'Failed to load stats';
+		} finally {
+			loading = false;
+		}
 	}
 
-	let maxFeedMinutes = $derived(Math.max(...summaries.map((s) => s.feedMinutes), 1));
-	let maxSleepMinutes = $derived(Math.max(...summaries.map((s) => s.sleepMinutes), 1));
-	let maxDiaperCount = $derived(Math.max(...summaries.map((s) => s.diaperCount), 1));
-	let totalFeedings = $derived(summaries.reduce((acc, s) => acc + s.feedCount, 0));
-	let totalSleepHours = $derived(
-		Math.round((summaries.reduce((acc, s) => acc + s.sleepMinutes, 0) / 60) * 10) / 10
-	);
-	let totalDiaperChanges = $derived(summaries.reduce((acc, s) => acc + s.diaperCount, 0));
-	let avgFeedingsPerDay = $derived(
-		summaries.length > 0 ? Math.round((totalFeedings / summaries.length) * 10) / 10 : 0
-	);
-	let sleepPositionBreakdown = $derived.by(() => {
-		if (!sleepBalance || sleepBalance.totalMinutes === 0) return [];
-		const totalMinutes = sleepBalance.totalMinutes;
-		const minutesBySide = sleepBalance.minutesBySide;
-		return HEAD_SIDES.map((side) => ({
-			side,
-			minutes: minutesBySide[side]
-		}))
-			.filter(({ minutes }) => minutes > 0)
-			.sort((a, b) => b.minutes - a.minutes)
-			.map(({ side, minutes }) => ({
-				side,
-				minutes,
-				percent: Math.round((minutes / totalMinutes) * 100)
-			}));
+	$effect(() => {
+		const babyId = babyState.selectedBabyId;
+		if (babyId) loadStats(babyId);
 	});
+
+	let feedingBarData = $derived(
+		dailyTotals.map((d) => ({
+			label: shortDay(d.date),
+			value: Math.round(d.feedingMinutes)
+		}))
+	);
+
+	let sleepBarData = $derived(
+		dailyTotals.map((d) => ({
+			label: shortDay(d.date),
+			value: Math.round(d.sleepMinutes)
+		}))
+	);
+
+	let diaperBarData = $derived(
+		dailyTotals.map((d) => ({
+			label: shortDay(d.date),
+			value: d.diaperCount
+		}))
+	);
+
+	let totalFeeds = $derived(dailyTotals.reduce((acc, d) => acc + d.feedingCount, 0));
+	let avgFeedsPerDay = $derived(
+		dailyTotals.length > 0 ? Math.round((totalFeeds / dailyTotals.length) * 10) / 10 : 0
+	);
+	let totalSleepHours = $derived(
+		Math.round((dailyTotals.reduce((acc, d) => acc + d.sleepMinutes, 0) / 60) * 10) / 10
+	);
+	let totalDiapers = $derived(dailyTotals.reduce((acc, d) => acc + d.diaperCount, 0));
+
+	let sleepPositionSegments = $derived.by(() => {
+		if (!sleepBalance || sleepBalance.totalMinutes === 0) return [];
+		return HEAD_SIDES.filter((side) => sleepBalance!.minutesBySide[side] > 0).map((side) => ({
+			label: formatHeadSideLabel(side),
+			value: Math.round(sleepBalance!.minutesBySide[side]),
+			color:
+				side === 'left'
+					? 'var(--sleep-solid)'
+					: side === 'right'
+						? 'hsl(240 60% 55%)'
+						: side === 'back'
+							? 'hsl(200 60% 55%)'
+							: side === 'tummy'
+								? 'hsl(20 70% 55%)'
+								: 'hsl(160 50% 50%)'
+		}));
+	});
+
+	let todayStart = $derived(
+		days.length > 0 ? new Date(days[days.length - 1] + 'T00:00:00') : new Date()
+	);
+	let todayEnd = $derived(
+		days.length > 0 ? new Date(days[days.length - 1] + 'T23:59:59.999') : new Date()
+	);
 </script>
 
-<section class="section">
-	<div class="container">
-		<h1 class="title">Stats</h1>
-		<p class="subtitle">Last 7 days</p>
+<div class="page">
+	<h1 class="page-title">Insights</h1>
+	<p class="page-subtitle">Last 7 days</p>
 
-		{#if error}
-			<div class="notification is-danger is-light">{error}</div>
-		{/if}
+	<div class="tab-bar" role="tablist">
+		{#each ['overview', 'feeding', 'sleep', 'diaper'] as tab}
+			<button
+				role="tab"
+				aria-selected={activeTab === tab}
+				onclick={() => (activeTab = tab as typeof activeTab)}
+			>
+				{tab.charAt(0).toUpperCase() + tab.slice(1)}
+			</button>
+		{/each}
+	</div>
 
-		{#if babies.length > 1}
-			<div class="field mb-4">
-				<div class="control">
-					<div class="select">
-						<select
-							value={selectedBabyId}
-							onchange={(e) => (selectedBabyId = (e.target as HTMLSelectElement).value)}
-						>
-							{#each babies as baby (baby.id)}
-								<option value={baby.id}>{baby.name}</option>
-							{/each}
-						</select>
-					</div>
+	{#if !babyState.selectedBabyId}
+		<p class="empty-msg">Select a baby to see insights.</p>
+	{:else if loading}
+		<p class="loading-msg">Loading…</p>
+	{:else if error}
+		<p class="error-msg" role="alert">{error}</p>
+	{:else}
+		{#if activeTab === 'overview'}
+			<div class="stat-grid">
+				<div class="stat-card">
+					<span class="stat-value">{totalFeeds}</span>
+					<span class="stat-label">Total Feeds</span>
 				</div>
-			</div>
-		{/if}
-
-		{#if loading}
-			<progress class="progress is-primary" max="100">Loading</progress>
-		{:else if summaries.length > 0}
-			<div class="columns mb-5">
-				<div class="column">
-					<div class="box has-text-centered">
-						<p class="heading">Total Feedings</p>
-						<p class="title">{totalFeedings}</p>
-					</div>
+				<div class="stat-card">
+					<span class="stat-value">{avgFeedsPerDay}</span>
+					<span class="stat-label">Avg / Day</span>
 				</div>
-				<div class="column">
-					<div class="box has-text-centered">
-						<p class="heading">Avg/Day</p>
-						<p class="title">{avgFeedingsPerDay}</p>
-					</div>
+				<div class="stat-card">
+					<span class="stat-value">{totalSleepHours}h</span>
+					<span class="stat-label">Total Sleep</span>
 				</div>
-				<div class="column">
-					<div class="box has-text-centered">
-						<p class="heading">Total Sleep</p>
-						<p class="title">{totalSleepHours}h</p>
-					</div>
-				</div>
-				<div class="column">
-					<div class="box has-text-centered">
-						<p class="heading">Diaper Changes</p>
-						<p class="title">{totalDiaperChanges}</p>
-					</div>
+				<div class="stat-card">
+					<span class="stat-value">{totalDiapers}</span>
+					<span class="stat-label">Diaper Changes</span>
 				</div>
 			</div>
 
-			<div class="box mb-4">
-				<h3 class="subtitle is-6 mb-3">Sleep position balance (last 7 days)</h3>
+			<div class="chart-card">
+				<h2 class="chart-title">Today's timeline</h2>
+				{#if todaySegments.length === 0 && todayDiaperEvents.length === 0}
+					<p class="empty-msg" style="padding: var(--space-3) 0">No sessions recorded today yet.</p>
+				{:else}
+					<Timeline
+						segments={todaySegments}
+						dayStart={todayStart}
+						dayEnd={todayEnd}
+						diaperEvents={todayDiaperEvents}
+					/>
+				{/if}
+			</div>
+		{/if}
+
+		{#if activeTab === 'feeding'}
+			<div class="chart-card">
+				<h2 class="chart-title">Feeding time (min/day)</h2>
+				<BarChart data={feedingBarData} color="var(--feed-solid)" unit="min" />
+			</div>
+
+			{#if feedingInsights}
+				<div class="stat-grid">
+					<div class="stat-card">
+						<span class="stat-value">{feedingInsights.totalFeeds}</span>
+						<span class="stat-label">Total Feeds</span>
+					</div>
+					<div class="stat-card">
+						<span class="stat-value">{feedingInsights.avgFeedsPerDay.toFixed(1)}</span>
+						<span class="stat-label">Avg / Day</span>
+					</div>
+					<div class="stat-card">
+						<span class="stat-value">{formatMinutes(feedingInsights.avgDurationMinutes)}</span>
+						<span class="stat-label">Avg Duration</span>
+					</div>
+					<div class="stat-card">
+						<span class="stat-value">
+							{feedingInsights.avgGapMinutes !== null
+								? formatMinutes(feedingInsights.avgGapMinutes)
+								: '—'}
+						</span>
+						<span class="stat-label">Avg Gap</span>
+					</div>
+				</div>
+
+				{#if feedingInsights.totalFeeds > 0}
+					<div class="chart-card">
+						<h2 class="chart-title">Side balance</h2>
+						<StackedBar
+							segments={[
+								{
+									label: 'Left',
+									value: Math.round(feedingInsights.leftPercent),
+									color: 'var(--feed-solid)'
+								},
+								{
+									label: 'Right',
+									value: Math.round(feedingInsights.rightPercent),
+									color: 'hsl(340 65% 55%)'
+								},
+								{
+									label: 'Both',
+									value: Math.round(feedingInsights.bothPercent),
+									color: 'hsl(340 40% 70%)'
+								}
+							]}
+							total={100}
+							showLabels={true}
+						/>
+					</div>
+				{/if}
+			{/if}
+		{/if}
+
+		{#if activeTab === 'sleep'}
+			<div class="chart-card">
+				<h2 class="chart-title">Sleep time (min/day)</h2>
+				<BarChart data={sleepBarData} color="var(--sleep-solid)" unit="min" />
+			</div>
+
+			{#if sleepInsights}
+				<div class="stat-grid">
+					<div class="stat-card">
+						<span class="stat-value">{formatMinutes(sleepInsights.totalMinutes)}</span>
+						<span class="stat-label">Total Sleep</span>
+					</div>
+					<div class="stat-card">
+						<span class="stat-value">{formatMinutes(sleepInsights.avgMinutesPerDay)}</span>
+						<span class="stat-label">Avg / Day</span>
+					</div>
+					<div class="stat-card">
+						<span class="stat-value">{formatMinutes(sleepInsights.longestStretchMinutes)}</span>
+						<span class="stat-label">Longest Stretch</span>
+					</div>
+					<div class="stat-card">
+						<span class="stat-value">{sleepInsights.stretchCount}</span>
+						<span class="stat-label">Sessions</span>
+					</div>
+				</div>
+			{/if}
+
+			<div class="chart-card">
+				<h2 class="chart-title">Sleep position balance</h2>
 				{#if sleepBalance && sleepBalance.totalMinutes > 0}
-					<div class="tags mb-3">
-						{#each sleepPositionBreakdown as position}
-							<span class="tag is-light"
-								>{formatHeadSideLabel(position.side)}: {position.minutes} min ({position.percent}%)</span
-							>
-						{/each}
-					</div>
+					<StackedBar segments={sleepPositionSegments} showLabels={true} />
 					{#if sleepBalance.needsWarning && sleepBalance.message}
-						<div class="notification is-warning is-light">{sleepBalance.message}</div>
+						<div class="warning-box">{sleepBalance.message}</div>
 					{:else}
-						<div class="notification is-success is-light">
+						<div class="ok-box">
 							Sleep positions look balanced. Keep alternating head direction between sleeps.
 						</div>
 					{/if}
 				{:else}
-					<p class="has-text-grey">No completed sleep sessions in the last 7 days yet.</p>
+					<p class="empty-msg" style="padding: var(--space-3) 0">
+						No completed sleep sessions in the last 7 days yet.
+					</p>
 				{/if}
 			</div>
+		{/if}
 
-			<div class="box mb-4">
-				<h3 class="subtitle is-6 mb-3">Feeding time (minutes/day)</h3>
-				<svg width="100%" viewBox="0 0 280 110" preserveAspectRatio="xMidYMid meet">
-					{#each summaries as s, i}
-						<g transform="translate({i * 40 + 10}, 0)">
-							<rect
-								x="5"
-								y={90 - barHeight(s.feedMinutes, maxFeedMinutes)}
-								width="25"
-								height={barHeight(s.feedMinutes, maxFeedMinutes)}
-								fill="hsl(340, 65%, 70%)"
-								rx="2"
-							/>
-							<text x="17" y="105" text-anchor="middle" font-size="9" fill="#888">
-								{shortDay(s.date)}
-							</text>
-							{#if s.feedMinutes > 0}
-								<text
-									x="17"
-									y={86 - barHeight(s.feedMinutes, maxFeedMinutes)}
-									text-anchor="middle"
-									font-size="8"
-									fill="#555"
-								>
-									{s.feedMinutes}
-								</text>
-							{/if}
-						</g>
-					{/each}
-				</svg>
+		{#if activeTab === 'diaper'}
+			<div class="chart-card">
+				<h2 class="chart-title">Diaper changes (count/day)</h2>
+				<BarChart data={diaperBarData} color="var(--diaper-solid)" showValues={true} />
 			</div>
 
-			<div class="box">
-				<h3 class="subtitle is-6 mb-3">Diaper changes (count/day)</h3>
-				<svg width="100%" viewBox="0 0 280 110" preserveAspectRatio="xMidYMid meet">
-					{#each summaries as s, i}
-						<g transform="translate({i * 40 + 10}, 0)">
-							<rect
-								x="5"
-								y={90 - barHeight(s.diaperCount, maxDiaperCount)}
-								width="25"
-								height={barHeight(s.diaperCount, maxDiaperCount)}
-								fill="hsl(176, 60%, 55%)"
-								rx="2"
-							/>
-							<text x="17" y="105" text-anchor="middle" font-size="9" fill="#888">
-								{shortDay(s.date)}
-							</text>
-							{#if s.diaperCount > 0}
-								<text
-									x="17"
-									y={86 - barHeight(s.diaperCount, maxDiaperCount)}
-									text-anchor="middle"
-									font-size="8"
-									fill="#555"
-								>
-									{s.diaperCount}
-								</text>
-							{/if}
-						</g>
-					{/each}
-				</svg>
-			</div>
-
-			<div class="box">
-				<h3 class="subtitle is-6 mb-3">Sleep time (minutes/day)</h3>
-				<svg width="100%" viewBox="0 0 280 110" preserveAspectRatio="xMidYMid meet">
-					{#each summaries as s, i}
-						<g transform="translate({i * 40 + 10}, 0)">
-							<rect
-								x="5"
-								y={90 - barHeight(s.sleepMinutes, maxSleepMinutes)}
-								width="25"
-								height={barHeight(s.sleepMinutes, maxSleepMinutes)}
-								fill="hsl(240, 60%, 70%)"
-								rx="2"
-							/>
-							<text x="17" y="105" text-anchor="middle" font-size="9" fill="#888">
-								{shortDay(s.date)}
-							</text>
-							{#if s.sleepMinutes > 0}
-								<text
-									x="17"
-									y={86 - barHeight(s.sleepMinutes, maxSleepMinutes)}
-									text-anchor="middle"
-									font-size="8"
-									fill="#555"
-								>
-									{s.sleepMinutes}
-								</text>
-							{/if}
-						</g>
-					{/each}
-				</svg>
-			</div>
-		{:else}
-			<div class="has-text-centered py-6">
-				<p class="has-text-grey">No data yet. Start tracking to see stats!</p>
+			<div class="stat-grid">
+				<div class="stat-card">
+					<span class="stat-value">{totalDiapers}</span>
+					<span class="stat-label">Total Changes</span>
+				</div>
+				<div class="stat-card">
+					<span class="stat-value">
+						{dailyTotals.length > 0 ? (totalDiapers / dailyTotals.length).toFixed(1) : '0'}
+					</span>
+					<span class="stat-label">Avg / Day</span>
+				</div>
+				<div class="stat-card">
+					<span class="stat-value">
+						{dailyTotals.reduce((acc, d) => acc + d.poopCount, 0)}
+					</span>
+					<span class="stat-label">Poop</span>
+				</div>
+				<div class="stat-card">
+					<span class="stat-value">
+						{dailyTotals.reduce((acc, d) => acc + d.diaperCount - d.poopCount, 0)}
+					</span>
+					<span class="stat-label">Pee Only</span>
+				</div>
 			</div>
 		{/if}
-	</div>
-</section>
+	{/if}
+</div>
+
+<style>
+	.page {
+		padding: var(--space-4) var(--space-4) calc(var(--bottom-nav-h) + var(--space-6));
+		max-width: 720px;
+		margin: 0 auto;
+	}
+	.page-title {
+		font-size: var(--font-size-5);
+		font-weight: var(--fw-bold);
+		color: var(--text);
+		margin: 0 0 var(--space-1);
+	}
+	.page-subtitle {
+		font-size: var(--font-size-2);
+		color: var(--text-2);
+		margin: 0 0 var(--space-4);
+	}
+	.tab-bar {
+		display: flex;
+		border-bottom: 2px solid var(--border);
+		margin-bottom: var(--space-5);
+		gap: 0;
+	}
+	.tab-bar button {
+		flex: 1;
+		padding: var(--space-3) var(--space-2);
+		border: none;
+		border-bottom: 2px solid transparent;
+		margin-bottom: -2px;
+		background: transparent;
+		font-family: inherit;
+		font-weight: var(--fw-semibold);
+		font-size: var(--font-size-2);
+		color: var(--text-2);
+		cursor: pointer;
+		transition:
+			color var(--duration-fast) var(--ease-out),
+			border-color var(--duration-fast) var(--ease-out);
+	}
+	.tab-bar button[aria-selected='true'] {
+		color: var(--brand);
+		border-bottom-color: var(--brand);
+	}
+	.stat-grid {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: var(--space-3);
+		margin-bottom: var(--space-5);
+	}
+	.stat-card {
+		background: var(--surface-2);
+		border-radius: var(--radius-3);
+		padding: var(--space-4);
+		text-align: center;
+	}
+	.stat-value {
+		font-size: var(--font-size-6);
+		font-weight: var(--fw-bold);
+		color: var(--text);
+		font-variant-numeric: tabular-nums;
+		display: block;
+	}
+	.stat-label {
+		font-size: var(--font-size-1);
+		color: var(--text-2);
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		margin-top: var(--space-1);
+		display: block;
+	}
+	.chart-card {
+		background: var(--surface);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-3);
+		padding: var(--space-4);
+		margin-bottom: var(--space-4);
+		overflow: hidden;
+	}
+	.chart-title {
+		font-size: var(--font-size-3);
+		font-weight: var(--fw-semibold);
+		color: var(--text);
+		margin: 0 0 var(--space-3);
+	}
+	.warning-box {
+		background: hsl(45 100% 95%);
+		border: 1px solid hsl(45 100% 80%);
+		border-radius: var(--radius-2);
+		padding: var(--space-3) var(--space-4);
+		color: hsl(45 80% 30%);
+		font-size: var(--font-size-2);
+		margin-top: var(--space-3);
+	}
+	.ok-box {
+		background: hsl(140 60% 95%);
+		border: 1px solid hsl(140 60% 80%);
+		border-radius: var(--radius-2);
+		padding: var(--space-3) var(--space-4);
+		color: hsl(140 60% 25%);
+		font-size: var(--font-size-2);
+		margin-top: var(--space-3);
+	}
+	.loading-msg,
+	.empty-msg {
+		color: var(--text-2);
+		text-align: center;
+		padding: var(--space-6) 0;
+	}
+	.error-msg {
+		color: var(--danger);
+		font-size: var(--font-size-2);
+	}
+</style>
