@@ -19,8 +19,11 @@ jobs:
           github-token: '${{ secrets.GITHUB_TOKEN }}'
 
       - name: Approve minor and patch updates
+        continue-on-error: true
         if: steps.metadata.outputs.update-type == 'version-update:semver-minor' || steps.metadata.outputs.update-type == 'version-update:semver-patch'
-        run: gh pr review --approve "$PR_URL"
+        run: |
+          gh pr review --approve "$PR_URL" || \
+            echo "Approval skipped: enable 'Allow GitHub Actions to create and approve pull requests' in repo settings."
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
