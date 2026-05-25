@@ -33,31 +33,66 @@
 		return () => mq.removeEventListener('change', handler);
 	});
 
-	// Track the element that triggered open so we can restore focus on close
-	let triggerEl = $state<Element | null>(null);
+	// Track the element that triggered open so we can restore focus on close.
+	// Plain (non-reactive) refs: these are imperative DOM bookkeeping, never read
+	// in the template. Keeping them as $state caused the open/close $effect to read
+	// and write its own dependency (clearInert reassigns inertedEls), which loops
+	// forever under the production scheduler (effect_update_depth_exceeded).
+	let triggerEl: Element | null = null;
+
+	// Elements we set inert so we can precisely undo it on close.
+	let inertedEls: HTMLElement[] = [];
+
+	// Walk up from the panel to <body>, marking every sibling of each ancestor
+	// inert. This disables the entire page outside the sheet while keeping the
+	// sheet's own ancestor chain interactive. Setting inert on <main> directly
+	// would also disable the sheet, since the sheet renders inside <main> via
+	// the SvelteKit layout — making its own controls unclickable.
+	function applyInert() {
+		clearInert();
+		if (!panelEl) return;
+		const next: HTMLElement[] = [];
+		let node: HTMLElement | null = panelEl;
+		while (node && node !== document.body && node.parentElement) {
+			const parent: HTMLElement = node.parentElement;
+			for (const sibling of Array.from(parent.children)) {
+				if (sibling === node) continue;
+				if (!(sibling instanceof HTMLElement)) continue;
+				if (sibling === panelEl || sibling.contains(panelEl)) continue;
+				if (sibling.inert) continue;
+				sibling.inert = true;
+				next.push(sibling);
+			}
+			node = parent;
+		}
+		inertedEls = next;
+	}
+
+	function clearInert() {
+		for (const el of inertedEls) el.inert = false;
+		inertedEls = [];
+	}
 
 	$effect(() => {
 		if (open) {
 			triggerEl = document.activeElement;
 			document.body.style.overflow = 'hidden';
 
-			// Set inert on main content
-			const main = document.querySelector('main, [data-main], #app-content') as HTMLElement | null;
-			if (main) main.inert = true;
-
-			// Auto-focus first focusable element or close button
+			// Defer inert + focus until the panel is in the DOM so we can exclude
+			// the sheet's own subtree from being disabled.
 			requestAnimationFrame(() => {
 				if (!panelEl) return;
+				applyInert();
 				const focusable = getFocusable();
 				if (focusable.length > 0) {
 					(focusable[0] as HTMLElement).focus();
+				} else {
+					panelEl.focus();
 				}
 			});
 		} else {
 			document.body.style.overflow = '';
-
-			const main = document.querySelector('main, [data-main], #app-content') as HTMLElement | null;
-			if (main) main.inert = false;
+			clearInert();
 
 			// Restore focus to trigger element
 			if (triggerEl instanceof HTMLElement) {
@@ -68,8 +103,7 @@
 
 		return () => {
 			document.body.style.overflow = '';
-			const main = document.querySelector('main, [data-main], #app-content') as HTMLElement | null;
-			if (main) main.inert = false;
+			clearInert();
 		};
 	});
 

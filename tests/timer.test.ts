@@ -107,6 +107,7 @@ test.describe('Timer', () => {
 		// Reload so the app picks up the seeded baby
 		await page.reload();
 		await page.waitForLoadState('networkidle');
+		await expect(page.locator('.loading-msg')).not.toBeVisible({ timeout: 10_000 });
 
 		const feedDialog = await openSheet(page, 'button.tile.type-feed', 'Start feeding');
 		await startFromSheet(feedDialog);
@@ -116,10 +117,8 @@ test.describe('Timer', () => {
 		await expect(timerDigits).toBeVisible({ timeout: 3000 });
 		const initialText = await timerDigits.innerText();
 
-		// Wait long enough for the shared tick store to advance the display
-		await page.waitForTimeout(TICK_ADVANCE_MS);
-		const laterText = await timerDigits.innerText();
-		expect(laterText).not.toBe(initialText);
+		// Confirm the display has advanced (poll until it changes)
+		await expect.poll(() => timerDigits.innerText(), { timeout: 5000 }).not.toBe(initialText);
 	});
 
 	test('timer shows in-progress session in recent list', async ({ page }) => {
@@ -130,6 +129,7 @@ test.describe('Timer', () => {
 		await seedBaby(page);
 		await page.reload();
 		await page.waitForLoadState('networkidle');
+		await expect(page.locator('.loading-msg')).not.toBeVisible({ timeout: 10_000 });
 
 		// Start feeding timer
 		const feedDialog = await openSheet(page, 'button.tile.type-feed', 'Start feeding');
@@ -188,6 +188,7 @@ test.describe('Timer', () => {
 		// Reload — this is the key step: proves resume happens on reload, not just first load
 		await page.reload();
 		await page.waitForLoadState('networkidle');
+		await expect(page.locator('.loading-msg')).not.toBeVisible({ timeout: 10_000 });
 
 		// Stop button visible without any user interaction proves auto-resume
 		const stopBtn = page.locator('.stop-button').first();
@@ -200,9 +201,8 @@ test.describe('Timer', () => {
 		// A freshly-started (non-resumed) timer would show 0:00 or near-zero
 		expect(elapsedText).not.toMatch(/^0:0[0-4]/);
 
-		// Timer is counting — digits advance after the shared tick store updates
-		await page.waitForTimeout(TICK_ADVANCE_MS);
-		expect(await timerDigits.innerText()).not.toBe(elapsedText);
+		// Timer is counting — digits advance (poll until they change)
+		await expect.poll(() => timerDigits.innerText(), { timeout: 5000 }).not.toBe(elapsedText);
 
 		// No duplicate session created — resume reused the existing row
 		const count = await page.evaluate(async (): Promise<number> => {
@@ -231,6 +231,7 @@ test.describe('Timer', () => {
 		await seedBaby(page);
 		await page.reload();
 		await page.waitForLoadState('networkidle');
+		await expect(page.locator('.loading-msg')).not.toBeVisible({ timeout: 10_000 });
 
 		// Start feeding timer via tile + sheet (default side is left)
 		const feedDialog = await openSheet(page, 'button.tile.type-feed', 'Start feeding');
@@ -254,6 +255,7 @@ test.describe('Timer', () => {
 		await seedBaby(page);
 		await page.reload();
 		await page.waitForLoadState('networkidle');
+		await expect(page.locator('.loading-msg')).not.toBeVisible({ timeout: 10_000 });
 
 		// Open sleep start sheet and select the 'Side' position
 		const sleepDialog = await openSheet(page, 'button.tile.type-sleep', 'Start sleep');
@@ -275,6 +277,7 @@ test.describe('Timer', () => {
 		await seedBaby(page);
 		await page.reload();
 		await page.waitForLoadState('networkidle');
+		await expect(page.locator('.loading-msg')).not.toBeVisible({ timeout: 10_000 });
 
 		// Start sleep timer
 		const sleepDialog = await openSheet(page, 'button.tile.type-sleep', 'Start sleep');
@@ -301,6 +304,7 @@ test.describe('Timer', () => {
 		await seedBaby(page);
 		await page.reload();
 		await page.waitForLoadState('networkidle');
+		await expect(page.locator('.loading-msg')).not.toBeVisible({ timeout: 10_000 });
 
 		// Start and stop a feeding timer to create a session
 		const feedDialog = await openSheet(page, 'button.tile.type-feed', 'Start feeding');

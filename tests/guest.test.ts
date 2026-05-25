@@ -46,6 +46,7 @@ test.describe('Guest mode', () => {
 		await mockSupabaseUnauthenticated(page);
 		await page.goto('/app');
 		await page.waitForLoadState('networkidle');
+		await expect(page.locator('.loading-msg')).not.toBeVisible({ timeout: 10_000 });
 
 		// Empty state heading
 		await expect(page.getByRole('heading', { name: 'No babies yet' })).toBeVisible();

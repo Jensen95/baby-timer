@@ -44,7 +44,7 @@
 		>
 			<ThemeIcon size={20} aria-hidden="true" />
 		</button>
-		<a href={`${base}/app/settings`} class="icon-btn" aria-label="Settings">
+		<a href="{base}/app/settings" class="icon-btn" aria-label="Settings">
 			<Settings size={20} aria-hidden="true" />
 		</a>
 	</div>

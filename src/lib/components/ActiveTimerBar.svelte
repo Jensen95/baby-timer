@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { getContext, onMount } from 'svelte';
+	import { getContext } from 'svelte';
 	import { base } from '$app/paths';
 	import { Milk, Moon, Wind, type Icon as LucideIcon } from 'lucide-svelte';
 	import { getNow, startTick, stopTick } from '$lib/state/time.svelte';
@@ -75,9 +75,11 @@
 		}
 	}
 
-	onMount(() => {
-		startTick();
-		return () => stopTick();
+	$effect(() => {
+		if (activeTimers.length > 0) {
+			startTick();
+			return () => stopTick();
+		}
 	});
 </script>
 

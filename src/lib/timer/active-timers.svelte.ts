@@ -2,7 +2,6 @@ import type { FeedingSide } from '$lib/sessions/feeding';
 import type { HeadSide } from '$lib/sessions/sleep';
 import type { PumpSide } from '$lib/sessions/breast-pump';
 import type { DiaperContent } from '$lib/sessions/diaper-change';
-import { getDiaperContent } from '$lib/sessions/diaper-change';
 import {
 	getActiveFeedingSessionLocal,
 	createFeedingLocal,
@@ -230,7 +229,6 @@ export async function logDiaperChange(
 ): Promise<void> {
 	const hasPoop = contents === 'poop' || contents === 'both';
 	const hasPee = contents === 'pee' || contents === 'both';
-	getDiaperContent(hasPoop, hasPee);
 	const now = new Date().toISOString();
 	const payload: LocalDiaperChange = {
 		id: crypto.randomUUID(),

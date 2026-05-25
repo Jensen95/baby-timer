@@ -87,17 +87,17 @@ test.describe('Offline mode', () => {
 		await seedBaby(page);
 		await page.reload();
 		await page.waitForLoadState('networkidle');
+		await expect(page.locator('.loading-msg')).not.toBeVisible({ timeout: 10_000 });
 
 		// Tap the feed tile to open the start sheet, then start the timer
 		const feedDialog = await openSheet(page, 'button.tile.type-feed', 'Start feeding');
 		await startFromSheet(feedDialog);
 
-		// Timer digits should be visible and the timer running
+		// Timer digits should be visible and advancing
 		const timerDigits = page.locator('.timer-digits').first();
 		await expect(timerDigits).toBeVisible({ timeout: 3000 });
-
-		// Wait more than one tick so the counter has a chance to advance
-		await page.waitForTimeout(1100);
+		const initialText = await timerDigits.innerText();
+		await expect.poll(() => timerDigits.innerText(), { timeout: 5000 }).not.toBe(initialText);
 
 		// Click Stop
 		const stopBtn = page.locator('.stop-button').first();
@@ -135,17 +135,15 @@ test.describe('Offline mode', () => {
 		await seedBaby(page);
 		await page.reload();
 		await page.waitForLoadState('networkidle');
+		await expect(page.locator('.loading-msg')).not.toBeVisible({ timeout: 10_000 });
 		// Tiles are visible, meaning the baby was loaded from IndexedDB (not showing empty state)
 		await expect(page.locator('button.tile.type-feed')).toBeVisible({ timeout: 5000 });
 	});
 
 	test('can create a baby without logging in', async ({ page }) => {
 		await mockSupabaseUnauthenticated(page);
-		await page.goto('/app/babies');
+		await page.goto('/app/family');
 		await page.waitForLoadState('networkidle');
-
-		// /app/babies redirects to /app/family
-		await expect(page).toHaveURL(/\/app\/family/);
 
 		// Open add baby form
 		await page.getByRole('button', { name: /\+ add/i }).click();

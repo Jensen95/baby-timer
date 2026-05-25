@@ -14,8 +14,8 @@
 		goto(`${base}/app`);
 	}
 
-	const primaryHref = session.user ? `${base}/app` : `${base}/login`;
-	const primaryLabel = session.user ? 'Open Dashboard' : 'Start Tracking — Free';
+	let primaryHref = $derived(session.user ? `${base}/app` : `${base}/login`);
+	let primaryLabel = $derived(session.user ? 'Open Dashboard' : 'Start Tracking — Free');
 </script>
 
 <svelte:head>

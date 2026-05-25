@@ -123,36 +123,44 @@
 	let sleepCanStart = $derived(babyId ? canStartTimer(babyId, 'sleep') : null);
 	let pumpCanStart = $derived(babyId ? canStartTimer(babyId, 'pump') : null);
 
+	let loaded = false;
+
 	$effect(() => {
+		if (session.loading || loaded) return;
+		loaded = true;
+		pageLoading = false;
+		const userId = session.user?.id;
+		if (!userId) {
+			babyState.loadBabies(null).catch((e: unknown) => {
+				error = e instanceof Error ? e.message : 'Failed to load babies';
+			});
+			return;
+		}
 		(async () => {
 			try {
-				if (session.user) {
-					let localFamily = await getLocalFamily();
-					if (!localFamily) {
-						const families = await getUserFamilies(supabase);
-						if (families.length > 0) {
-							await putLocalFamily({
-								id: families[0].id,
-								name: families[0].name,
-								created_at: families[0].created_at
-							});
-							localFamily = {
-								id: families[0].id,
-								name: families[0].name,
-								created_at: families[0].created_at
-							};
-						}
+				let localFamily = await getLocalFamily();
+				if (!localFamily) {
+					const families = await getUserFamilies(supabase);
+					if (families.length > 0) {
+						await putLocalFamily({
+							id: families[0].id,
+							name: families[0].name,
+							created_at: families[0].created_at
+						});
+						localFamily = {
+							id: families[0].id,
+							name: families[0].name,
+							created_at: families[0].created_at
+						};
 					}
-					familyId = localFamily?.id ?? null;
-				} else {
-					familyId = null;
 				}
-
-				await babyState.loadBabies(familyId);
+				const fid = localFamily?.id ?? null;
+				familyId = fid;
+				babyState.loadBabies(fid).catch((e: unknown) => {
+					error = e instanceof Error ? e.message : 'Failed to load babies';
+				});
 			} catch (e) {
 				error = e instanceof Error ? e.message : 'Failed to load data';
-			} finally {
-				pageLoading = false;
 			}
 		})();
 	});
@@ -441,7 +449,7 @@
 <div class="page">
 	{#if pageLoading}
 		<p class="loading-msg">Loading…</p>
-	{:else if babyState.babies.length === 0}
+	{:else if !babyId}
 		{#if error}
 			<p class="error-msg" role="alert">{error}</p>
 		{/if}
