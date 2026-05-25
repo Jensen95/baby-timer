@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
 	import { base } from '$app/paths';
-	import { Milk, Moon, Wind, type Icon as LucideIcon } from 'lucide-svelte';
+	import { Milk, Moon, Wind, type Icon as LucideIcon } from '@lucide/svelte';
 	import { getNow, startTick, stopTick } from '$lib/state/time.svelte';
 	import {
 		getActiveTimers,

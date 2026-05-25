@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
 	import { base } from '$app/paths';
-	import { ChevronDown, Check } from 'lucide-svelte';
+	import { ChevronDown, Check } from '@lucide/svelte';
 	import Sheet from './Sheet.svelte';
 	import { BABY_STATE_KEY } from '$lib/state/baby.svelte';
 	import type { BabyState } from '$lib/state/baby.svelte';

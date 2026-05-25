@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { base } from '$app/paths';
-	import { Sun, Moon, Sunset, Cloud, Settings } from 'lucide-svelte';
+	import { Sun, Moon, Sunset, Cloud, Settings } from '@lucide/svelte';
 	import BabySelector from './BabySelector.svelte';
 	import { getTheme, setTheme, THEMES } from '$lib/state/theme.svelte';
 	import type { Theme } from '$lib/state/theme.svelte';

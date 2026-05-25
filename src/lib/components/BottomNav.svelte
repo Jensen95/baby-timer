@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 	import { base } from '$app/paths';
-	import { Timer, List, ChartNoAxesColumn, Ellipsis } from 'lucide-svelte';
+	import { Timer, List, ChartNoAxesColumn, Ellipsis } from '@lucide/svelte';
 
 	interface NavItem {
 		href: string;

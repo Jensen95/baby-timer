@@ -2,8 +2,8 @@
 	import { getContext } from 'svelte';
 	import type { Component } from 'svelte';
 	import { base } from '$app/paths';
-	import { Milk, Moon, Wind, Baby } from 'lucide-svelte';
-	import type { IconProps } from 'lucide-svelte';
+	import { Milk, Moon, Wind, Baby } from '@lucide/svelte';
+	import type { IconProps } from '@lucide/svelte';
 	import { SESSION_KEY } from '$lib/auth/context';
 	import type { SessionStore } from '$lib/auth/context';
 	import { SYNC_KEY } from '$lib/db/sync.svelte';
