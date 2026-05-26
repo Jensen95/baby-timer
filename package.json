@@ -2,7 +2,7 @@
 	"name": "baby-timer",
 	"version": "0.0.1",
 	"scripts": {
-		"dev": "vite dev",
+		"dev": "portless baby-timer vite dev",
 		"build": "vite build",
 		"preview": "vite preview",
 		"test": "npm run test:integration && npm run test:unit",
@@ -30,6 +30,7 @@
 		"husky": "^9.1.7",
 		"lint-staged": "^17.0.5",
 		"open-props": "^1.7.23",
+		"portless": "^0.13.0",
 		"prettier": "^3.8.3",
 		"prettier-plugin-svelte": "^4.0.1",
 		"svelte": "^5.55.9",
