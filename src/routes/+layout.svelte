@@ -1,5 +1,7 @@
 <script lang="ts">
 	import '../app.css';
+	import { page } from '$app/state';
+	import { resolve } from '$app/paths';
 	import { setContext } from 'svelte';
 	import { createSession } from '$lib/auth/session.svelte';
 	import { SESSION_KEY } from '$lib/auth/context';
@@ -19,6 +21,12 @@
 
 	let { children } = $props();
 
+	let appPrefix = $derived(resolve('/app'));
+	let inAppRoute = $derived.by(() => {
+		const path = page.url.pathname;
+		return path === appPrefix || path.startsWith(`${appPrefix}/`);
+	});
+
 	$effect(() => {
 		sync.start();
 		return () => sync.stop();
@@ -26,13 +34,15 @@
 </script>
 
 <div class="app">
-	{#if session.user}
+	{#if inAppRoute}
 		<AppBar />
 	{/if}
 	<main>
 		{@render children()}
 	</main>
-	<BottomNav />
+	{#if inAppRoute}
+		<BottomNav />
+	{/if}
 </div>
 
 <style>
