@@ -206,4 +206,10 @@
 		opacity: 0.7;
 		cursor: default;
 	}
+
+	@media (min-width: 769px) {
+		.active-bar {
+			bottom: 0;
+		}
+	}
 </style>
