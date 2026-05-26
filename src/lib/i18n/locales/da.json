@@ -109,6 +109,7 @@
 		"stop": "STOP",
 		"stopping": "…",
 		"elapsed": ".input {$count :integer}\n.match $count\n  one {{{$type}, {$count} minut}}\n  *   {{{$type}, {$count} minutter}}",
+		"justNow": "lige nu",
 		"activeTimersLabel": "Aktive timere",
 		"viewTimerLabel": "Se {$type}-timer",
 		"stopTimerLabel": "Stop {$type}-timer"
