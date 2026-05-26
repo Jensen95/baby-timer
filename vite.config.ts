@@ -31,8 +31,16 @@ const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$
 
 export default defineConfig(({ command, mode }) => {
 	const env = loadEnv(mode, process.cwd(), '');
+	const npmLifecycleEvent = process.env.npm_lifecycle_event;
+	const isRunningTypecheckScript =
+		npmLifecycleEvent === 'check' ||
+		npmLifecycleEvent === 'check:watch' ||
+		process.argv.some((arg) => /(^|[\\/])svelte-check(?=$|[\\/]|\.c?js$)/.test(arg));
 	const shouldValidateEnv =
-		(command === 'serve' || command === 'build') && mode !== 'test' && !process.env.VITEST;
+		(command === 'serve' || command === 'build') &&
+		mode !== 'test' &&
+		!process.env.VITEST &&
+		!isRunningTypecheckScript;
 
 	if (shouldValidateEnv) {
 		validateRequiredEnv(env);

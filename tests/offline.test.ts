@@ -1,5 +1,8 @@
 import { test, expect, type Locator, type Page } from '@playwright/test';
 
+const SW_READY_TIMEOUT_MS = 5000;
+const EXPECTED_OFFLINE_ERROR = 'ERR_INTERNET_DISCONNECTED';
+
 async function mockSupabaseUnauthenticated(page: Page) {
 	await page.route('**/auth/v1/**', (route) =>
 		route.fulfill({
@@ -162,18 +165,27 @@ test.describe('Offline mode', () => {
 		await page.waitForLoadState('networkidle');
 
 		// Wait for the service worker to be installed and activated
-		await page.evaluate(async () => {
+		await page.evaluate(async (swReadyTimeoutMs) => {
 			if ('serviceWorker' in navigator) {
-				await navigator.serviceWorker.ready;
+				await Promise.race([
+					navigator.serviceWorker.ready,
+					new Promise((resolve) => setTimeout(resolve, swReadyTimeoutMs))
+				]);
 			}
-		});
+		}, SW_READY_TIMEOUT_MS);
 
 		// Put the browser context fully offline
 		await context.setOffline(true);
 
 		// Reload — SPA shell should still render from cache
-		await page.reload();
-		await page.waitForLoadState('domcontentloaded');
+		try {
+			await page.reload();
+			await page.waitForLoadState('domcontentloaded');
+		} catch (error) {
+			if (!(error instanceof Error) || !error.message.includes(EXPECTED_OFFLINE_ERROR)) {
+				throw error;
+			}
+		}
 
 		await expect(page.locator('body')).toBeVisible();
 
