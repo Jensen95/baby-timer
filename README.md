@@ -31,24 +31,31 @@ A family app for tracking baby feeding and sleep sessions in real time.
 
 ### Setup
 
-1. Clone the repo
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-3. Create a `.env.local` file:
-   ```
-   PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-   PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-   ```
-4. Push database migrations:
-   ```bash
-   supabase db push
-   ```
-5. Start the dev server:
-   ```bash
-   npm run dev
-   ```
+1. Clone the repo.
+1. Install dependencies.
+
+```bash
+npm install
+```
+
+1. Create a `.env.local` file.
+
+```dotenv
+PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+```
+
+1. Push database migrations.
+
+```bash
+supabase db push
+```
+
+1. Start the dev server.
+
+```bash
+npm run dev
+```
 
 ### Deploy to GitHub Pages
 
