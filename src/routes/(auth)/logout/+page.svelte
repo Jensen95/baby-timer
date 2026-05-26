@@ -4,6 +4,7 @@
 	import { base } from '$app/paths';
 	import { SESSION_KEY } from '$lib/auth/context';
 	import type { SessionStore } from '$lib/auth/context';
+	import { t } from '@sveltia/i18n';
 
 	const session = getContext<SessionStore>(SESSION_KEY);
 
@@ -12,4 +13,4 @@
 	});
 </script>
 
-<p>Signing out...</p>
+<p>{t('auth.signingOut')}</p>
