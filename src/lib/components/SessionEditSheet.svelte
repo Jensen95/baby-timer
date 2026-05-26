@@ -39,10 +39,16 @@
 		return Number.isNaN(parsed.getTime()) ? null : parsed;
 	}
 
-	function parseOptionalYield(value: string): number | null {
-		const trimmed = value.trim();
-		if (!trimmed) return null;
-		const n = Number(trimmed);
+	function parseOptionalYield(value: string | number): number | null {
+		let numValue = value;
+		if (typeof value === 'string') {
+			const trimmed = value.trim();
+			if (!trimmed) {
+				return null;
+			}
+			numValue = trimmed;
+		}
+		const n = Number(numValue);
 		if (!Number.isFinite(n) || n < 0) throw new Error('Yield must be a non-negative number');
 		return Math.round(n);
 	}
