@@ -83,7 +83,9 @@ export default defineConfig(({ command, mode }) => {
 				},
 				workbox: {
 					globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
-					additionalManifestEntries: [{ url: appShellPath, revision: null }],
+					additionalManifestEntries: [
+						{ url: appShellPath, revision: process.env.GITHUB_SHA ?? 'local-build' }
+					],
 					navigateFallback: appShellPath,
 					navigateFallbackAllowlist: [new RegExp(`^${escapeRegex(appPath)}(?:/|$|\\.html$)`)],
 					clientsClaim: true,
