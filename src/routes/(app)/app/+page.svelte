@@ -351,10 +351,17 @@
 		pumpCompleteOpen = true;
 	}
 
-	function parseOptionalYield(value: string): number | undefined {
-		const trimmed = value.trim();
-		if (!trimmed) return undefined;
-		const parsed = Number(trimmed);
+	function parseOptionalYield(value: string | number): number | undefined {
+		let numValue = value;
+		if (typeof value === 'string') {
+			const trimmed = value.trim();
+			if (!trimmed) {
+				return undefined;
+			}
+			numValue = trimmed;
+		}
+
+		const parsed = Number(numValue);
 		if (!Number.isFinite(parsed) || parsed < 0) {
 			throw new Error('Yield must be a non-negative number');
 		}
