@@ -1,0 +1,236 @@
+{
+	"common": {
+		"save": "Gem",
+		"cancel": "Annuller",
+		"delete": "Slet",
+		"edit": "Rediger",
+		"loading": "Indlæser",
+		"loadingEllipsis": "Indlæser…",
+		"back": "Tilbage",
+		"done": "Færdig",
+		"start": "Start",
+		"stop": "Stop",
+		"log": "Registrer",
+		"add": "+ Tilføj",
+		"tapToStart": "Tryk for at starte",
+		"noSessionsYet": "Ingen sessioner endnu.",
+		"optional": "(valgfri)"
+	},
+	"nav": {
+		"track": "Spor",
+		"history": "Historik",
+		"insights": "Indsigt",
+		"more": "Mere"
+	},
+	"landing": {
+		"title": "Baby Tracker",
+		"metaDescription": "En simpel familie-app til at registrere babys amning og søvn i realtid.",
+		"headline": "Baby Tracker",
+		"subheadline": "Registrer amning, søvn og mere — synkroniserer i hele familien",
+		"openDashboard": "Åbn oversigt",
+		"startTracking": "Begynd registrering — Gratis",
+		"trackWithoutAccount": "Registrer uden konto",
+		"worksOfflineTitle": "Virker offline",
+		"worksOfflineDesc": "Begynd at registrere uden internet. Synkroniserer, når du er online igen.",
+		"shareFamilyTitle": "Del med familien",
+		"shareFamilyDesc": "Begge forældre ser opdateringer i realtid. Ingen manuel synkronisering.",
+		"trackEverythingTitle": "Registrer alt",
+		"trackEverythingDesc": "Amning, søvn, bleskift, temperatur og noter — samlet ét sted.",
+		"footer": "Open source · Hostet på GitHub Pages · Data gemt sikkert på Supabase"
+	},
+	"auth": {
+		"pageTitle": "Log ind — Baby Tracker",
+		"heading": "Baby Tracker",
+		"checkEmail": "Tjek din e-mail",
+		"magicLinkSent": "Vi sendte et magisk link til {$email}. Klik på det for at logge ind og begynde at synkronisere.",
+		"linkExpiry": "Linket er gyldigt i 24 timer.",
+		"namePlaceholder": "Alex",
+		"nameLabel": "Dit navn",
+		"nameHelp": "Valgfrit, men hjælper din familie med at genkende dig.",
+		"emailLabel": "E-mail",
+		"emailPlaceholder": "dig@eksempel.dk",
+		"sendMagicLink": "Send magisk link",
+		"sending": "Sender...",
+		"or": "eller",
+		"continueWithoutAccount": "Fortsæt uden konto",
+		"signingOut": "Logger ud..."
+	},
+	"app": {
+		"offlineBanner": "Du er offline — data gemmes på denne enhed.",
+		"signInToSync": "Log ind for at synkronisere",
+		"noBabyYetTitle": "Ingen babyer endnu",
+		"noBabyYetDesc": "Tilføj en baby for at begynde registrering.",
+		"addABaby": "Tilføj en baby",
+		"recent": "Seneste",
+		"noSessionsYet": "Ingen sessioner endnu."
+	},
+	"track": {
+		"feed": "Amning",
+		"sleep": "Søvn",
+		"pump": "Pumpe",
+		"diaper": "Ble",
+		"startFeeding": "Start amning",
+		"startSleep": "Start søvn",
+		"startPump": "Start pumpning",
+		"logDiaper": "Registrer bleskift",
+		"pumpComplete": "Pumpning færdig",
+		"side": "Side",
+		"headPosition": "Hovedposition",
+		"contents": "Indhold",
+		"leftYield": "Venstre udbytte (ml)",
+		"rightYield": "Højre udbytte (ml)",
+		"options": {
+			"left": "Venstre",
+			"right": "Højre",
+			"both": "Begge",
+			"back": "Ryg",
+			"headLeft": "Hoved venstre",
+			"headRight": "Hoved højre",
+			"tummy": "Mave",
+			"side": "Side",
+			"poop": "Afføring",
+			"pee": "Urin",
+			"bothWaste": "Begge"
+		}
+	},
+	"timer": {
+		"type": {
+			"feed": "AMNING",
+			"sleep": "SØVN",
+			"pump": "PUMPE"
+		},
+		"stop": "STOP",
+		"elapsed": ".input {$count :integer}\n.match $count\n  one {{{$type}, {$count} minut}}\n  *   {{{$type}, {$count} minutter}}"
+	},
+	"sessions": {
+		"types": {
+			"feed": "Amning",
+			"sleep": "Søvn",
+			"pump": "Pumpe",
+			"diaper": "Ble"
+		},
+		"edit": "Rediger session",
+		"time": "Tid",
+		"startTime": "Starttidspunkt",
+		"endTime": "Sluttidspunkt",
+		"side": "Side",
+		"headPosition": "Hovedposition",
+		"contents": "Indhold",
+		"leftYield": "Venstre udbytte (ml)",
+		"rightYield": "Højre udbytte (ml)",
+		"deleteConfirm": "Slet denne session?",
+		"errors": {
+			"startRequired": "Starttidspunkt er påkrævet og skal være en gyldig dato.",
+			"endInvalid": "Sluttidspunkt skal være en gyldig dato.",
+			"endBeforeStart": "Sluttidspunkt skal være efter starttidspunkt.",
+			"yieldInvalid": "Udbytte skal være et ikke-negativt tal",
+			"saveFailed": "Kunne ikke gemme.",
+			"deleteFailed": "Kunne ikke slette."
+		}
+	},
+	"history": {
+		"title": "Historik",
+		"selectBaby": "Vælg en baby for at se historik.",
+		"noSessions": "Ingen sessioner endnu. Start registrering!",
+		"today": "I dag",
+		"yesterday": "I går"
+	},
+	"stats": {
+		"title": "Indsigt",
+		"last7Days": "Sidste 7 dage",
+		"tabs": {
+			"overview": "Oversigt",
+			"feeding": "Amning",
+			"sleep": "Søvn",
+			"diaper": "Ble"
+		},
+		"selectBaby": "Vælg en baby for at se indsigt.",
+		"overview": {
+			"totalFeeds": "Samlede amninger",
+			"avgPerDay": "Gns. / dag",
+			"totalSleep": "Samlet søvn",
+			"diaperChanges": "Bleskift",
+			"todayTimeline": "Dagens tidslinje",
+			"noSessions": "Ingen sessioner registreret i dag endnu."
+		},
+		"feeding": {
+			"chartTitle": "Amningstid (min/dag)",
+			"totalFeeds": "Samlede amninger",
+			"avgPerDay": "Gns. / dag",
+			"avgDuration": "Gns. varighed",
+			"avgGap": "Gns. interval",
+			"sideBalance": "Sidebalance",
+			"left": "Venstre",
+			"right": "Højre",
+			"both": "Begge"
+		},
+		"sleep": {
+			"chartTitle": "Søvntid (min/dag)",
+			"totalSleep": "Samlet søvn",
+			"avgPerDay": "Gns. / dag",
+			"longestStretch": "Længste periode",
+			"sessions": "Sessioner",
+			"positionBalance": "Søvnpositionsbalance",
+			"balanced": "Søvnpositionerne ser balancerede ud. Fortsæt med at skifte hovedretning mellem søvn.",
+			"noSessions": "Ingen afsluttede søvnsessioner i de seneste 7 dage endnu."
+		},
+		"diaper": {
+			"chartTitle": "Bleskift (antal/dag)",
+			"totalChanges": "Samlede skift",
+			"avgPerDay": "Gns. / dag",
+			"poop": "Afføring",
+			"peeOnly": "Kun urin"
+		}
+	},
+	"settings": {
+		"title": "Indstillinger",
+		"theme": "Tema",
+		"language": "Sprog",
+		"profile": "Profil",
+		"namePlaceholder": "Dit navn",
+		"saved": "Gemt!",
+		"familyManagement": "Familiestyring",
+		"manageFamilyLink": "Administrer familiemedlemmer, babyer og invitationer",
+		"account": "Konto",
+		"signOut": "Log ud",
+		"signInPrompt": "Log ind for at synkronisere dine data på tværs af enheder.",
+		"signIn": "Log ind"
+	},
+	"family": {
+		"title": "Familie",
+		"babies": "Babyer",
+		"noBabies": "Ingen babyer endnu.",
+		"bornDate": "Født {$date}",
+		"babyNamePlaceholder": "Babynavn",
+		"loading": "Indlæser...",
+		"signInPrompt": "Log ind for at administrere din familie og synkronisere data.",
+		"pendingInvitations": "Afventende invitationer",
+		"accept": "Accepter",
+		"decline": "Afvis",
+		"createFamilyTitle": "Opret en familie",
+		"notInFamily": "Du er endnu ikke i en familie.",
+		"familyNamePlaceholder": "Familienavn",
+		"createFamily": "Opret familie",
+		"membersHeading": ".input {$count :integer}\n.match $count\n  one {{Medlemmer ({$count})}}\n  *   {{Medlemmer ({$count})}}",
+		"youTag": "Dig",
+		"ownerTag": "ejer",
+		"pendingTag": "afventer",
+		"invitedTag": "inviteret",
+		"inviteMember": "Inviter familiemedlem",
+		"emailPlaceholder": "partner@eksempel.dk",
+		"sendInvitation": "Send invitation",
+		"invitationSent": "Invitation sendt til {$email}.",
+		"joinedFamily": "Du har tilmeldt dig {$family}.",
+		"inviteDeclined": "Invitation til {$family} afvist."
+	},
+	"babySelector": {
+		"selectBaby": "Vælg baby",
+		"switchBaby": "Skift baby",
+		"manageBabies": "Administrer babyer"
+	},
+	"charts": {
+		"timeline6am": "6",
+		"timeline12pm": "12",
+		"timeline6pm": "18"
+	}
+}
