@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
+	import { t } from '@sveltia/i18n';
 	import { BABY_STATE_KEY } from '$lib/state/baby.svelte';
 	import type { BabyState } from '$lib/state/baby.svelte';
 	import { db } from '$lib/db/local';
@@ -200,6 +201,14 @@
 	);
 	let totalDiapers = $derived(dailyTotals.reduce((acc, d) => acc + d.diaperCount, 0));
 
+	const headSideKeyMap: Record<string, string> = {
+		left: 'track.options.headLeft',
+		right: 'track.options.headRight',
+		back: 'track.options.back',
+		tummy: 'track.options.tummy',
+		side: 'track.options.side'
+	};
+
 	let sleepPositionSegments = $derived.by(() => {
 		if (!sleepBalance || sleepBalance.totalMinutes === 0) return [];
 		return HEAD_SIDES.filter((side) => sleepBalance!.minutesBySide[side] > 0).map((side) => ({
@@ -227,8 +236,8 @@
 </script>
 
 <div class="page">
-	<h1 class="page-title">Insights</h1>
-	<p class="page-subtitle">Last 7 days</p>
+	<h1 class="page-title">{t('stats.title')}</h1>
+	<p class="page-subtitle">{t('stats.last7Days')}</p>
 
 	<div class="tab-bar" role="tablist">
 		{#each ['overview', 'feeding', 'sleep', 'diaper'] as tab}
@@ -237,15 +246,15 @@
 				aria-selected={activeTab === tab}
 				onclick={() => (activeTab = tab as typeof activeTab)}
 			>
-				{tab.charAt(0).toUpperCase() + tab.slice(1)}
+				{t(`stats.tabs.${tab}`)}
 			</button>
 		{/each}
 	</div>
 
 	{#if !babyState.selectedBabyId}
-		<p class="empty-msg">Select a baby to see insights.</p>
+		<p class="empty-msg">{t('stats.selectBaby')}</p>
 	{:else if loading}
-		<p class="loading-msg">Loading…</p>
+		<p class="loading-msg">{t('common.loadingEllipsis')}</p>
 	{:else if error}
 		<p class="error-msg" role="alert">{error}</p>
 	{:else}
@@ -253,26 +262,28 @@
 			<div class="stat-grid">
 				<div class="stat-card">
 					<span class="stat-value">{totalFeeds}</span>
-					<span class="stat-label">Total Feeds</span>
+					<span class="stat-label">{t('stats.overview.totalFeeds')}</span>
 				</div>
 				<div class="stat-card">
 					<span class="stat-value">{avgFeedsPerDay}</span>
-					<span class="stat-label">Avg / Day</span>
+					<span class="stat-label">{t('stats.overview.avgPerDay')}</span>
 				</div>
 				<div class="stat-card">
 					<span class="stat-value">{totalSleepHours}h</span>
-					<span class="stat-label">Total Sleep</span>
+					<span class="stat-label">{t('stats.overview.totalSleep')}</span>
 				</div>
 				<div class="stat-card">
 					<span class="stat-value">{totalDiapers}</span>
-					<span class="stat-label">Diaper Changes</span>
+					<span class="stat-label">{t('stats.overview.diaperChanges')}</span>
 				</div>
 			</div>
 
 			<div class="chart-card">
-				<h2 class="chart-title">Today's timeline</h2>
+				<h2 class="chart-title">{t('stats.overview.todayTimeline')}</h2>
 				{#if todaySegments.length === 0 && todayDiaperEvents.length === 0}
-					<p class="empty-msg" style="padding: var(--space-3) 0">No sessions recorded today yet.</p>
+					<p class="empty-msg" style="padding: var(--space-3) 0">
+						{t('stats.overview.noSessions')}
+					</p>
 				{:else}
 					<Timeline
 						segments={todaySegments}
@@ -286,7 +297,7 @@
 
 		{#if activeTab === 'feeding'}
 			<div class="chart-card">
-				<h2 class="chart-title">Feeding time (min/day)</h2>
+				<h2 class="chart-title">{t('stats.feeding.chartTitle')}</h2>
 				<BarChart data={feedingBarData} color="var(--feed-solid)" unit="min" />
 			</div>
 
@@ -294,15 +305,15 @@
 				<div class="stat-grid">
 					<div class="stat-card">
 						<span class="stat-value">{feedingInsights.totalFeeds}</span>
-						<span class="stat-label">Total Feeds</span>
+						<span class="stat-label">{t('stats.feeding.totalFeeds')}</span>
 					</div>
 					<div class="stat-card">
 						<span class="stat-value">{feedingInsights.avgFeedsPerDay.toFixed(1)}</span>
-						<span class="stat-label">Avg / Day</span>
+						<span class="stat-label">{t('stats.feeding.avgPerDay')}</span>
 					</div>
 					<div class="stat-card">
 						<span class="stat-value">{formatMinutes(feedingInsights.avgDurationMinutes)}</span>
-						<span class="stat-label">Avg Duration</span>
+						<span class="stat-label">{t('stats.feeding.avgDuration')}</span>
 					</div>
 					<div class="stat-card">
 						<span class="stat-value">
@@ -310,27 +321,27 @@
 								? formatMinutes(feedingInsights.avgGapMinutes)
 								: '—'}
 						</span>
-						<span class="stat-label">Avg Gap</span>
+						<span class="stat-label">{t('stats.feeding.avgGap')}</span>
 					</div>
 				</div>
 
 				{#if feedingInsights.totalFeeds > 0}
 					<div class="chart-card">
-						<h2 class="chart-title">Side balance</h2>
+						<h2 class="chart-title">{t('stats.feeding.sideBalance')}</h2>
 						<StackedBar
 							segments={[
 								{
-									label: 'Left',
+									label: t('stats.feeding.left'),
 									value: Math.round(feedingInsights.leftPercent),
 									color: 'var(--feed-solid)'
 								},
 								{
-									label: 'Right',
+									label: t('stats.feeding.right'),
 									value: Math.round(feedingInsights.rightPercent),
 									color: 'hsl(340 65% 55%)'
 								},
 								{
-									label: 'Both',
+									label: t('stats.feeding.both'),
 									value: Math.round(feedingInsights.bothPercent),
 									color: 'hsl(340 40% 70%)'
 								}
@@ -345,7 +356,7 @@
 
 		{#if activeTab === 'sleep'}
 			<div class="chart-card">
-				<h2 class="chart-title">Sleep time (min/day)</h2>
+				<h2 class="chart-title">{t('stats.sleep.chartTitle')}</h2>
 				<BarChart data={sleepBarData} color="var(--sleep-solid)" unit="min" />
 			</div>
 
@@ -353,37 +364,47 @@
 				<div class="stat-grid">
 					<div class="stat-card">
 						<span class="stat-value">{formatMinutes(sleepInsights.totalMinutes)}</span>
-						<span class="stat-label">Total Sleep</span>
+						<span class="stat-label">{t('stats.sleep.totalSleep')}</span>
 					</div>
 					<div class="stat-card">
 						<span class="stat-value">{formatMinutes(sleepInsights.avgMinutesPerDay)}</span>
-						<span class="stat-label">Avg / Day</span>
+						<span class="stat-label">{t('stats.sleep.avgPerDay')}</span>
 					</div>
 					<div class="stat-card">
 						<span class="stat-value">{formatMinutes(sleepInsights.longestStretchMinutes)}</span>
-						<span class="stat-label">Longest Stretch</span>
+						<span class="stat-label">{t('stats.sleep.longestStretch')}</span>
 					</div>
 					<div class="stat-card">
 						<span class="stat-value">{sleepInsights.stretchCount}</span>
-						<span class="stat-label">Sessions</span>
+						<span class="stat-label">{t('stats.sleep.sessions')}</span>
 					</div>
 				</div>
 			{/if}
 
 			<div class="chart-card">
-				<h2 class="chart-title">Sleep position balance</h2>
+				<h2 class="chart-title">{t('stats.sleep.positionBalance')}</h2>
 				{#if sleepBalance && sleepBalance.totalMinutes > 0}
 					<StackedBar segments={sleepPositionSegments} showLabels={true} />
-					{#if sleepBalance.needsWarning && sleepBalance.message}
-						<div class="warning-box">{sleepBalance.message}</div>
-					{:else}
+					{#if sleepBalance.needsWarning && sleepBalance.dominantSide}
+						<div class="warning-box">
+							{t('stats.sleep.positionWarning', {
+								values: {
+									side: t(headSideKeyMap[sleepBalance.dominantSide]),
+									percent: sleepBalance.dominantPercent
+								}
+							})}
+							{#if sleepBalance.dominantSide === 'tummy'}
+								{t('stats.sleep.tummyAddendum')}
+							{/if}
+						</div>
+					{:else if !sleepBalance.needsWarning}
 						<div class="ok-box">
-							Sleep positions look balanced. Keep alternating head direction between sleeps.
+							{t('stats.sleep.balanced')}
 						</div>
 					{/if}
 				{:else}
 					<p class="empty-msg" style="padding: var(--space-3) 0">
-						No completed sleep sessions in the last 7 days yet.
+						{t('stats.sleep.noSessions')}
 					</p>
 				{/if}
 			</div>
@@ -391,32 +412,32 @@
 
 		{#if activeTab === 'diaper'}
 			<div class="chart-card">
-				<h2 class="chart-title">Diaper changes (count/day)</h2>
+				<h2 class="chart-title">{t('stats.diaper.chartTitle')}</h2>
 				<BarChart data={diaperBarData} color="var(--diaper-solid)" showValues={true} />
 			</div>
 
 			<div class="stat-grid">
 				<div class="stat-card">
 					<span class="stat-value">{totalDiapers}</span>
-					<span class="stat-label">Total Changes</span>
+					<span class="stat-label">{t('stats.diaper.totalChanges')}</span>
 				</div>
 				<div class="stat-card">
 					<span class="stat-value">
 						{dailyTotals.length > 0 ? (totalDiapers / dailyTotals.length).toFixed(1) : '0'}
 					</span>
-					<span class="stat-label">Avg / Day</span>
+					<span class="stat-label">{t('stats.diaper.avgPerDay')}</span>
 				</div>
 				<div class="stat-card">
 					<span class="stat-value">
 						{dailyTotals.reduce((acc, d) => acc + d.poopCount, 0)}
 					</span>
-					<span class="stat-label">Poop</span>
+					<span class="stat-label">{t('stats.diaper.poop')}</span>
 				</div>
 				<div class="stat-card">
 					<span class="stat-value">
 						{dailyTotals.reduce((acc, d) => acc + d.diaperCount - d.poopCount, 0)}
 					</span>
-					<span class="stat-label">Pee Only</span>
+					<span class="stat-label">{t('stats.diaper.peeOnly')}</span>
 				</div>
 			</div>
 		{/if}
