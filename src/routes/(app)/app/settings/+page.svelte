@@ -139,7 +139,9 @@
 				{/if}
 
 				<div class="form-row">
-					<Button variant="primary" size="sm" type="submit" loading={saving}>Save</Button>
+					<Button variant="primary" size="sm" type="submit" loading={saving}
+						>{t('common.save')}</Button
+					>
 				</div>
 			</form>
 		</section>
