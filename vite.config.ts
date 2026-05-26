@@ -29,9 +29,14 @@ const appScope = `${basePath}/`;
 const appShellPath = `${appPath}.html`;
 const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ command, mode }) => {
 	const env = loadEnv(mode, process.cwd(), '');
-	validateRequiredEnv(env);
+	const shouldValidateEnv =
+		(command === 'serve' || command === 'build') && mode !== 'test' && !process.env.VITEST;
+
+	if (shouldValidateEnv) {
+		validateRequiredEnv(env);
+	}
 
 	const config = {
 		plugins: [
