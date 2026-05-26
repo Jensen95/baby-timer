@@ -42,7 +42,7 @@
 	});
 
 	let bottomOffset = $derived(
-		`calc(var(--bottom-nav-h) + (var(--active-bar-h) * ${activeRows}) + var(--space-4)))`
+		`calc(var(--bottom-nav-h) + (var(--active-bar-h) * ${activeRows}) + var(--space-2))`
 	);
 
 	async function openQuickAction(action: QuickAction) {
