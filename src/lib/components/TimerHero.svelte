@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { getNow, startTick, stopTick } from '$lib/state/time.svelte';
-	import { formatHeadSideLabel } from '$lib/sessions/sleep-balance';
 	import { HEAD_SIDES } from '$lib/sessions/sleep-balance';
 	import type { ActiveTimer } from '$lib/timer/active-timers.svelte';
+	import { t } from '@sveltia/i18n';
 	import OptionGrid from './OptionGrid.svelte';
 	import Button from './Button.svelte';
 
@@ -16,22 +16,32 @@
 
 	let { timer, babyName, onstop, onsidechange }: Props = $props();
 
-	const typeLabels: Record<ActiveTimer['type'], string> = {
-		feed: 'FEEDING',
-		sleep: 'SLEEP',
-		pump: 'PUMP'
+	let typeLabels = $derived({
+		feed: t('timer.type.feed'),
+		sleep: t('timer.type.sleep'),
+		pump: t('timer.type.pump')
+	});
+
+	let sideOptions = $derived([
+		{ value: 'left', label: t('track.options.left') },
+		{ value: 'right', label: t('track.options.right') },
+		{ value: 'both', label: t('track.options.both') }
+	]);
+
+	const headSideKeyMap: Record<string, string> = {
+		left: 'track.options.headLeft',
+		right: 'track.options.headRight',
+		back: 'track.options.back',
+		tummy: 'track.options.tummy',
+		side: 'track.options.side'
 	};
 
-	const sideOptions = [
-		{ value: 'left', label: 'Left' },
-		{ value: 'right', label: 'Right' },
-		{ value: 'both', label: 'Both' }
-	];
-
-	const positionOptions = HEAD_SIDES.map((side) => ({
-		value: side,
-		label: formatHeadSideLabel(side)
-	}));
+	let positionOptions = $derived(
+		HEAD_SIDES.map((side) => ({
+			value: side,
+			label: t(headSideKeyMap[side])
+		}))
+	);
 
 	let options = $derived(timer.type === 'sleep' ? positionOptions : sideOptions);
 
@@ -55,7 +65,7 @@
 	// Only changes on the minute boundary so the live region announces at most once per minute.
 	let elapsedMinutes = $derived(Math.floor(elapsedSeconds / 60));
 	let announcement = $derived(
-		`${typeLabels[timer.type]}, ${elapsedMinutes} ${elapsedMinutes === 1 ? 'minute' : 'minutes'}`
+		t('timer.elapsed', { values: { type: typeLabels[timer.type], count: elapsedMinutes } })
 	);
 
 	let stopping = $state(false);
@@ -100,11 +110,11 @@
 			variant="danger"
 			size="lg"
 			loading={stopping}
-			ariaLabel="Stop {timer.type} timer"
+			ariaLabel={t('timer.stopTimerLabel', { values: { type: typeLabels[timer.type] } })}
 			onclick={handleStop}
 			class="stop-button"
 		>
-			STOP
+			{t('timer.stop')}
 		</Button>
 	</div>
 

@@ -2,6 +2,7 @@
 	import type { Component } from 'svelte';
 	import type { IconProps } from '@lucide/svelte';
 	import type { SessionType } from '$lib/types';
+	import { t } from '@sveltia/i18n';
 
 	interface Props {
 		type: SessionType;
@@ -28,7 +29,9 @@
 	class="tile type-{type}"
 	{disabled}
 	title={disabled && disabledReason ? disabledReason : undefined}
-	aria-label={disabled && disabledReason ? `${label} — ${disabledReason}` : `Start ${label}`}
+	aria-label={disabled && disabledReason
+		? `${label} — ${disabledReason}`
+		: t('track.startLabel', { values: { label } })}
 	onclick={onstart}
 >
 	<span class="icon" aria-hidden="true">
@@ -38,7 +41,7 @@
 	{#if lastSummary}
 		<span class="last">{lastSummary}</span>
 	{:else}
-		<span class="last empty">Tap to start</span>
+		<span class="last empty">{t('common.tapToStart')}</span>
 	{/if}
 	{#if disabled && disabledReason}
 		<span class="reason">{disabledReason}</span>

@@ -4,6 +4,7 @@
 	import { base } from '$app/paths';
 	import { Baby, Milk, Moon, Wind, type Icon as LucideIcon } from '@lucide/svelte';
 	import { getActiveTimers, canStartTimer } from '$lib/timer/active-timers.svelte';
+	import { t } from '@sveltia/i18n';
 
 	interface Props {
 		babyId: string | null;
@@ -17,12 +18,12 @@
 		icon: typeof LucideIcon;
 	}
 
-	const ACTIONS: QuickActionItem[] = [
-		{ action: 'feed', label: 'Feed', icon: Milk },
-		{ action: 'sleep', label: 'Sleep', icon: Moon },
-		{ action: 'pump', label: 'Pump', icon: Wind },
-		{ action: 'diaper', label: 'Diaper', icon: Baby }
-	];
+	let ACTIONS = $derived([
+		{ action: 'feed' as QuickAction, label: t('track.feed'), icon: Milk },
+		{ action: 'sleep' as QuickAction, label: t('track.sleep'), icon: Moon },
+		{ action: 'pump' as QuickAction, label: t('track.pump'), icon: Wind },
+		{ action: 'diaper' as QuickAction, label: t('track.diaper'), icon: Baby }
+	]);
 
 	let { babyId }: Props = $props();
 	let isTrackPage = $derived(page.url.pathname === `${base}/app`);
@@ -54,14 +55,14 @@
 </script>
 
 {#if visibleActions.length > 0}
-	<nav class="quick-actions" style:bottom={bottomOffset} aria-label="Quick tracking actions">
+	<nav class="quick-actions" style:bottom={bottomOffset} aria-label={t('quickActions.navLabel')}>
 		{#each visibleActions as item (item.action)}
 			{@const Icon = item.icon}
 			<button
 				type="button"
 				class="action action-{item.action}"
 				onclick={() => openQuickAction(item.action)}
-				aria-label={`Quick start ${item.label}`}
+				aria-label={t('quickActions.startLabel', { values: { label: item.label } })}
 			>
 				<span class="icon" aria-hidden="true"><Icon size={16} /></span>
 				<span class="label">{item.label}</span>

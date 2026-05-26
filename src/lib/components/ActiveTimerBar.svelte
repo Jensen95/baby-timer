@@ -11,6 +11,7 @@
 		type ActiveTimer
 	} from '$lib/timer/active-timers.svelte';
 	import { BABY_STATE_KEY, type BabyState } from '$lib/state/baby.svelte';
+	import { t } from '@sveltia/i18n';
 
 	interface Props {
 		babyId: string | null;
@@ -20,11 +21,11 @@
 
 	const babyState = getContext<BabyState | undefined>(BABY_STATE_KEY);
 
-	const typeLabels: Record<ActiveTimer['type'], string> = {
-		feed: 'FEEDING',
-		sleep: 'SLEEP',
-		pump: 'PUMP'
-	};
+	let typeLabels = $derived({
+		feed: t('timer.type.feed'),
+		sleep: t('timer.type.sleep'),
+		pump: t('timer.type.pump')
+	});
 
 	const typeIcons: Record<ActiveTimer['type'], typeof LucideIcon> = {
 		feed: Milk,
@@ -88,13 +89,17 @@
 		class="active-bar"
 		class:stacked={activeTimers.length > 1}
 		role="status"
-		aria-label="Active timers"
+		aria-label={t('timer.activeTimersLabel')}
 	>
 		{#each activeTimers as timer (timer.localId)}
 			{@const Icon = typeIcons[timer.type]}
 			{@const name = babyNameFor(timer)}
 			<div class="row type-{timer.type}">
-				<a href="{base}/app" class="bar-link" aria-label="View {typeLabels[timer.type]} timer">
+				<a
+					href="{base}/app"
+					class="bar-link"
+					aria-label={t('timer.viewTimerLabel', { values: { type: typeLabels[timer.type] } })}
+				>
 					<span class="type-icon" aria-hidden="true"><Icon size={20} /></span>
 					<span class="type-label">{typeLabels[timer.type]}</span>
 					{#if name}<span class="baby-name">&middot; {name}</span>{/if}
@@ -104,10 +109,10 @@
 					class="stop-button"
 					type="button"
 					disabled={stoppingIds.has(timer.localId)}
-					aria-label="Stop {typeLabels[timer.type]} timer"
+					aria-label={t('timer.stopTimerLabel', { values: { type: typeLabels[timer.type] } })}
 					onclick={() => handleStop(timer)}
 				>
-					{stoppingIds.has(timer.localId) ? '…' : 'STOP'}
+					{stoppingIds.has(timer.localId) ? '…' : t('timer.stop')}
 				</button>
 			</div>
 		{/each}
