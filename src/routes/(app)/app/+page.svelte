@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
+	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
 	import type { Component } from 'svelte';
 	import { base } from '$app/paths';
 	import { Milk, Moon, Wind, Baby } from '@lucide/svelte';
@@ -118,10 +120,13 @@
 	let feedTimer = $derived(babyId ? getActiveTimer(babyId, 'feed') : null);
 	let sleepTimer = $derived(babyId ? getActiveTimer(babyId, 'sleep') : null);
 	let pumpTimer = $derived(babyId ? getActiveTimer(babyId, 'pump') : null);
+	let hasActiveTimer = $derived(Boolean(feedTimer || sleepTimer || pumpTimer));
 
 	let feedCanStart = $derived(babyId ? canStartTimer(babyId, 'feed') : null);
 	let sleepCanStart = $derived(babyId ? canStartTimer(babyId, 'sleep') : null);
 	let pumpCanStart = $derived(babyId ? canStartTimer(babyId, 'pump') : null);
+
+	type QuickAction = 'feed' | 'sleep' | 'pump' | 'diaper';
 
 	let loaded = false;
 
@@ -173,6 +178,31 @@
 		}
 		restoreActiveTimers(id);
 		loadSessions(id);
+	});
+
+	function clearQuickActionParam() {
+		const params = new URLSearchParams(page.url.searchParams);
+		params.delete('quickAction');
+		const query = params.toString();
+		const target = query ? `${page.url.pathname}?${query}` : page.url.pathname;
+		goto(target, { replaceState: true, keepFocus: true, noScroll: true });
+	}
+
+	$effect(() => {
+		const action = page.url.searchParams.get('quickAction') as QuickAction | null;
+		if (!action || !babyId) return;
+
+		if (action === 'feed' && feedCanStart?.allowed) {
+			feedSheetOpen = true;
+		} else if (action === 'sleep' && sleepCanStart?.allowed) {
+			sleepSheetOpen = true;
+		} else if (action === 'pump' && pumpCanStart?.allowed) {
+			pumpSheetOpen = true;
+		} else if (action === 'diaper') {
+			diaperSheetOpen = true;
+		}
+
+		clearQuickActionParam();
 	});
 
 	async function loadSessions(id: string) {
@@ -453,7 +483,7 @@
 	}
 </script>
 
-<div class="page">
+<div class="page" class:has-active-timer={hasActiveTimer}>
 	{#if pageLoading}
 		<p class="loading-msg">Loading…</p>
 	{:else if !babyId}
@@ -662,6 +692,16 @@
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-6);
+	}
+
+	@media (max-width: 768px) {
+		.page {
+			padding-bottom: calc(var(--bottom-nav-h) + 64px + var(--space-6));
+		}
+
+		.page.has-active-timer {
+			padding-bottom: calc(var(--bottom-nav-h) + var(--active-bar-h) + 64px + var(--space-6));
+		}
 	}
 
 	.loading-msg {
