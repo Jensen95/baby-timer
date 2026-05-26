@@ -31,8 +31,12 @@ const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$
 
 export default defineConfig(({ command, mode }) => {
 	const env = loadEnv(mode, process.cwd(), '');
+	const isSvelteCheck = process.argv.some((arg) => arg.includes('svelte-check'));
 	const shouldValidateEnv =
-		(command === 'serve' || command === 'build') && mode !== 'test' && !process.env.VITEST;
+		(command === 'serve' || command === 'build') &&
+		mode !== 'test' &&
+		!process.env.VITEST &&
+		!isSvelteCheck;
 
 	if (shouldValidateEnv) {
 		validateRequiredEnv(env);
