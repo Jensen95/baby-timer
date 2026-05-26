@@ -124,8 +124,15 @@
 		</section>
 
 		<section class="section-card">
+			<h2 class="section-title">Family management</h2>
+			<a href="{base}/app/family" class="action-link manage-family-link">
+				Manage family members, babies, and invites
+			</a>
+		</section>
+
+		<section class="section-card">
 			<h2 class="section-title">Account</h2>
-			<a href="{base}/logout" class="sign-out-link">Sign out</a>
+			<a href="{base}/logout" class="action-link sign-out-link">Sign out</a>
 		</section>
 	{:else}
 		<section class="section-card">
@@ -259,7 +266,7 @@
 		font-size: var(--font-size-2);
 		padding: var(--space-3) 0;
 	}
-	.sign-out-link {
+	.action-link {
 		display: flex;
 		width: 100%;
 		text-align: center;
@@ -276,6 +283,7 @@
 		transition: background var(--duration-fast);
 		box-sizing: border-box;
 	}
+	.manage-family-link:hover,
 	.sign-out-link:hover {
 		background: var(--surface-2);
 	}
