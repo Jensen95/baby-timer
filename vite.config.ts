@@ -33,13 +33,16 @@ export default defineConfig(({ mode }) => {
 	const env = loadEnv(mode, process.cwd(), '');
 	validateRequiredEnv(env);
 
-	return {
+	const config = {
 		plugins: [
 			sveltekit(),
 			VitePWA({
 				registerType: 'autoUpdate',
-				injectRegister: null,
+				injectRegister: 'auto',
 				strategies: 'generateSW',
+				devOptions: {
+					enabled: false
+				},
 				includeAssets: ['favicon.svg', 'favicon.png', 'robots.txt'],
 				manifest: {
 					name: 'Baby Timer',
@@ -49,7 +52,7 @@ export default defineConfig(({ mode }) => {
 					background_color: '#fdf6f9',
 					display: 'standalone',
 					orientation: 'portrait',
-					start_url: appShellPath,
+					start_url: appPath,
 					scope: appScope,
 					icons: [
 						{
@@ -76,9 +79,14 @@ export default defineConfig(({ mode }) => {
 			})
 		],
 
-		// @ts-expect-error — vitest reads `test` from vite config at runtime
 		test: {
 			include: ['src/**/*.{test,spec}.{js,ts}']
 		}
+	} satisfies import('vite').UserConfig & {
+		test: {
+			include: string[];
+		};
 	};
+
+	return config;
 });
