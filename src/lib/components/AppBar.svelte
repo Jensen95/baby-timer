@@ -2,6 +2,7 @@
 	import { base } from '$app/paths';
 	import { page } from '$app/stores';
 	import { Sun, Moon, Sunset, Cloud, Settings } from '@lucide/svelte';
+	import { t } from '@sveltia/i18n';
 	import BabySelector from './BabySelector.svelte';
 	import { getTheme, setTheme, THEMES } from '$lib/state/theme.svelte';
 	import type { Theme } from '$lib/state/theme.svelte';
@@ -33,12 +34,12 @@
 		grey: 'light'
 	};
 
-	const appNavItems: AppNavItem[] = [
-		{ href: `${base}/app`, label: 'Track', exact: true },
-		{ href: `${base}/app/history`, label: 'History', exact: false },
-		{ href: `${base}/app/stats`, label: 'Insights', exact: false },
-		{ href: `${base}/app/settings`, label: 'More', exact: false }
-	];
+	let appNavItems = $derived([
+		{ href: `${base}/app`, label: t('nav.track'), exact: true },
+		{ href: `${base}/app/history`, label: t('nav.history'), exact: false },
+		{ href: `${base}/app/stats`, label: t('nav.insights'), exact: false },
+		{ href: `${base}/app/settings`, label: t('nav.more'), exact: false }
+	]);
 
 	function isActive(href: string, exact: boolean): boolean {
 		const path = $page.url.pathname;
@@ -54,7 +55,7 @@
 	<div class="appbar__left">
 		<BabySelector />
 	</div>
-	<nav class="appbar__nav" aria-label="primary navigation">
+	<nav class="appbar__nav" aria-label={t('appBar.primaryNavLabel')}>
 		{#each appNavItems as item}
 			<a href={item.href} class="appbar__nav-link" class:active={isActive(item.href, item.exact)}>
 				{item.label}
@@ -66,11 +67,11 @@
 			class="icon-btn"
 			type="button"
 			onclick={cycleTheme}
-			aria-label="Switch to {nextThemeLabel} theme"
+			aria-label={t('appBar.switchThemeTo', { values: { theme: nextThemeLabel } })}
 		>
 			<ThemeIcon size={20} aria-hidden="true" />
 		</button>
-		<a href="{base}/app/settings" class="icon-btn" aria-label="Settings">
+		<a href="{base}/app/settings" class="icon-btn" aria-label={t('appBar.settingsLabel')}>
 			<Settings size={20} aria-hidden="true" />
 		</a>
 	</div>

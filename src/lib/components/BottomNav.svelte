@@ -2,6 +2,7 @@
 	import { page } from '$app/stores';
 	import { base } from '$app/paths';
 	import { Timer, List, ChartNoAxesColumn, Ellipsis } from '@lucide/svelte';
+	import { t } from '@sveltia/i18n';
 
 	interface NavItem {
 		href: string;
@@ -10,12 +11,12 @@
 		exact: boolean;
 	}
 
-	const navItems: NavItem[] = [
-		{ href: `${base}/app`, label: 'Track', icon: Timer, exact: true },
-		{ href: `${base}/app/history`, label: 'History', icon: List, exact: false },
-		{ href: `${base}/app/stats`, label: 'Insights', icon: ChartNoAxesColumn, exact: false },
-		{ href: `${base}/app/settings`, label: 'More', icon: Ellipsis, exact: false }
-	];
+	let navItems = $derived([
+		{ href: `${base}/app`, label: t('nav.track'), icon: Timer, exact: true },
+		{ href: `${base}/app/history`, label: t('nav.history'), icon: List, exact: false },
+		{ href: `${base}/app/stats`, label: t('nav.insights'), icon: ChartNoAxesColumn, exact: false },
+		{ href: `${base}/app/settings`, label: t('nav.more'), icon: Ellipsis, exact: false }
+	]);
 
 	function isActive(href: string, exact: boolean): boolean {
 		const path = $page.url.pathname;
@@ -23,7 +24,7 @@
 	}
 </script>
 
-<nav class="bottom-nav" aria-label="bottom navigation">
+<nav class="bottom-nav" aria-label={t('nav.bottomNavLabel')}>
 	{#each navItems as item}
 		{@const active = isActive(item.href, item.exact)}
 		<a href={item.href} class="bottom-nav-item" class:active aria-label={item.label}>
