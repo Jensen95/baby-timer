@@ -47,6 +47,9 @@ jobs:
   typecheck:
     needs: install
     runs-on: ubuntu-latest
+    env:
+      PUBLIC_SUPABASE_URL: ${{ secrets.PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co' }}
+      PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key' }}
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
