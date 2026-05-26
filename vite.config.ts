@@ -35,7 +35,7 @@ export default defineConfig(({ command, mode }) => {
 	const isRunningTypecheckScript =
 		npmLifecycleEvent === 'check' ||
 		npmLifecycleEvent === 'check:watch' ||
-		process.argv.some((arg) => arg.includes('svelte-check'));
+		process.argv.some((arg) => /(^|[\\/])svelte-check(?=$|[\\/]|\.c?js$)/.test(arg));
 	const shouldValidateEnv =
 		(command === 'serve' || command === 'build') &&
 		mode !== 'test' &&
