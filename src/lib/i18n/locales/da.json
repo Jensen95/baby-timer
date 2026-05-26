@@ -20,7 +20,13 @@
 		"track": "Spor",
 		"history": "Historik",
 		"insights": "Indsigt",
-		"more": "Mere"
+		"more": "Mere",
+		"bottomNavLabel": "bundnavigation"
+	},
+	"appBar": {
+		"primaryNavLabel": "primær navigation",
+		"switchThemeTo": "Skift til {$theme}-tema",
+		"settingsLabel": "Indstillinger"
 	},
 	"landing": {
 		"title": "Baby Tracker",
@@ -69,6 +75,7 @@
 		"sleep": "Søvn",
 		"pump": "Pumpe",
 		"diaper": "Ble",
+		"startLabel": "Start {$label}",
 		"startFeeding": "Start amning",
 		"startSleep": "Start søvn",
 		"startPump": "Start pumpning",
@@ -100,9 +107,18 @@
 			"pump": "PUMPE"
 		},
 		"stop": "STOP",
-		"elapsed": ".input {$count :integer}\n.match $count\n  one {{{$type}, {$count} minut}}\n  *   {{{$type}, {$count} minutter}}"
+		"stopping": "…",
+		"elapsed": ".input {$count :integer}\n.match $count\n  one {{{$type}, {$count} minut}}\n  *   {{{$type}, {$count} minutter}}",
+		"activeTimersLabel": "Aktive timere",
+		"viewTimerLabel": "Se {$type}-timer",
+		"stopTimerLabel": "Stop {$type}-timer"
+	},
+	"quickActions": {
+		"navLabel": "Hurtige handlinger",
+		"startLabel": "Hurtig start {$label}"
 	},
 	"sessions": {
+		"bothContent": "Afføring + Urin",
 		"types": {
 			"feed": "Amning",
 			"sleep": "Søvn",
@@ -172,6 +188,8 @@
 			"sessions": "Sessioner",
 			"positionBalance": "Søvnpositionsbalance",
 			"balanced": "Søvnpositionerne ser balancerede ud. Fortsæt med at skifte hovedretning mellem søvn.",
+			"positionWarning": "Søvnen har overvejende været {$side} ({$percent}%). Prøv at skifte positioner mellem lure for at undgå for meget pres på ét sted på hovedet.",
+			"tummyAddendum": "For sikker søvn, læg babyen på ryggen, medmindre din læge siger noget andet.",
 			"noSessions": "Ingen afsluttede søvnsessioner i de seneste 7 dage endnu."
 		},
 		"diaper": {
@@ -226,7 +244,10 @@
 	"babySelector": {
 		"selectBaby": "Vælg baby",
 		"switchBaby": "Skift baby",
-		"manageBabies": "Administrer babyer"
+		"manageBabies": "Administrer babyer",
+		"newborn": "nyfødt",
+		"ageMonths": "{$months}m",
+		"ageYearsMonths": "{$years}å {$months}m"
 	},
 	"charts": {
 		"timeline6am": "6",

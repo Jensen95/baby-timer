@@ -20,7 +20,13 @@
 		"track": "Track",
 		"history": "History",
 		"insights": "Insights",
-		"more": "More"
+		"more": "More",
+		"bottomNavLabel": "bottom navigation"
+	},
+	"appBar": {
+		"primaryNavLabel": "primary navigation",
+		"switchThemeTo": "Switch to {$theme} theme",
+		"settingsLabel": "Settings"
 	},
 	"landing": {
 		"title": "Baby Tracker",
@@ -69,6 +75,7 @@
 		"sleep": "Sleep",
 		"pump": "Pump",
 		"diaper": "Diaper",
+		"startLabel": "Start {$label}",
 		"startFeeding": "Start feeding",
 		"startSleep": "Start sleep",
 		"startPump": "Start pump",
@@ -100,9 +107,18 @@
 			"pump": "PUMP"
 		},
 		"stop": "STOP",
-		"elapsed": ".input {$count :integer}\n.match $count\n  one {{{$type}, {$count} minute}}\n  *   {{{$type}, {$count} minutes}}"
+		"stopping": "…",
+		"elapsed": ".input {$count :integer}\n.match $count\n  one {{{$type}, {$count} minute}}\n  *   {{{$type}, {$count} minutes}}",
+		"activeTimersLabel": "Active timers",
+		"viewTimerLabel": "View {$type} timer",
+		"stopTimerLabel": "Stop {$type} timer"
+	},
+	"quickActions": {
+		"navLabel": "Quick tracking actions",
+		"startLabel": "Quick start {$label}"
 	},
 	"sessions": {
+		"bothContent": "Poop + Pee",
 		"types": {
 			"feed": "Feeding",
 			"sleep": "Sleep",
@@ -172,6 +188,8 @@
 			"sessions": "Sessions",
 			"positionBalance": "Sleep position balance",
 			"balanced": "Sleep positions look balanced. Keep alternating head direction between sleeps.",
+			"positionWarning": "Sleep has been mostly {$side} ({$percent}%). Try rotating positions between naps to avoid too much pressure on one area of the head.",
+			"tummyAddendum": "For safe sleep, place baby on their back unless your pediatrician says otherwise.",
 			"noSessions": "No completed sleep sessions in the last 7 days yet."
 		},
 		"diaper": {
@@ -226,7 +244,10 @@
 	"babySelector": {
 		"selectBaby": "Select baby",
 		"switchBaby": "Switch baby",
-		"manageBabies": "Manage babies"
+		"manageBabies": "Manage babies",
+		"newborn": "newborn",
+		"ageMonths": "{$months}m",
+		"ageYearsMonths": "{$years}y {$months}m"
 	},
 	"charts": {
 		"timeline6am": "6am",
