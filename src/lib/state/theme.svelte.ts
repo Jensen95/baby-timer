@@ -25,9 +25,9 @@ function readStoredTheme(): Theme | null {
 	return null;
 }
 
-function applyTheme(theme: Theme) {
+function applyTheme(_theme: Theme) {
 	if (typeof document === 'undefined') return;
-	document.documentElement.dataset.theme = theme;
+	document.documentElement.dataset.theme = _theme;
 }
 
 let theme = $state<Theme>(readStoredTheme() ?? getSystemTheme());

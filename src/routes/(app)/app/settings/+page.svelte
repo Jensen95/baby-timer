@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
-	import { base } from '$app/paths';
+	import { base, resolve } from '$app/paths';
+	import { goto } from '$app/navigation';
 	import { SESSION_KEY } from '$lib/auth/context';
 	import type { SessionStore } from '$lib/auth/context';
 	import { supabase } from '$lib/supabase';
@@ -57,9 +58,20 @@
 			saving = false;
 		}
 	}
+
+	async function handleBack() {
+		if (typeof window !== 'undefined' && window.history.length > 1) {
+			window.history.back();
+			return;
+		}
+		await goto(`${resolve('/app')}`);
+	}
 </script>
 
 <div class="page">
+	<div class="page-header">
+		<button type="button" class="back-btn" onclick={handleBack} aria-label="Go back"> Back </button>
+	</div>
 	<h1 class="page-title">Settings</h1>
 
 	<section class="section-card">
@@ -128,6 +140,30 @@
 		padding: var(--space-4) var(--space-4) calc(var(--bottom-nav-h) + var(--space-6));
 		max-width: 600px;
 		margin: 0 auto;
+	}
+	.page-header {
+		display: flex;
+		align-items: center;
+		justify-content: flex-start;
+		margin-bottom: var(--space-2);
+	}
+	.back-btn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		min-height: 36px;
+		padding: 0 var(--space-3);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-pill);
+		background: var(--surface-2);
+		color: var(--text-2);
+		font-size: var(--font-size-2);
+		font-weight: var(--fw-semibold);
+		cursor: pointer;
+	}
+	.back-btn:hover {
+		background: var(--surface-3);
+		color: var(--text);
 	}
 	.page-title {
 		font-size: var(--font-size-5);

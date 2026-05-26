@@ -10,6 +10,7 @@
 	import { createFamily } from '$lib/db/family';
 	import { supabase } from '$lib/supabase';
 	import ActiveTimerBar from '$lib/components/ActiveTimerBar.svelte';
+	import QuickActionBar from '$lib/components/QuickActionBar.svelte';
 
 	const session = getContext<SessionStore>(SESSION_KEY);
 	const sync = getContext<SyncEngineStore>(SYNC_KEY);
@@ -54,6 +55,7 @@
 		</div>
 	{/if}
 	{@render children()}
+	<QuickActionBar babyId={babyState?.selectedBabyId ?? null} />
 	<ActiveTimerBar babyId={babyState?.selectedBabyId ?? null} />
 {/if}
 

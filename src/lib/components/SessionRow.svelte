@@ -46,6 +46,8 @@
 	let menuOpen = $state(false);
 	let menuButtonEl = $state<HTMLElement | null>(null);
 	let menuPopoverEl = $state<HTMLElement | null>(null);
+	let popoverTop = $state(0);
+	let popoverRight = $state(0);
 
 	function closeMenu() {
 		menuOpen = false;
@@ -206,6 +208,15 @@
 				return 'diaper';
 		}
 	});
+
+	function portal(node: HTMLElement) {
+		document.body.appendChild(node);
+		return {
+			destroy() {
+				node.remove();
+			}
+		};
+	}
 </script>
 
 <div class="row-wrapper" class:row-wrapper--last={isLast}>
@@ -269,6 +280,18 @@
 				aria-haspopup="menu"
 				onclick={(e) => {
 					e.stopPropagation();
+					if (!menuOpen && menuButtonEl) {
+						const rect = menuButtonEl.getBoundingClientRect();
+						const POPOVER_HEIGHT = 88; // ~2 items × 44px
+						const BOTTOM_SAFE = 80; // active timer bar / bottom nav
+						const spaceBelow = window.innerHeight - rect.bottom - BOTTOM_SAFE;
+						if (spaceBelow < POPOVER_HEIGHT) {
+							popoverTop = rect.top - POPOVER_HEIGHT - 4;
+						} else {
+							popoverTop = rect.bottom + 4;
+						}
+						popoverRight = window.innerWidth - rect.right;
+					}
 					menuOpen = !menuOpen;
 				}}
 				onkeydown={handleMenuKeydown}
@@ -293,7 +316,10 @@
 					class="menu-popover"
 					role="menu"
 					tabindex="-1"
+					style:top="{popoverTop}px"
+					style:right="{popoverRight}px"
 					onkeydown={handleMenuKeydown}
+					use:portal
 				>
 					<button
 						class="menu-item"
@@ -488,9 +514,7 @@
 	}
 
 	.menu-popover {
-		position: absolute;
-		right: 0;
-		top: calc(100% + 4px);
+		position: fixed;
 		z-index: 100;
 		background: var(--surface);
 		border: 1px solid var(--border);
