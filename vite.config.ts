@@ -3,7 +3,6 @@ import { defineConfig, loadEnv } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
 const REQUIRED_PUBLIC_ENV_VARS = ['PUBLIC_SUPABASE_URL', 'PUBLIC_SUPABASE_ANON_KEY'] as const;
-const SVELTE_CHECK_EXECUTABLE_PATTERN = /(^|[\\/])svelte-check(?:\.c?js)?$/;
 
 const validateRequiredEnv = (env: Record<string, string>) => {
 	const missingVars = REQUIRED_PUBLIC_ENV_VARS.filter((key) => !env[key]?.trim());
@@ -32,14 +31,16 @@ const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$
 
 export default defineConfig(({ command, mode }) => {
 	const env = loadEnv(mode, process.cwd(), '');
-	const isRunningSvelteCheck = process.argv.some((arg) =>
-		SVELTE_CHECK_EXECUTABLE_PATTERN.test(arg)
-	);
+	const npmLifecycleEvent = process.env.npm_lifecycle_event;
+	const isRunningTypecheckScript =
+		npmLifecycleEvent === 'check' ||
+		npmLifecycleEvent === 'check:watch' ||
+		process.argv.some((arg) => arg.includes('svelte-check'));
 	const shouldValidateEnv =
 		(command === 'serve' || command === 'build') &&
 		mode !== 'test' &&
 		!process.env.VITEST &&
-		!isRunningSvelteCheck;
+		!isRunningTypecheckScript;
 
 	if (shouldValidateEnv) {
 		validateRequiredEnv(env);
