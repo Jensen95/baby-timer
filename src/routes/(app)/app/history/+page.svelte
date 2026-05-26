@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
+	import { t } from '@sveltia/i18n';
 	import { SESSION_KEY } from '$lib/auth/context';
 	import type { SessionStore } from '$lib/auth/context';
 	import { SYNC_KEY } from '$lib/db/sync.svelte';
@@ -164,9 +165,9 @@
 			if (!group) {
 				const label =
 					dateKey === today
-						? 'Today'
+						? t('history.today')
 						: dateKey === yesterday
-							? 'Yesterday'
+							? t('history.yesterday')
 							: new Date(s.started_at).toLocaleDateString([], {
 									weekday: 'short',
 									day: 'numeric',
@@ -237,18 +238,18 @@
 </script>
 
 <div class="page">
-	<h1 class="page-title">History</h1>
+	<h1 class="page-title">{t('history.title')}</h1>
 
 	{#if error}
 		<p class="error-msg" role="alert">{error}</p>
 	{/if}
 
 	{#if !babyState.selectedBabyId}
-		<p class="empty-msg">Select a baby to see history.</p>
+		<p class="empty-msg">{t('history.selectBaby')}</p>
 	{:else if loading}
-		<p class="loading-msg">Loading…</p>
+		<p class="loading-msg">{t('common.loadingEllipsis')}</p>
 	{:else if grouped.length === 0}
-		<p class="empty-msg">No sessions yet. Start tracking!</p>
+		<p class="empty-msg">{t('history.noSessions')}</p>
 	{:else}
 		{#each grouped as group (group.dateKey)}
 			<div class="date-group">

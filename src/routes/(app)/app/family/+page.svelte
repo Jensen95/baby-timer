@@ -316,7 +316,9 @@
 							>
 								{t('common.cancel')}
 							</Button>
-							<Button variant="primary" size="sm" type="submit" loading={saving}>Create</Button>
+							<Button variant="primary" size="sm" type="submit" loading={saving}
+								>{t('family.createFamily')}</Button
+							>
 						</div>
 					</form>
 				{:else}
