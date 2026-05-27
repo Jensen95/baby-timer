@@ -109,7 +109,7 @@ returns text
 language sql
 immutable
 as $$
-	select encode(digest(public.normalize_short_code(raw), 'sha256'), 'hex');
+	select encode(extensions.digest(public.normalize_short_code(raw), 'sha256'), 'hex');
 $$;
 
 create or replace function public.generate_short_code()
@@ -117,7 +117,7 @@ returns text
 language sql
 volatile
 as $$
-	select upper(substr(encode(gen_random_bytes(6), 'hex'), 1, 8));
+	select upper(substr(encode(extensions.gen_random_bytes(6), 'hex'), 1, 8));
 $$;
 
 create or replace function public.create_family_invite_code(
