@@ -307,44 +307,46 @@ begin
 	limit 1;
 
 	loop
-		generated_code := public.generate_short_code();
-		generated_hash := public.short_code_hash(generated_code);
+		begin
+			generated_code := public.generate_short_code();
+			generated_hash := public.short_code_hash(generated_code);
 
-		insert into public.device_link_sessions (
-			requester_user_id,
-			requester_family_id,
-			device_label,
-			user_code_hash,
-			user_code_hint,
-			expires_at
-		)
-		values (
-			auth.uid(),
-			resolved_family_id,
-			device_label,
-			generated_hash,
-			right(generated_code, 4),
-			now() + make_interval(mins => effective_ttl)
-		)
-		returning
-			id,
-			device_link_sessions.approval_qr_token,
-			device_link_sessions.poll_token,
-			device_link_sessions.expires_at
-		into
-			request_id,
-			create_device_link_request.approval_qr_token,
-			create_device_link_request.poll_token,
-			create_device_link_request.expires_at;
+			insert into public.device_link_sessions (
+				requester_user_id,
+				requester_family_id,
+				device_label,
+				user_code_hash,
+				user_code_hint,
+				expires_at
+			)
+			values (
+				auth.uid(),
+				resolved_family_id,
+				device_label,
+				generated_hash,
+				right(generated_code, 4),
+				now() + make_interval(mins => effective_ttl)
+			)
+			returning
+				id,
+				device_link_sessions.approval_qr_token,
+				device_link_sessions.poll_token,
+				device_link_sessions.expires_at
+			into
+				request_id,
+				create_device_link_request.approval_qr_token,
+				create_device_link_request.poll_token,
+				create_device_link_request.expires_at;
 
-		user_code := generated_code;
+			user_code := generated_code;
 
-		return next;
-		return;
-	exception
-		when unique_violation then
-			-- retry on rare collisions
-	end;
+			return next;
+			return;
+		exception
+			when unique_violation then
+				-- retry on rare collisions
+				null;
+		end;
 	end loop;
 end;
 $$;
