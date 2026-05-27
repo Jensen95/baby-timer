@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { captureAndThrow } from '$lib/error-tracking';
 import type { Database } from './database.types';
 
 type Client = SupabaseClient<Database>;
@@ -41,10 +42,10 @@ export async function createDeviceLinkRequest(
 		ttl_minutes: ttlMinutes
 	} as never);
 
-	if (error) throw error;
+	if (error) captureAndThrow(error);
 	const rows = (data as DeviceLinkRequest[] | null) ?? [];
 	if (!rows[0]) {
-		throw new Error('Failed to create device link request');
+		captureAndThrow(new Error('Failed to create device link request'));
 	}
 
 	return rows[0];
@@ -58,7 +59,7 @@ export async function getDeviceLinkStatus(
 		input_poll_token: pollToken
 	} as never);
 
-	if (error) throw error;
+	if (error) captureAndThrow(error);
 	const rows = (data as Omit<DeviceLinkStatus, 'status'>[] | null) ?? [];
 	if (!rows[0]) {
 		return {
@@ -81,7 +82,7 @@ export async function approveDeviceLinkByQr(
 		input_approval_qr_token: approvalQrToken
 	} as never);
 
-	if (error) throw error;
+	if (error) captureAndThrow(error);
 }
 
 export async function approveDeviceLinkByCode(client: Client, userCode: string): Promise<void> {
@@ -89,7 +90,7 @@ export async function approveDeviceLinkByCode(client: Client, userCode: string):
 		input_user_code: userCode
 	} as never);
 
-	if (error) throw error;
+	if (error) captureAndThrow(error);
 }
 
 export async function consumeDeviceLinkRequest(
@@ -100,7 +101,7 @@ export async function consumeDeviceLinkRequest(
 		input_poll_token: pollToken
 	} as never);
 
-	if (error) throw error;
+	if (error) captureAndThrow(error);
 	return (data ?? { status: 'not_found' }) as ConsumedDeviceLink;
 }
 
@@ -113,6 +114,6 @@ export async function exchangeDeviceLinkRequest(
 		body: { pollToken }
 	});
 
-	if (error) throw error;
+	if (error) captureAndThrow(error);
 	return (data ?? { status: 'not_found' }) as DeviceLinkExchangeResult;
 }

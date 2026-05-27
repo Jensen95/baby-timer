@@ -46,6 +46,7 @@
 	"type": "module",
 	"dependencies": {
 		"@fontsource/nunito": "^5.2.7",
+		"@sentry/sveltekit": "^10.54.0",
 		"@supabase/supabase-js": "^2.106.2",
 		"@sveltia/i18n": "^1.1.1",
 		"dexie": "^4.4.2",

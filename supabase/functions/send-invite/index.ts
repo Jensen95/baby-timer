@@ -2,11 +2,14 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import mjml2html from 'npm:mjml';
 import nodemailer from 'npm:nodemailer';
 import { corsHeaders } from '../_shared/cors.ts';
+import { captureException, flush, initErrorTracking } from '../_shared/error-tracking.ts';
 
 const supabase = createClient(
 	Deno.env.get('SUPABASE_URL')!,
 	Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 );
+
+initErrorTracking('send-invite');
 
 interface InvitePayload {
 	familyId: string;
@@ -123,95 +126,111 @@ async function sendInviteEmail(args: {
 }
 
 Deno.serve(async (req: Request) => {
-	if (req.method === 'OPTIONS') {
-		return new Response('ok', {
-			headers: {
-				...corsHeaders,
-				'Access-Control-Allow-Methods': 'POST, OPTIONS'
+	try {
+		if (req.method === 'OPTIONS') {
+			return new Response('ok', {
+				headers: {
+					...corsHeaders,
+					'Access-Control-Allow-Methods': 'POST, OPTIONS'
+				}
+			});
+		}
+
+		if (req.method !== 'POST') {
+			return new Response('Method not allowed', {
+				status: 405,
+				headers: corsHeaders
+			});
+		}
+
+		let payload: InvitePayload;
+		try {
+			payload = await req.json();
+		} catch {
+			return new Response('Invalid JSON', {
+				status: 400,
+				headers: corsHeaders
+			});
+		}
+
+		const { familyId, inviteeEmail, familyName } = payload;
+
+		if (!familyId || !inviteeEmail) {
+			return new Response('Missing required fields', {
+				status: 400,
+				headers: corsHeaders
+			});
+		}
+
+		console.log(`Invite: ${inviteeEmail} invited to family "${familyName}" (${familyId})`);
+
+		const { data: magicLinkData, error: magicLinkError } = await supabase.auth.admin.generateLink({
+			type: 'magiclink',
+			email: inviteeEmail,
+			options: {
+				redirectTo: `${Deno.env.get('APP_URL') ?? 'https://your-app.github.io'}/app/family`
 			}
 		});
-	}
 
-	if (req.method !== 'POST') {
-		return new Response('Method not allowed', {
-			status: 405,
-			headers: corsHeaders
-		});
-	}
-
-	let payload: InvitePayload;
-	try {
-		payload = await req.json();
-	} catch {
-		return new Response('Invalid JSON', {
-			status: 400,
-			headers: corsHeaders
-		});
-	}
-
-	const { familyId, inviteeEmail, familyName } = payload;
-
-	if (!familyId || !inviteeEmail) {
-		return new Response('Missing required fields', {
-			status: 400,
-			headers: corsHeaders
-		});
-	}
-
-	console.log(`Invite: ${inviteeEmail} invited to family "${familyName}" (${familyId})`);
-
-	const { data: magicLinkData, error: magicLinkError } = await supabase.auth.admin.generateLink({
-		type: 'magiclink',
-		email: inviteeEmail,
-		options: {
-			redirectTo: `${Deno.env.get('APP_URL') ?? 'https://your-app.github.io'}/app/family`
+		if (magicLinkError) {
+			captureException(magicLinkError);
+			return new Response(
+				JSON.stringify({ success: true, emailSent: false, error: magicLinkError.message }),
+				{ headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+			);
 		}
-	});
 
-	if (magicLinkError) {
-		console.error('Failed to generate magic link:', magicLinkError);
-		return new Response(
-			JSON.stringify({ success: true, emailSent: false, error: magicLinkError.message }),
-			{ headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-		);
-	}
+		const magicLink = magicLinkData.properties?.action_link;
+		console.log(`Magic link for ${inviteeEmail}: ${magicLink}`);
 
-	const magicLink = magicLinkData.properties?.action_link;
-	console.log(`Magic link for ${inviteeEmail}: ${magicLink}`);
+		if (!magicLink) {
+			return new Response(
+				JSON.stringify({ success: true, emailSent: false, error: 'Missing invite link' }),
+				{ headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+			);
+		}
 
-	if (!magicLink) {
-		return new Response(
-			JSON.stringify({ success: true, emailSent: false, error: 'Missing invite link' }),
-			{ headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-		);
-	}
+		try {
+			await sendInviteEmail({
+				inviteeEmail,
+				familyName,
+				magicLink
+			});
+		} catch (error) {
+			captureException(error);
+			return new Response(
+				JSON.stringify({
+					success: true,
+					emailSent: false,
+					magicLink,
+					error: error instanceof Error ? error.message : 'Failed to send email'
+				}),
+				{ headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+			);
+		}
 
-	try {
-		await sendInviteEmail({
-			inviteeEmail,
-			familyName,
-			magicLink
-		});
-	} catch (error) {
-		console.error('Failed to send invite email:', error);
 		return new Response(
 			JSON.stringify({
 				success: true,
-				emailSent: false,
-				magicLink,
-				error: error instanceof Error ? error.message : 'Failed to send email'
+				emailSent: true,
+				magicLinkGenerated: true,
+				magicLink
 			}),
 			{ headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
 		);
+	} catch (error) {
+		captureException(error);
+		await flush();
+		return new Response(
+			JSON.stringify({
+				success: false,
+				emailSent: false,
+				error: error instanceof Error ? error.message : 'Unexpected error'
+			}),
+			{
+				status: 500,
+				headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+			}
+		);
 	}
-
-	return new Response(
-		JSON.stringify({
-			success: true,
-			emailSent: true,
-			magicLinkGenerated: true,
-			magicLink
-		}),
-		{ headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-	);
 });

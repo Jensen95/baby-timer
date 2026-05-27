@@ -47,6 +47,9 @@ export default defineConfig(({ command, mode }) => {
 	}
 
 	const config = {
+		define: {
+			'import.meta.env.VITE_RELEASE': JSON.stringify(process.env.GITHUB_SHA ?? '')
+		},
 		plugins: [
 			sveltekit(),
 			VitePWA({

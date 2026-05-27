@@ -43,6 +43,7 @@ npm install
 ```dotenv
 PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+PUBLIC_BUGSINK_DSN=
 ```
 
 1. Push database migrations.
@@ -63,8 +64,17 @@ npm run dev
 2. Add repository secrets in GitHub Settings → Secrets:
    - `PUBLIC_SUPABASE_URL`
    - `PUBLIC_SUPABASE_ANON_KEY`
+   - `PUBLIC_BUGSINK_DSN`
 3. Enable GitHub Pages in Settings → Pages → Source: GitHub Actions
 4. Push to `main` — the deploy workflow runs automatically
+
+### Supabase Edge Function secrets
+
+Set Bugsink DSN for edge-function error reporting:
+
+```bash
+supabase secrets set BUGSINK_DSN=https://9848e4f8dff34803bebb3dda44439340@jensen.bugsink.com/1
+```
 
 ## Development
 

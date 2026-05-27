@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { captureAndThrow, captureException } from '$lib/error-tracking';
 import type { Database, Tables } from './database.types';
 
 type Client = SupabaseClient<Database>;
@@ -66,7 +67,7 @@ export async function getFamily(client: Client, familyId: string): Promise<Famil
 		.eq('id', familyId)
 		.maybeSingle();
 
-	if (error) throw error;
+	if (error) captureAndThrow(error);
 	return data;
 }
 
@@ -76,14 +77,14 @@ export async function getUserFamilies(client: Client): Promise<Family[]> {
 		.select('*')
 		.order('created_at', { ascending: true });
 
-	if (error) throw error;
+	if (error) captureAndThrow(error);
 	return data ?? [];
 }
 
 export async function createFamily(client: Client, name: string): Promise<Family> {
 	const { data, error } = await client.rpc('create_family', { family_name: name } as any);
 
-	if (error) throw error;
+	if (error) captureAndThrow(error);
 	return data as Family;
 }
 
@@ -94,7 +95,7 @@ export async function listFamilyMembers(client: Client, familyId: string): Promi
 		.eq('family_id', familyId)
 		.order('invited_at', { ascending: true });
 
-	if (error) throw error;
+	if (error) captureAndThrow(error);
 	return data ?? [];
 }
 
@@ -109,7 +110,7 @@ export async function listFamilyMemberDetails(
 	// resolve generic RPC arg types for this Database shape.
 	const { data, error } = await client.rpc('list_family_members_with_profiles', args as never);
 
-	if (error) throw error;
+	if (error) captureAndThrow(error);
 	// Attach family_id to each row (the RPC does not return it for invited placeholders)
 	const rows =
 		(data as Database['public']['Functions']['list_family_members_with_profiles']['Returns']) ?? [];
@@ -127,7 +128,7 @@ export async function inviteMember(
 		.select()
 		.single();
 
-	if (error) throw error;
+	if (error) captureAndThrow(error);
 	return data;
 }
 
@@ -143,7 +144,7 @@ export async function inviteMemberByEmail(
 	};
 	const { error } = await client.rpc('add_family_member_by_email', args as never);
 
-	if (error) throw error;
+	if (error) captureAndThrow(error);
 
 	// Best-effort: trigger an invitation email via the edge function.
 	// Failures here are non-fatal; the invite row was already created.
@@ -155,7 +156,8 @@ export async function inviteMemberByEmail(
 		return {
 			magicLink: (data as { magicLink?: string | null } | null)?.magicLink ?? null
 		};
-	} catch {
+	} catch (error) {
+		captureException(error);
 		// Intentionally swallowed – email delivery failure must not block the invite.
 	}
 
@@ -167,7 +169,7 @@ export async function acceptFamilyMembership(client: Client, familyId: string): 
 		target_family_id: familyId
 	} as never);
 
-	if (error) throw error;
+	if (error) captureAndThrow(error);
 }
 
 export async function declineFamilyMembership(client: Client, familyId: string): Promise<void> {
@@ -175,13 +177,13 @@ export async function declineFamilyMembership(client: Client, familyId: string):
 		target_family_id: familyId
 	} as never);
 
-	if (error) throw error;
+	if (error) captureAndThrow(error);
 }
 
 export async function getPendingMemberships(client: Client): Promise<PendingMembership[]> {
 	const { data, error } = await client.rpc('get_pending_memberships', {} as never);
 
-	if (error) throw error;
+	if (error) captureAndThrow(error);
 	return (data ?? []) as PendingMembership[];
 }
 
@@ -196,7 +198,7 @@ export async function removeMember(
 		.eq('family_id', familyId)
 		.eq('user_id', userId);
 
-	if (error) throw error;
+	if (error) captureAndThrow(error);
 }
 
 export async function deleteFamilyInvite(
@@ -210,7 +212,7 @@ export async function deleteFamilyInvite(
 		.eq('family_id', familyId)
 		.eq('email', email.toLowerCase().trim());
 
-	if (error) throw error;
+	if (error) captureAndThrow(error);
 }
 
 export async function createFamilyInviteCode(
@@ -225,10 +227,10 @@ export async function createFamilyInviteCode(
 		max_uses: maxUses
 	} as never);
 
-	if (error) throw error;
+	if (error) captureAndThrow(error);
 	const rows = (data as CreatedFamilyInviteCode[] | null) ?? [];
 	if (!rows[0]) {
-		throw new Error('Failed to create invite code');
+		captureAndThrow(new Error('Failed to create invite code'));
 	}
 
 	return rows[0];
@@ -242,7 +244,7 @@ export async function listActiveFamilyInviteCodes(
 		target_family_id: familyId
 	} as never);
 
-	if (error) throw error;
+	if (error) captureAndThrow(error);
 	return (data ?? []) as FamilyInviteCode[];
 }
 
@@ -256,7 +258,7 @@ export async function revokeFamilyInviteCode(
 		target_code_id: codeId
 	} as never);
 
-	if (error) throw error;
+	if (error) captureAndThrow(error);
 }
 
 export async function joinFamilyByCode(client: Client, code: string): Promise<void> {
@@ -264,5 +266,5 @@ export async function joinFamilyByCode(client: Client, code: string): Promise<vo
 		code_input: code
 	} as never);
 
-	if (error) throw error;
+	if (error) captureAndThrow(error);
 }

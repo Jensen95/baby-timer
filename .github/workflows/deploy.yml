@@ -34,6 +34,7 @@ jobs:
         env:
           PUBLIC_SUPABASE_URL: ${{ secrets.PUBLIC_SUPABASE_URL }}
           PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.PUBLIC_SUPABASE_ANON_KEY }}
+          PUBLIC_BUGSINK_DSN: ${{ secrets.PUBLIC_BUGSINK_DSN }}
           BASE_PATH: /baby-timer
 
       - name: Upload artifact
