@@ -1,6 +1,7 @@
 import type { Session, User } from '@supabase/supabase-js';
 import { resolve } from '$app/paths';
 import { supabase } from '$lib/supabase';
+import { captureException, setTrackingUser } from '$lib/error-tracking';
 
 export function createSession() {
 	let session = $state<Session | null>(null);
@@ -9,11 +10,18 @@ export function createSession() {
 	let hasMigrated = $state(false);
 
 	$effect(() => {
-		supabase.auth.getSession().then(({ data }) => {
-			session = data.session;
-			user = data.session?.user ?? null;
-			loading = false;
-		});
+		supabase.auth
+			.getSession()
+			.then(({ data }) => {
+				session = data.session;
+				user = data.session?.user ?? null;
+				setTrackingUser(data.session?.user ? { id: data.session.user.id } : null);
+				loading = false;
+			})
+			.catch((error) => {
+				captureException(error);
+				loading = false;
+			});
 
 		const {
 			data: { subscription }
@@ -22,6 +30,7 @@ export function createSession() {
 
 			session = newSession;
 			user = newSession?.user ?? null;
+			setTrackingUser(newSession?.user ? { id: newSession.user.id } : null);
 			loading = false;
 
 			if (newSession?.user && (wasSignedOut || _event === 'SIGNED_IN') && !hasMigrated) {
@@ -45,25 +54,36 @@ export function createSession() {
 		redirectPath: string = resolve('/app')
 	) {
 		const normalizedDisplayName = displayName.trim();
-		const { error } = await supabase.auth.signInWithOtp({
-			email,
-			options: {
-				emailRedirectTo: `${window.location.origin}${redirectPath}`,
-				...(normalizedDisplayName
-					? {
-							data: {
-								display_name: normalizedDisplayName
+		try {
+			const { error } = await supabase.auth.signInWithOtp({
+				email,
+				options: {
+					emailRedirectTo: `${window.location.origin}${redirectPath}`,
+					...(normalizedDisplayName
+						? {
+								data: {
+									display_name: normalizedDisplayName
+								}
 							}
-						}
-					: {})
-			}
-		});
-		if (error) throw error;
+						: {})
+				}
+			});
+			if (error) throw error;
+		} catch (error) {
+			captureException(error);
+			throw error;
+		}
 	}
 
 	async function signOut() {
-		const { error } = await supabase.auth.signOut();
-		if (error) throw error;
+		try {
+			const { error } = await supabase.auth.signOut();
+			if (error) throw error;
+			setTrackingUser(null);
+		} catch (error) {
+			captureException(error);
+			throw error;
+		}
 	}
 
 	return {

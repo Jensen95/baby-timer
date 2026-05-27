@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { captureAndThrow } from '$lib/error-tracking';
 import type { Database, Insert, Update, Tables } from './database.types';
 
 type Client = SupabaseClient<Database>;
@@ -14,7 +15,7 @@ export async function startSleep(
 		.select()
 		.single();
 
-	if (error) throw error;
+	if (error) captureAndThrow(error);
 	return data;
 }
 
@@ -26,7 +27,7 @@ export async function stopSleep(client: Client, id: string, endedAt: Date): Prom
 		.select()
 		.single();
 
-	if (error) throw error;
+	if (error) captureAndThrow(error);
 	return data;
 }
 
@@ -42,7 +43,7 @@ export async function listSleepSessions(
 		.order('started_at', { ascending: false })
 		.limit(limit);
 
-	if (error) throw error;
+	if (error) captureAndThrow(error);
 	return data;
 }
 
@@ -59,6 +60,6 @@ export async function getActiveSleepSession(
 		.limit(1)
 		.maybeSingle();
 
-	if (error) throw error;
+	if (error) captureAndThrow(error);
 	return data;
 }

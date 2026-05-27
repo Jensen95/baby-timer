@@ -1,5 +1,6 @@
 import { db } from './local';
 import { supabase } from '$lib/supabase';
+import { captureException } from '$lib/error-tracking';
 
 export const SYNC_KEY = Symbol('sync');
 
@@ -29,7 +30,10 @@ export function createSyncEngine() {
 				const { _sync, ...payload } = baby;
 				const { error: err } = await supabase.from('babies').upsert(payload as any);
 				if (!err) await db.babies.update(baby.id, { _sync: 'synced' });
-				else anyError = true;
+				else {
+					captureException(err);
+					anyError = true;
+				}
 			}
 
 			const pendingFeedings = await db.feeding_sessions.where('_sync').equals('pending').toArray();
@@ -40,7 +44,10 @@ export function createSyncEngine() {
 				const { _sync, ...payload } = feeding;
 				const { error: err } = await supabase.from('feeding_sessions').upsert(payload as any);
 				if (!err) await db.feeding_sessions.update(feeding.id, { _sync: 'synced' });
-				else anyError = true;
+				else {
+					captureException(err);
+					anyError = true;
+				}
 			}
 
 			const pendingSleeps = await db.sleep_sessions.where('_sync').equals('pending').toArray();
@@ -51,7 +58,10 @@ export function createSyncEngine() {
 				const { _sync, ...payload } = sleep;
 				const { error: err } = await supabase.from('sleep_sessions').upsert(payload as any);
 				if (!err) await db.sleep_sessions.update(sleep.id, { _sync: 'synced' });
-				else anyError = true;
+				else {
+					captureException(err);
+					anyError = true;
+				}
 			}
 
 			const pendingPumps = await db.breast_pump_sessions.where('_sync').equals('pending').toArray();
@@ -62,7 +72,10 @@ export function createSyncEngine() {
 				const { _sync, ...payload } = pump;
 				const { error: err } = await supabase.from('breast_pump_sessions').upsert(payload as any);
 				if (!err) await db.breast_pump_sessions.update(pump.id, { _sync: 'synced' });
-				else anyError = true;
+				else {
+					captureException(err);
+					anyError = true;
+				}
 			}
 
 			const pendingDiaperChanges = await db.diaper_change_sessions
@@ -76,7 +89,10 @@ export function createSyncEngine() {
 				const { _sync, ...payload } = diaperChange;
 				const { error: err } = await supabase.from('diaper_change_sessions').upsert(payload as any);
 				if (!err) await db.diaper_change_sessions.update(diaperChange.id, { _sync: 'synced' });
-				else anyError = true;
+				else {
+					captureException(err);
+					anyError = true;
+				}
 			}
 
 			if (anyError) {
@@ -86,6 +102,7 @@ export function createSyncEngine() {
 				lastSyncedAt = new Date();
 			}
 		} catch (e) {
+			captureException(e);
 			error = e instanceof Error ? e.message : 'Sync failed';
 		} finally {
 			syncing = false;

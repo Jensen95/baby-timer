@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { captureAndThrow } from '$lib/error-tracking';
 import type { Database, Insert, Update, Tables } from './database.types';
 
 type Client = SupabaseClient<Database>;
@@ -14,7 +15,7 @@ export async function startFeeding(
 		.select()
 		.single();
 
-	if (error) throw error;
+	if (error) captureAndThrow(error);
 	return data;
 }
 
@@ -30,7 +31,7 @@ export async function stopFeeding(
 		.select()
 		.single();
 
-	if (error) throw error;
+	if (error) captureAndThrow(error);
 	return data;
 }
 
@@ -46,7 +47,7 @@ export async function listFeedingSessions(
 		.order('started_at', { ascending: false })
 		.limit(limit);
 
-	if (error) throw error;
+	if (error) captureAndThrow(error);
 	return data;
 }
 
@@ -63,6 +64,6 @@ export async function getActiveFeedingSession(
 		.limit(1)
 		.maybeSingle();
 
-	if (error) throw error;
+	if (error) captureAndThrow(error);
 	return data;
 }
