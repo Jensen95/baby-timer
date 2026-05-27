@@ -113,7 +113,7 @@ export default defineConfig(({ command, mode }) => {
 						sentryVitePlugin({
 							url: process.env.BUGSINK_URL,
 							authToken: bugsinkAuthToken,
-							org: process.env.BUGSINK_ORG || '',
+							org: process.env.BUGSINK_ORG || undefined,
 							project: process.env.BUGSINK_PROJECT || 'baby-timer',
 							telemetry: false,
 							release: {
