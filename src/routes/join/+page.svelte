@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { base } from '$app/paths';
+	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import { SESSION_KEY } from '$lib/auth/context';
 	import type { SessionStore } from '$lib/auth/context';
@@ -32,7 +32,7 @@
 			if (typeof window !== 'undefined') {
 				window.localStorage.setItem('baby-timer:pending-join-code', normalizedCode);
 			}
-			goto(`${base}/login`);
+			goto(`${resolve('/login')}`);
 			return;
 		}
 
@@ -45,7 +45,7 @@
 				window.localStorage.removeItem('baby-timer:pending-join-code');
 			}
 			setTimeout(() => {
-				goto(`${base}/app/family`);
+				goto(`${resolve('/app/family')}`);
 			}, 750);
 		} catch (e) {
 			error = e instanceof Error ? e.message : t('family.joinByCodeFailed');
@@ -82,7 +82,7 @@
 		{/if}
 
 		<div class="actions">
-			<Button variant="ghost" size="sm" onclick={() => goto(`${base}/app/family`)}>
+			<Button variant="ghost" size="sm" onclick={() => goto(resolve('/app/family'))}>
 				{t('common.cancel')}
 			</Button>
 			<Button variant="primary" size="sm" onclick={handleJoin} loading={joining}>

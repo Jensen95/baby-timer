@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { base } from '$app/paths';
 	import { resolve } from '$app/paths';
 	import { SESSION_KEY } from '$lib/auth/context';
 	import type { SessionStore } from '$lib/auth/context';
@@ -47,12 +46,12 @@
 			if (typeof window !== 'undefined') {
 				const pendingJoinCode = window.localStorage.getItem('baby-timer:pending-join-code');
 				if (pendingJoinCode) {
-					goto(`${base}/join?code=${encodeURIComponent(pendingJoinCode)}`);
+					goto(`${resolve('/join')}?code=${encodeURIComponent(pendingJoinCode)}`);
 					return;
 				}
 			}
 
-			goto(`${base}/app`);
+			goto(resolve('/app'));
 		}
 	});
 
@@ -112,8 +111,8 @@
 					? window.localStorage.getItem('baby-timer:pending-join-code')
 					: null;
 			const redirectPath = pendingJoinCode
-				? `${base}/join?code=${encodeURIComponent(pendingJoinCode)}`
-				: `${base}/app`;
+				? `${resolve('/join')}?code=${encodeURIComponent(pendingJoinCode)}`
+				: `${resolve('/app')}`;
 
 			await session.signInWithMagicLink(email, displayName, redirectPath);
 			sent = true;
@@ -150,7 +149,7 @@
 
 	function handleGuestMode() {
 		getGuestId();
-		goto(`${base}/app`);
+		goto(resolve('/app'));
 	}
 </script>
 

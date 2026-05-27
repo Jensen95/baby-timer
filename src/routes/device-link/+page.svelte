@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { base } from '$app/paths';
+	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import { SESSION_KEY } from '$lib/auth/context';
 	import type { SessionStore } from '$lib/auth/context';
@@ -60,7 +60,7 @@
 
 		{#if !session.user}
 			<p class="error">{t('auth.deviceLinkRequiresSignIn')}</p>
-			<Button variant="primary" size="sm" onclick={() => goto(`${base}/login`)}>
+			<Button variant="primary" size="sm" onclick={() => goto(resolve('/login'))}>
 				{t('auth.sendMagicLink')}
 			</Button>
 		{:else}
