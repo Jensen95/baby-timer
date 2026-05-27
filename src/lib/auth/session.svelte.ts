@@ -1,5 +1,5 @@
 import type { Session, User } from '@supabase/supabase-js';
-import { base } from '$app/paths';
+import { resolve } from '$app/paths';
 import { supabase } from '$lib/supabase';
 
 export function createSession() {
@@ -39,12 +39,16 @@ export function createSession() {
 		return () => subscription.unsubscribe();
 	});
 
-	async function signInWithMagicLink(email: string, displayName = '') {
+	async function signInWithMagicLink(
+		email: string,
+		displayName = '',
+		redirectPath: string = resolve('/app')
+	) {
 		const normalizedDisplayName = displayName.trim();
 		const { error } = await supabase.auth.signInWithOtp({
 			email,
 			options: {
-				emailRedirectTo: `${window.location.origin}${base}/app`,
+				emailRedirectTo: `${window.location.origin}${redirectPath}`,
 				...(normalizedDisplayName
 					? {
 							data: {

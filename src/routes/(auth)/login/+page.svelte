@@ -1,12 +1,21 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { base } from '$app/paths';
+	import { resolve } from '$app/paths';
 	import { SESSION_KEY } from '$lib/auth/context';
 	import type { SessionStore } from '$lib/auth/context';
+	import { supabase } from '$lib/supabase';
 	import { getGuestId } from '$lib/offline/guest';
+	import {
+		createDeviceLinkRequest,
+		exchangeDeviceLinkRequest,
+		getDeviceLinkStatus,
+		type DeviceLinkRequest,
+		type DeviceLinkStatus
+	} from '$lib/db/device-link';
 	import { t } from '@sveltia/i18n';
 	import Button from '$lib/components/Button.svelte';
+	import QrCode from '$lib/components/QrCode.svelte';
 
 	const session = getContext<SessionStore>(SESSION_KEY);
 
@@ -15,11 +24,87 @@
 	let sent = $state(false);
 	let error = $state('');
 	let loading = $state(false);
+	let deviceMode = $state(false);
+	let deviceRequest = $state<DeviceLinkRequest | null>(null);
+	let deviceStatus = $state<DeviceLinkStatus['status']>('pending');
+	let deviceLoading = $state(false);
+	let pollingActive = $state(false);
+	let lastPolledAt = $state<string | null>(null);
+
+	let approvalLink = $derived.by(() => {
+		if (!deviceRequest || typeof window === 'undefined') {
+			return null;
+		}
+
+		const url = new URL(resolve('/device-link'), window.location.origin);
+		url.searchParams.set('approval', deviceRequest.approval_qr_token);
+		return url.toString();
+	});
 
 	$effect(() => {
 		if (session.user) {
-			goto(`${base}/app`);
+			if (typeof window !== 'undefined') {
+				const pendingJoinCode = window.localStorage.getItem('baby-timer:pending-join-code');
+				if (pendingJoinCode) {
+					goto(`${resolve('/join')}?code=${encodeURIComponent(pendingJoinCode)}`);
+					return;
+				}
+			}
+
+			goto(resolve('/app'));
 		}
+	});
+
+	$effect(() => {
+		if (!pollingActive || !deviceRequest) {
+			return;
+		}
+
+		let disposed = false;
+		let inFlight = false;
+
+		const poll = async () => {
+			if (disposed || inFlight || !deviceRequest) {
+				return;
+			}
+
+			inFlight = true;
+			try {
+				const status = await getDeviceLinkStatus(supabase, deviceRequest.poll_token);
+				deviceStatus = status.status;
+				lastPolledAt = new Date().toISOString();
+
+				if (status.status === 'approved') {
+					const exchange = await exchangeDeviceLinkRequest(supabase, deviceRequest.poll_token);
+					if (exchange.status === 'approved' && exchange.actionLink) {
+						window.location.assign(exchange.actionLink);
+						return;
+					}
+
+					deviceStatus = exchange.status;
+					pollingActive = false;
+				} else if (
+					status.status === 'denied' ||
+					status.status === 'expired' ||
+					status.status === 'consumed'
+				) {
+					pollingActive = false;
+				}
+			} catch {
+				pollingActive = false;
+				error = t('auth.deviceLinkPollFailed');
+			} finally {
+				inFlight = false;
+			}
+		};
+
+		poll();
+		const timer = window.setInterval(poll, 3000);
+
+		return () => {
+			disposed = true;
+			window.clearInterval(timer);
+		};
 	});
 
 	async function handleSubmit(e: Event) {
@@ -27,7 +112,15 @@
 		loading = true;
 		error = '';
 		try {
-			await session.signInWithMagicLink(email, displayName);
+			const pendingJoinCode =
+				typeof window !== 'undefined'
+					? window.localStorage.getItem('baby-timer:pending-join-code')
+					: null;
+			const redirectPath = pendingJoinCode
+				? `${resolve('/join')}?code=${encodeURIComponent(pendingJoinCode)}`
+				: `${resolve('/app')}`;
+
+			await session.signInWithMagicLink(email, displayName, redirectPath);
 			sent = true;
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Something went wrong';
@@ -36,9 +129,33 @@
 		}
 	}
 
+	async function handleStartDeviceLink() {
+		deviceLoading = true;
+		error = '';
+		deviceStatus = 'pending';
+		try {
+			const label = typeof navigator !== 'undefined' ? navigator.userAgent : null;
+			deviceRequest = await createDeviceLinkRequest(supabase, label);
+			deviceMode = true;
+			pollingActive = true;
+		} catch (err) {
+			error = err instanceof Error ? err.message : t('auth.deviceLinkStartFailed');
+		} finally {
+			deviceLoading = false;
+		}
+	}
+
+	function handleCancelDeviceLink() {
+		deviceMode = false;
+		deviceRequest = null;
+		deviceStatus = 'pending';
+		pollingActive = false;
+		lastPolledAt = null;
+	}
+
 	function handleGuestMode() {
 		getGuestId();
-		goto(`${base}/app`);
+		goto(resolve('/app'));
 	}
 </script>
 
@@ -58,6 +175,50 @@
 					{t('auth.magicLinkSent', { values: { email } })}
 				</p>
 				<p class="confirmation-hint">{t('auth.linkExpiry')}</p>
+			</div>
+		{:else if deviceMode && deviceRequest && approvalLink}
+			<div class="device-link-panel">
+				<h2 class="confirmation-title">{t('auth.deviceLinkTitle')}</h2>
+				<p class="confirmation-text">{t('auth.deviceLinkDescription')}</p>
+				<QrCode value={approvalLink} label={t('auth.deviceLinkQrLabel')} size={220} />
+				<p class="device-code">{deviceRequest.user_code}</p>
+				<p class="confirmation-hint">{t('auth.deviceLinkFallback')}</p>
+
+				{#if deviceStatus === 'pending'}
+					<p class="device-status pending">{t('auth.deviceLinkWaiting')}</p>
+				{:else if deviceStatus === 'approved'}
+					<p class="device-status success">{t('auth.deviceLinkApproved')}</p>
+				{:else if deviceStatus === 'denied'}
+					<p class="device-status error">{t('auth.deviceLinkDenied')}</p>
+				{:else if deviceStatus === 'expired'}
+					<p class="device-status error">{t('auth.deviceLinkExpired')}</p>
+				{:else}
+					<p class="device-status">{deviceStatus}</p>
+				{/if}
+
+				{#if lastPolledAt}
+					<p class="poll-time">
+						{t('auth.lastChecked', {
+							values: { time: new Date(lastPolledAt).toLocaleTimeString() }
+						})}
+					</p>
+				{/if}
+
+				<div class="device-actions">
+					<Button variant="ghost" size="sm" onclick={handleCancelDeviceLink}>
+						{t('common.back')}
+					</Button>
+					{#if deviceStatus === 'denied' || deviceStatus === 'expired' || deviceStatus === 'consumed'}
+						<Button
+							variant="primary"
+							size="sm"
+							onclick={handleStartDeviceLink}
+							loading={deviceLoading}
+						>
+							{t('auth.deviceLinkRetry')}
+						</Button>
+					{/if}
+				</div>
 			</div>
 		{:else}
 			<form onsubmit={handleSubmit} class="login-form">
@@ -106,6 +267,10 @@
 			<div class="form-divider">
 				<span>{t('auth.or')}</span>
 			</div>
+
+			<Button variant="ghost" size="lg" onclick={handleStartDeviceLink} loading={deviceLoading}>
+				{t('auth.signInWithAnotherDevice')}
+			</Button>
 
 			<button type="button" class="guest-link" onclick={handleGuestMode}>
 				{t('auth.continueWithoutAccount')}
@@ -177,6 +342,48 @@
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-4);
+	}
+
+	.device-link-panel {
+		display: grid;
+		gap: var(--space-3);
+		justify-items: center;
+	}
+
+	.device-code {
+		margin: 0;
+		font-size: var(--font-size-5);
+		font-weight: var(--fw-black);
+		font-family: var(--font-mono, monospace);
+		letter-spacing: 0.08em;
+	}
+
+	.device-status {
+		margin: 0;
+		font-size: var(--font-size-2);
+	}
+
+	.device-status.pending {
+		color: var(--text-2);
+	}
+
+	.device-status.success {
+		color: hsl(140 60% 25%);
+	}
+
+	.device-status.error {
+		color: var(--danger);
+	}
+
+	.poll-time {
+		margin: 0;
+		font-size: var(--font-size-1);
+		color: var(--text-3);
+	}
+
+	.device-actions {
+		display: flex;
+		gap: var(--space-2);
 	}
 
 	.form-group {

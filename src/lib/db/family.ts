@@ -30,6 +30,25 @@ export type PendingMembership = {
 	invited_by: string | null;
 };
 
+export type FamilyInviteCode = {
+	code_id: string;
+	code_hint: string;
+	created_at: string;
+	expires_at: string;
+	max_uses: number;
+	uses: number;
+};
+
+export type CreatedFamilyInviteCode = {
+	code_id: string;
+	code: string;
+	expires_at: string;
+};
+
+export type FamilyInviteSendResult = {
+	magicLink: string | null;
+};
+
 /**
  * Returns a human-readable label for a family member.
  * Prefers display_name, then email, then user_id, then 'Unknown'.
@@ -117,7 +136,7 @@ export async function inviteMemberByEmail(
 	familyId: string,
 	familyName: string,
 	email: string
-): Promise<void> {
+): Promise<FamilyInviteSendResult> {
 	const args: AddFamilyMemberByEmailArgs = {
 		target_family_id: familyId,
 		target_email: email
@@ -129,12 +148,18 @@ export async function inviteMemberByEmail(
 	// Best-effort: trigger an invitation email via the edge function.
 	// Failures here are non-fatal; the invite row was already created.
 	try {
-		await client.functions.invoke('send-invite', {
-			body: { familyId, inviteeEmail: email, familyName }
+		const { data } = await client.functions.invoke('send-invite', {
+			body: { familyId, inviteeEmail: email, familyName },
+			method: 'POST'
 		});
+		return {
+			magicLink: (data as { magicLink?: string | null } | null)?.magicLink ?? null
+		};
 	} catch {
 		// Intentionally swallowed – email delivery failure must not block the invite.
 	}
+
+	return { magicLink: null };
 }
 
 export async function acceptFamilyMembership(client: Client, familyId: string): Promise<void> {
@@ -170,6 +195,74 @@ export async function removeMember(
 		.delete()
 		.eq('family_id', familyId)
 		.eq('user_id', userId);
+
+	if (error) throw error;
+}
+
+export async function deleteFamilyInvite(
+	client: Client,
+	familyId: string,
+	email: string
+): Promise<void> {
+	const { error } = await client
+		.from('family_invites')
+		.delete()
+		.eq('family_id', familyId)
+		.eq('email', email.toLowerCase().trim());
+
+	if (error) throw error;
+}
+
+export async function createFamilyInviteCode(
+	client: Client,
+	familyId: string,
+	ttlMinutes = 60,
+	maxUses = 25
+): Promise<CreatedFamilyInviteCode> {
+	const { data, error } = await client.rpc('create_family_invite_code', {
+		target_family_id: familyId,
+		ttl_minutes: ttlMinutes,
+		max_uses: maxUses
+	} as never);
+
+	if (error) throw error;
+	const rows = (data as CreatedFamilyInviteCode[] | null) ?? [];
+	if (!rows[0]) {
+		throw new Error('Failed to create invite code');
+	}
+
+	return rows[0];
+}
+
+export async function listActiveFamilyInviteCodes(
+	client: Client,
+	familyId: string
+): Promise<FamilyInviteCode[]> {
+	const { data, error } = await client.rpc('list_active_family_invite_codes', {
+		target_family_id: familyId
+	} as never);
+
+	if (error) throw error;
+	return (data ?? []) as FamilyInviteCode[];
+}
+
+export async function revokeFamilyInviteCode(
+	client: Client,
+	familyId: string,
+	codeId: string
+): Promise<void> {
+	const { error } = await client.rpc('revoke_family_invite_code', {
+		target_family_id: familyId,
+		target_code_id: codeId
+	} as never);
+
+	if (error) throw error;
+}
+
+export async function joinFamilyByCode(client: Client, code: string): Promise<void> {
+	const { error } = await client.rpc('join_family_by_code', {
+		code_input: code
+	} as never);
 
 	if (error) throw error;
 }

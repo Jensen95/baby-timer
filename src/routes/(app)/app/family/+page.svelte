@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
+	import { resolve } from '$app/paths';
 	import { SESSION_KEY } from '$lib/auth/context';
 	import type { SessionStore } from '$lib/auth/context';
 	import { SYNC_KEY } from '$lib/db/sync.svelte';
@@ -11,16 +12,22 @@
 		listFamilyMemberDetails,
 		createFamily,
 		inviteMemberByEmail,
+		createFamilyInviteCode,
+		listActiveFamilyInviteCodes,
+		deleteFamilyInvite,
+		revokeFamilyInviteCode,
 		acceptFamilyMembership,
 		declineFamilyMembership,
 		getPendingMemberships,
 		getMemberDisplayLabel,
+		type FamilyInviteCode,
 		type FamilyMemberDetails,
 		type PendingMembership
 	} from '$lib/db/family';
 	import { getLocalFamily, putLocalFamily } from '$lib/db/local-family';
 	import { listBabiesLocal, createBabyLocal, type LocalBaby } from '$lib/db/local-babies';
 	import Button from '$lib/components/Button.svelte';
+	import QrCode from '$lib/components/QrCode.svelte';
 	import { t } from '@sveltia/i18n';
 
 	const session = getContext<SessionStore>(SESSION_KEY);
@@ -45,6 +52,21 @@
 	let inviteEmail = $state('');
 	let inviting = $state(false);
 	let responding = $state<string | null>(null);
+	let lastInviteLink = $state<string | null>(null);
+	let activeInviteCodes = $state<FamilyInviteCode[]>([]);
+	let generatedInviteCode = $state<string | null>(null);
+	let generatingInviteCode = $state(false);
+	let revokingInviteCodeId = $state<string | null>(null);
+
+	let latestInviteLink = $derived.by(() => {
+		if (!generatedInviteCode || typeof window === 'undefined') {
+			return null;
+		}
+
+		const joinUrl = new URL(resolve('/join'), window.location.origin);
+		joinUrl.searchParams.set('code', generatedInviteCode);
+		return joinUrl.toString();
+	});
 
 	let isOwner = $derived(
 		members.some((member) => member.user_id === session.user?.id && member.role === 'owner')
@@ -67,6 +89,9 @@
 					familyId = localFamily.id;
 					currentFamilyName = localFamily.name;
 					members = await listFamilyMemberDetails(supabase, localFamily.id);
+					if (members.some((member) => member.user_id === userId && member.role === 'owner')) {
+						activeInviteCodes = await listActiveFamilyInviteCodes(supabase, localFamily.id);
+					}
 				} else {
 					const families = await getUserFamilies(supabase);
 					const joinedFamily = families.find(
@@ -81,6 +106,9 @@
 							created_at: joinedFamily.created_at
 						});
 						members = await listFamilyMemberDetails(supabase, joinedFamily.id);
+						if (members.some((member) => member.user_id === userId && member.role === 'owner')) {
+							activeInviteCodes = await listActiveFamilyInviteCodes(supabase, joinedFamily.id);
+						}
 					}
 				}
 
@@ -148,8 +176,14 @@
 		error = null;
 		success = null;
 		try {
-			await inviteMemberByEmail(supabase, familyId, currentFamilyName, normalizedInviteEmail);
+			const inviteResult = await inviteMemberByEmail(
+				supabase,
+				familyId,
+				currentFamilyName,
+				normalizedInviteEmail
+			);
 			members = await listFamilyMemberDetails(supabase, familyId);
+			lastInviteLink = inviteResult.magicLink ?? null;
 			success = t('family.invitationSent', { values: { email: normalizedInviteEmail } });
 			inviteEmail = '';
 		} catch (e) {
@@ -193,6 +227,55 @@
 			error = e instanceof Error ? e.message : 'Failed to decline invitation';
 		} finally {
 			responding = null;
+		}
+	}
+
+	async function handleDeleteInvite(member: FamilyMemberDetails) {
+		if (!familyId || !member.email) return;
+		responding = member.email;
+		error = null;
+		success = null;
+		try {
+			await deleteFamilyInvite(supabase, familyId, member.email);
+			members = await listFamilyMemberDetails(supabase, familyId);
+			success = t('family.inviteDeleted');
+		} catch (e) {
+			error = e instanceof Error ? e.message : 'Failed to delete invitation';
+		} finally {
+			responding = null;
+		}
+	}
+
+	async function handleGenerateInviteCode() {
+		if (!familyId) return;
+		generatingInviteCode = true;
+		error = null;
+		success = null;
+		try {
+			const created = await createFamilyInviteCode(supabase, familyId);
+			generatedInviteCode = created.code;
+			activeInviteCodes = await listActiveFamilyInviteCodes(supabase, familyId);
+			success = t('family.codeGenerated');
+		} catch (e) {
+			error = e instanceof Error ? e.message : 'Failed to generate invite code';
+		} finally {
+			generatingInviteCode = false;
+		}
+	}
+
+	async function handleRevokeInviteCode(codeId: string) {
+		if (!familyId) return;
+		revokingInviteCodeId = codeId;
+		error = null;
+		success = null;
+		try {
+			await revokeFamilyInviteCode(supabase, familyId, codeId);
+			activeInviteCodes = activeInviteCodes.filter((code) => code.code_id !== codeId);
+			success = t('family.codeRevoked');
+		} catch (e) {
+			error = e instanceof Error ? e.message : 'Failed to revoke invite code';
+		} finally {
+			revokingInviteCodeId = null;
 		}
 	}
 </script>
@@ -355,6 +438,16 @@
 								<span class="tag tag--pending">
 									{member.status === 'pending' ? t('family.pendingTag') : t('family.invitedTag')}
 								</span>
+								{#if isOwner && member.status === 'invited' && member.email}
+									<Button
+										variant="ghost"
+										size="sm"
+										onclick={() => handleDeleteInvite(member)}
+										loading={responding === member.email}
+									>
+										{t('family.deleteInvite')}
+									</Button>
+								{/if}
 							{/if}
 						</div>
 					</div>
@@ -379,6 +472,71 @@
 							</Button>
 						</div>
 					</form>
+
+					{#if lastInviteLink}
+						<div class="invite-link-card">
+							<p class="help-text">{t('family.inviteLinkReady')}</p>
+							<div class="invite-link-row">
+								<input class="invite-link-input" type="text" readonly value={lastInviteLink} />
+								<Button
+									variant="ghost"
+									size="sm"
+									onclick={async () => navigator.clipboard.writeText(lastInviteLink ?? '')}
+								>
+									{t('family.copyInviteLink')}
+								</Button>
+							</div>
+						</div>
+					{/if}
+				</section>
+
+				<section class="section-card">
+					<h2 class="section-title">{t('family.inviteByCode')}</h2>
+					<p class="help-text">{t('family.inviteByCodeHelp')}</p>
+
+					<div class="form-row code-actions">
+						<Button
+							variant="primary"
+							size="sm"
+							onclick={handleGenerateInviteCode}
+							loading={generatingInviteCode}
+						>
+							{t('family.generateCode')}
+						</Button>
+					</div>
+
+					{#if generatedInviteCode && latestInviteLink}
+						<div class="invite-code-card">
+							<QrCode value={latestInviteLink} label={t('family.inviteQrLabel')} size={220} />
+							<p class="invite-code-value">{generatedInviteCode}</p>
+							<p class="help-text code-help">{t('family.scanOrTypeCode')}</p>
+						</div>
+					{/if}
+
+					{#if activeInviteCodes.length > 0}
+						<div class="code-list">
+							{#each activeInviteCodes as inviteCode (inviteCode.code_id)}
+								<div class="code-row">
+									<div>
+										<p class="code-hint">****{inviteCode.code_hint}</p>
+										<p class="code-meta">
+											{t('family.codeUsage', {
+												values: { used: inviteCode.uses, max: inviteCode.max_uses }
+											})}
+										</p>
+									</div>
+									<Button
+										variant="ghost"
+										size="sm"
+										onclick={() => handleRevokeInviteCode(inviteCode.code_id)}
+										loading={revokingInviteCodeId === inviteCode.code_id}
+									>
+										{t('family.revokeCode')}
+									</Button>
+								</div>
+							{/each}
+						</div>
+					{/if}
 				</section>
 			{/if}
 		{/if}
@@ -493,6 +651,81 @@
 		gap: var(--space-3);
 		justify-content: flex-end;
 	}
+	.invite-link-card {
+		display: grid;
+		gap: var(--space-2);
+		margin-top: var(--space-3);
+		padding: var(--space-3);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-2);
+		background: var(--surface-2);
+	}
+	.invite-link-row {
+		display: flex;
+		gap: var(--space-2);
+		align-items: center;
+	}
+	.invite-link-input {
+		flex: 1;
+		min-width: 0;
+		padding: var(--space-3) var(--space-4);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-2);
+		background: var(--surface);
+		color: var(--text-2);
+		font-size: var(--font-size-2);
+	}
+	.code-actions {
+		justify-content: flex-start;
+	}
+	.help-text {
+		color: var(--text-2);
+		font-size: var(--font-size-2);
+		margin: 0;
+	}
+	.invite-code-card {
+		display: grid;
+		justify-items: center;
+		gap: var(--space-2);
+		margin-top: var(--space-3);
+		padding: var(--space-3);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-2);
+		background: var(--surface-2);
+	}
+	.invite-code-value {
+		margin: 0;
+		font-family: var(--font-mono, monospace);
+		font-size: var(--font-size-4);
+		font-weight: var(--fw-bold);
+		letter-spacing: 0.08em;
+	}
+	.code-help {
+		text-align: center;
+	}
+	.code-list {
+		display: grid;
+		gap: var(--space-2);
+		margin-top: var(--space-3);
+	}
+	.code-row {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: var(--space-2) 0;
+		border-top: 1px solid var(--border);
+	}
+	.code-hint {
+		margin: 0;
+		font-family: var(--font-mono, monospace);
+		font-size: var(--font-size-3);
+		font-weight: var(--fw-semibold);
+	}
+	.code-meta {
+		margin: var(--space-1) 0 0;
+		font-size: var(--font-size-1);
+		color: var(--text-2);
+	}
 	.empty {
 		color: var(--text-2);
 		font-size: var(--font-size-2);
@@ -525,5 +758,6 @@
 	.pending-actions {
 		display: flex;
 		gap: var(--space-2);
+		align-items: center;
 	}
 </style>
