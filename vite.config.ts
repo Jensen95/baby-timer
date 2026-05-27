@@ -76,8 +76,13 @@ export default defineConfig(({ command, mode }) => {
 						{
 							src: `${basePath}/icons/pwa-512x512.png`,
 							sizes: '512x512',
+							type: 'image/png'
+						},
+						{
+							src: `${basePath}/icons/pwa-512x512.png`,
+							sizes: '512x512',
 							type: 'image/png',
-							purpose: 'maskable any'
+							purpose: 'maskable'
 						}
 					]
 				},
