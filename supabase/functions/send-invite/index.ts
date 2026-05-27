@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import nodemailer from 'npm:nodemailer';
 import { corsHeaders } from '../_shared/cors.ts';
 
 const supabase = createClient(
@@ -10,6 +11,66 @@ interface InvitePayload {
 	familyId: string;
 	inviteeEmail: string;
 	familyName: string;
+}
+
+function escapeHtml(value: string) {
+	return value
+		.replaceAll('&', '&amp;')
+		.replaceAll('<', '&lt;')
+		.replaceAll('>', '&gt;')
+		.replaceAll('"', '&quot;')
+		.replaceAll("'", '&#39;');
+}
+
+function getSmtpConfig() {
+	const host = Deno.env.get('SMTP_HOST');
+	const port = Number(Deno.env.get('SMTP_PORT') ?? '587');
+	const user = Deno.env.get('SMTP_USER');
+	const pass = Deno.env.get('SMTP_PASS');
+	const from = Deno.env.get('SMTP_FROM') ?? user;
+	const secure = Deno.env.get('SMTP_SECURE') === 'true' || port === 465;
+
+	if (!host || !user || !pass || !from) {
+		throw new Error('SMTP configuration is incomplete');
+	}
+
+	return { host, port, user, pass, from, secure };
+}
+
+async function sendInviteEmail(args: {
+	inviteeEmail: string;
+	familyName: string;
+	magicLink: string;
+}) {
+	const smtp = getSmtpConfig();
+	const transport = nodemailer.createTransport({
+		host: smtp.host,
+		port: smtp.port,
+		secure: smtp.secure,
+		auth: {
+			user: smtp.user,
+			pass: smtp.pass
+		}
+	});
+	const escapedMagicLink = escapeHtml(args.magicLink);
+
+	await transport.sendMail({
+		from: smtp.from,
+		to: args.inviteeEmail,
+		subject: `You're invited to join ${args.familyName}`,
+		text: [
+			`You've been invited to join ${args.familyName}.`,
+			'',
+			'Use this link to accept the invite:',
+			args.magicLink
+		].join('\n'),
+		html: `
+			<p>You've been invited to join <strong>${escapeHtml(args.familyName)}</strong>.</p>
+			<p><a href="${escapedMagicLink}">Accept the invite</a></p>
+			<p>If the link does not work, copy and paste this URL into your browser:</p>
+			<p><code>${escapedMagicLink}</code></p>
+		`
+	});
 }
 
 Deno.serve(async (req: Request) => {
@@ -48,11 +109,8 @@ Deno.serve(async (req: Request) => {
 		});
 	}
 
-	// In production: use Resend / SendGrid / Supabase Auth admin to send magic link email
-	// For now, log the invite and return success
 	console.log(`Invite: ${inviteeEmail} invited to family "${familyName}" (${familyId})`);
 
-	// Generate a magic link via Supabase Auth admin API
 	const { data: magicLinkData, error: magicLinkError } = await supabase.auth.admin.generateLink({
 		type: 'magiclink',
 		email: inviteeEmail,
@@ -63,7 +121,6 @@ Deno.serve(async (req: Request) => {
 
 	if (magicLinkError) {
 		console.error('Failed to generate magic link:', magicLinkError);
-		// Don't fail the whole request — the invite row was created, just email failed
 		return new Response(
 			JSON.stringify({ success: true, emailSent: false, error: magicLinkError.message }),
 			{ headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -73,10 +130,39 @@ Deno.serve(async (req: Request) => {
 	const magicLink = magicLinkData.properties?.action_link;
 	console.log(`Magic link for ${inviteeEmail}: ${magicLink}`);
 
-	// TODO: Send email with magic link using your preferred email provider
+	if (!magicLink) {
+		return new Response(
+			JSON.stringify({ success: true, emailSent: false, error: 'Missing invite link' }),
+			{ headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+		);
+	}
+
+	try {
+		await sendInviteEmail({
+			inviteeEmail,
+			familyName,
+			magicLink
+		});
+	} catch (error) {
+		console.error('Failed to send invite email:', error);
+		return new Response(
+			JSON.stringify({
+				success: true,
+				emailSent: false,
+				magicLink,
+				error: error instanceof Error ? error.message : 'Failed to send email'
+			}),
+			{ headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+		);
+	}
 
 	return new Response(
-		JSON.stringify({ success: true, emailSent: false, magicLinkGenerated: true }),
+		JSON.stringify({
+			success: true,
+			emailSent: true,
+			magicLinkGenerated: true,
+			magicLink
+		}),
 		{ headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
 	);
 });

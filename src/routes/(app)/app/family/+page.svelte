@@ -14,6 +14,7 @@
 		inviteMemberByEmail,
 		createFamilyInviteCode,
 		listActiveFamilyInviteCodes,
+		deleteFamilyInvite,
 		revokeFamilyInviteCode,
 		acceptFamilyMembership,
 		declineFamilyMembership,
@@ -51,6 +52,7 @@
 	let inviteEmail = $state('');
 	let inviting = $state(false);
 	let responding = $state<string | null>(null);
+	let lastInviteLink = $state<string | null>(null);
 	let activeInviteCodes = $state<FamilyInviteCode[]>([]);
 	let generatedInviteCode = $state<string | null>(null);
 	let generatingInviteCode = $state(false);
@@ -174,8 +176,14 @@
 		error = null;
 		success = null;
 		try {
-			await inviteMemberByEmail(supabase, familyId, currentFamilyName, normalizedInviteEmail);
+			const inviteResult = await inviteMemberByEmail(
+				supabase,
+				familyId,
+				currentFamilyName,
+				normalizedInviteEmail
+			);
 			members = await listFamilyMemberDetails(supabase, familyId);
+			lastInviteLink = inviteResult.magicLink ?? null;
 			success = t('family.invitationSent', { values: { email: normalizedInviteEmail } });
 			inviteEmail = '';
 		} catch (e) {
@@ -217,6 +225,22 @@
 			success = t('family.inviteDeclined', { values: { family: invite.family_name } });
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Failed to decline invitation';
+		} finally {
+			responding = null;
+		}
+	}
+
+	async function handleDeleteInvite(member: FamilyMemberDetails) {
+		if (!familyId || !member.email) return;
+		responding = member.email;
+		error = null;
+		success = null;
+		try {
+			await deleteFamilyInvite(supabase, familyId, member.email);
+			members = await listFamilyMemberDetails(supabase, familyId);
+			success = t('family.inviteDeleted');
+		} catch (e) {
+			error = e instanceof Error ? e.message : 'Failed to delete invitation';
 		} finally {
 			responding = null;
 		}
@@ -414,6 +438,16 @@
 								<span class="tag tag--pending">
 									{member.status === 'pending' ? t('family.pendingTag') : t('family.invitedTag')}
 								</span>
+								{#if isOwner && member.status === 'invited' && member.email}
+									<Button
+										variant="ghost"
+										size="sm"
+										onclick={() => handleDeleteInvite(member)}
+										loading={responding === member.email}
+									>
+										{t('family.deleteInvite')}
+									</Button>
+								{/if}
 							{/if}
 						</div>
 					</div>
@@ -438,6 +472,22 @@
 							</Button>
 						</div>
 					</form>
+
+					{#if lastInviteLink}
+						<div class="invite-link-card">
+							<p class="help-text">{t('family.inviteLinkReady')}</p>
+							<div class="invite-link-row">
+								<input class="invite-link-input" type="text" readonly value={lastInviteLink} />
+								<Button
+									variant="ghost"
+									size="sm"
+									onclick={async () => navigator.clipboard.writeText(lastInviteLink ?? '')}
+								>
+									{t('family.copyInviteLink')}
+								</Button>
+							</div>
+						</div>
+					{/if}
 				</section>
 
 				<section class="section-card">
@@ -601,6 +651,30 @@
 		gap: var(--space-3);
 		justify-content: flex-end;
 	}
+	.invite-link-card {
+		display: grid;
+		gap: var(--space-2);
+		margin-top: var(--space-3);
+		padding: var(--space-3);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-2);
+		background: var(--surface-2);
+	}
+	.invite-link-row {
+		display: flex;
+		gap: var(--space-2);
+		align-items: center;
+	}
+	.invite-link-input {
+		flex: 1;
+		min-width: 0;
+		padding: var(--space-3) var(--space-4);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-2);
+		background: var(--surface);
+		color: var(--text-2);
+		font-size: var(--font-size-2);
+	}
 	.code-actions {
 		justify-content: flex-start;
 	}
@@ -684,5 +758,6 @@
 	.pending-actions {
 		display: flex;
 		gap: var(--space-2);
+		align-items: center;
 	}
 </style>

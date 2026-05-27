@@ -45,6 +45,10 @@ export type CreatedFamilyInviteCode = {
 	expires_at: string;
 };
 
+export type FamilyInviteSendResult = {
+	magicLink: string | null;
+};
+
 /**
  * Returns a human-readable label for a family member.
  * Prefers display_name, then email, then user_id, then 'Unknown'.
@@ -132,7 +136,7 @@ export async function inviteMemberByEmail(
 	familyId: string,
 	familyName: string,
 	email: string
-): Promise<void> {
+): Promise<FamilyInviteSendResult> {
 	const args: AddFamilyMemberByEmailArgs = {
 		target_family_id: familyId,
 		target_email: email
@@ -144,13 +148,18 @@ export async function inviteMemberByEmail(
 	// Best-effort: trigger an invitation email via the edge function.
 	// Failures here are non-fatal; the invite row was already created.
 	try {
-		await client.functions.invoke('send-invite', {
+		const { data } = await client.functions.invoke('send-invite', {
 			body: { familyId, inviteeEmail: email, familyName },
 			method: 'POST'
 		});
+		return {
+			magicLink: (data as { magicLink?: string | null } | null)?.magicLink ?? null
+		};
 	} catch {
 		// Intentionally swallowed – email delivery failure must not block the invite.
 	}
+
+	return { magicLink: null };
 }
 
 export async function acceptFamilyMembership(client: Client, familyId: string): Promise<void> {
@@ -186,6 +195,20 @@ export async function removeMember(
 		.delete()
 		.eq('family_id', familyId)
 		.eq('user_id', userId);
+
+	if (error) throw error;
+}
+
+export async function deleteFamilyInvite(
+	client: Client,
+	familyId: string,
+	email: string
+): Promise<void> {
+	const { error } = await client
+		.from('family_invites')
+		.delete()
+		.eq('family_id', familyId)
+		.eq('email', email.toLowerCase().trim());
 
 	if (error) throw error;
 }
