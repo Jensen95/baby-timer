@@ -15,6 +15,7 @@ export function initErrorTracking(functionName: string) {
 	Sentry.init({
 		dsn,
 		environment: Deno.env.get('ENVIRONMENT') ?? Deno.env.get('SUPABASE_ENV') ?? 'production',
+		release: Deno.env.get('RELEASE_SHA') || undefined,
 		serverName: functionName
 	});
 

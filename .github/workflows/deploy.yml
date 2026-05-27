@@ -36,6 +36,16 @@ jobs:
           PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.PUBLIC_SUPABASE_ANON_KEY }}
           PUBLIC_BUGSINK_DSN: ${{ secrets.PUBLIC_BUGSINK_DSN }}
           BASE_PATH: /baby-timer
+          BUGSINK_URL: ${{ secrets.BUGSINK_URL }}
+          BUGSINK_AUTH_TOKEN: ${{ secrets.BUGSINK_AUTH_TOKEN }}
+          BUGSINK_ORG: ${{ secrets.BUGSINK_ORG }}
+          BUGSINK_PROJECT: ${{ secrets.BUGSINK_PROJECT }}
+
+      - name: Remove leftover sourcemaps from artifact
+        # Belt-and-suspenders: the Vite plugin deletes maps after a successful
+        # upload, but this step ensures no .map files reach the Pages artifact
+        # if the upload fails or is skipped (no BUGSINK_AUTH_TOKEN).
+        run: find build -name '*.js.map' -delete 2>/dev/null || true
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v5

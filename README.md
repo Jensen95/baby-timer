@@ -68,6 +68,23 @@ npm run dev
 3. Enable GitHub Pages in Settings → Pages → Source: GitHub Actions
 4. Push to `main` — the deploy workflow runs automatically
 
+#### Sourcemap upload (optional)
+
+To upload sourcemaps to Bugsink on every deploy, add these additional secrets:
+
+| Secret               | Value                                                                       |
+| -------------------- | --------------------------------------------------------------------------- |
+| `BUGSINK_URL`        | Base URL of your Bugsink instance, e.g. `https://your-instance.bugsink.com` |
+| `BUGSINK_AUTH_TOKEN` | API token from Bugsink → Settings → API Tokens                              |
+| `BUGSINK_ORG`        | Organisation slug (use `sentry` for self-hosted defaults)                   |
+| `BUGSINK_PROJECT`    | Project slug in Bugsink                                                     |
+
+When these secrets are present the build will:
+
+1. Generate hidden sourcemaps (no `//# sourceMappingURL` comment exposed to users).
+2. Upload them to Bugsink tagged with the commit SHA as the release.
+3. Delete all `.map` files from the Pages artifact so they are never publicly accessible.
+
 ### Supabase Edge Function secrets
 
 Set Bugsink DSN for edge-function error reporting:
@@ -75,6 +92,14 @@ Set Bugsink DSN for edge-function error reporting:
 ```bash
 supabase secrets set BUGSINK_DSN=https://9848e4f8dff34803bebb3dda44439340@jensen.bugsink.com/1
 ```
+
+To tag edge-function errors with the current release SHA (so Bugsink groups them by deploy):
+
+```bash
+supabase secrets set RELEASE_SHA=$(git rev-parse HEAD)
+```
+
+Run this after each `supabase functions deploy` to keep the release in sync.
 
 ## Development
 
