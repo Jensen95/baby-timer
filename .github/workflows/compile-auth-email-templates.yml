@@ -43,6 +43,7 @@ jobs:
       - name: Compile and publish auth templates
         env:
           GITHUB_EVENT_NAME: ${{ github.event_name }}
+          GITHUB_REF: ${{ github.ref }}
           SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
@@ -162,6 +163,11 @@ jobs:
           }
 
           async function main() {
+            if (!fs.existsSync(sourcePath)) {
+              console.log(`Skipping auth template compile: missing source file ${sourcePath}`);
+              return;
+            }
+
             const source = fs.readFileSync(sourcePath, 'utf8');
             const templates = extractTemplates(source);
             if (templates.length === 0) {
@@ -212,7 +218,11 @@ jobs:
               fs.writeFileSync(compiledPath, `${outputLines.join('\n')}`, 'utf8');
               console.log(`Wrote ${compiledPath}`);
 
-              if (process.env.GITHUB_EVENT_NAME !== 'pull_request') {
+              const shouldPublish =
+                process.env.GITHUB_EVENT_NAME === 'push' &&
+                process.env.GITHUB_REF === 'refs/heads/main';
+
+              if (shouldPublish) {
                 const projectRef = process.env.SUPABASE_PROJECT_REF;
                 const accessToken = process.env.SUPABASE_ACCESS_TOKEN;
 
@@ -224,6 +234,10 @@ jobs:
 
                 const statusCode = await patchSupabaseAuthConfig(projectRef, accessToken, payload);
                 console.log(`Published auth templates: HTTP ${statusCode}`);
+              } else {
+                console.log(
+                  `Skipping publish for event=${process.env.GITHUB_EVENT_NAME} ref=${process.env.GITHUB_REF}`
+                );
               }
             } finally {
               fs.rmSync(tempDir, { recursive: true, force: true });
