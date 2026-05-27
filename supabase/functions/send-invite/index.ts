@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import mjml2html from 'npm:mjml';
 import nodemailer from 'npm:nodemailer';
 import { corsHeaders } from '../_shared/cors.ts';
 
@@ -37,6 +38,63 @@ function getSmtpConfig() {
 	return { host, port, user, pass, from, secure };
 }
 
+function buildInviteEmailText(args: { familyName: string; magicLink: string }) {
+	return [
+		`You've been invited to join ${args.familyName}.`,
+		'',
+		'Use this link to accept the invite:',
+		args.magicLink,
+		'',
+		'If the button does not work, copy and paste the link into your browser.'
+	].join('\n');
+}
+
+function buildInviteEmailHtml(args: { familyName: string; magicLink: string }) {
+	const familyName = escapeHtml(args.familyName);
+	const magicLink = escapeHtml(args.magicLink);
+	const template = `
+		<mjml>
+			<mj-head>
+				<mj-preview>Join ${familyName} in Baby Timer</mj-preview>
+				<mj-attributes>
+					<mj-all font-family="Arial, Helvetica, sans-serif" color="#1f2937" />
+					<mj-text font-size="16px" line-height="24px" />
+					<mj-button background-color="#1f4b3f" color="#ffffff" border-radius="10px" font-size="16px" font-weight="600" />
+				</mj-attributes>
+			</mj-head>
+			<mj-body background-color="#f6f1eb" width="600px">
+				<mj-section padding="32px 16px 12px">
+					<mj-column>
+						<mj-text align="center" font-size="13px" color="#6b7280" letter-spacing="1px" text-transform="uppercase">Baby Timer</mj-text>
+						<mj-text align="center" font-size="28px" line-height="36px" font-weight="700" color="#102a43">You're invited to join ${familyName}</mj-text>
+						<mj-text align="center" color="#52606d">Tap the button below to accept the invite and open your family space.</mj-text>
+					</mj-column>
+				</mj-section>
+				<mj-section padding="0 16px 16px">
+					<mj-column background-color="#fffdf9" border-radius="16px" padding="28px">
+						<mj-text align="center" font-size="18px" font-weight="700" color="#102a43">Join link</mj-text>
+						<mj-button href="${magicLink}" align="center">Accept invitation</mj-button>
+						<mj-text align="center" color="#52606d" font-size="14px">If the button doesn't open, use this link:</mj-text>
+						<mj-text align="center" font-size="13px" color="#1f4b3f" line-height="20px"><a href="${magicLink}" style="color:#1f4b3f;word-break:break-all;">${magicLink}</a></mj-text>
+					</mj-column>
+				</mj-section>
+				<mj-section padding="0 16px 32px">
+					<mj-column>
+						<mj-text align="center" color="#829ab1" font-size="12px">This invite was sent from Baby Timer.</mj-text>
+					</mj-column>
+				</mj-section>
+			</mj-body>
+		</mjml>
+	`;
+	const { html, errors } = mjml2html(template, { validationLevel: 'soft' });
+
+	if (errors?.length) {
+		console.warn('MJML validation warnings:', errors);
+	}
+
+	return html;
+}
+
 async function sendInviteEmail(args: {
 	inviteeEmail: string;
 	familyName: string;
@@ -52,24 +110,15 @@ async function sendInviteEmail(args: {
 			pass: smtp.pass
 		}
 	});
-	const escapedMagicLink = escapeHtml(args.magicLink);
+	const text = buildInviteEmailText(args);
+	const html = buildInviteEmailHtml(args);
 
 	await transport.sendMail({
 		from: smtp.from,
 		to: args.inviteeEmail,
 		subject: `You're invited to join ${args.familyName}`,
-		text: [
-			`You've been invited to join ${args.familyName}.`,
-			'',
-			'Use this link to accept the invite:',
-			args.magicLink
-		].join('\n'),
-		html: `
-			<p>You've been invited to join <strong>${escapeHtml(args.familyName)}</strong>.</p>
-			<p><a href="${escapedMagicLink}">Accept the invite</a></p>
-			<p>If the link does not work, copy and paste this URL into your browser:</p>
-			<p><code>${escapedMagicLink}</code></p>
-		`
+		text,
+		html
 	});
 }
 
