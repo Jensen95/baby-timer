@@ -198,7 +198,12 @@
 			"totalChanges": "Samlede skift",
 			"avgPerDay": "Gns. / dag",
 			"poop": "Afføring",
-			"peeOnly": "Kun urin"
+			"peeOnly": "Kun urin",
+			"wet": "Våd",
+			"last24h": "Sidste 24 timer",
+			"wetLast24h": "Våd (24 t)",
+			"poopLast24h": "Afføring (24 t)",
+			"totalLast24h": "Total (24 t)"
 		}
 	},
 	"settings": {

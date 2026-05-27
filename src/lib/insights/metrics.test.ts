@@ -414,6 +414,7 @@ describe('computeDailyTotals', () => {
 			expect(day.pumpMl).toBe(0);
 			expect(day.diaperCount).toBe(0);
 			expect(day.poopCount).toBe(0);
+			expect(day.wetCount).toBe(0);
 		}
 	});
 
@@ -437,6 +438,20 @@ describe('computeDailyTotals', () => {
 		const jan16 = totals.find((d) => d.date === '2024-01-16')!;
 		expect(jan16.diaperCount).toBe(2);
 		expect(jan16.poopCount).toBe(1);
+		expect(jan16.wetCount).toBe(2);
+	});
+
+	it('counts wet diapers (hasPee) separately from poop-only diapers', () => {
+		const diapers = [
+			makeDiaper('1', new Date('2024-01-16T10:00:00Z'), true, false), // poop only
+			makeDiaper('2', new Date('2024-01-16T11:00:00Z'), false, true), // pee only
+			makeDiaper('3', new Date('2024-01-16T12:00:00Z'), true, true) //  both
+		];
+		const totals = computeDailyTotals([], [], [], diapers, dateRange);
+		const jan16 = totals.find((d) => d.date === '2024-01-16')!;
+		expect(jan16.diaperCount).toBe(3);
+		expect(jan16.poopCount).toBe(2); // poop-only + both
+		expect(jan16.wetCount).toBe(2); // pee-only + both
 	});
 
 	it('accumulates pump yield ml', () => {

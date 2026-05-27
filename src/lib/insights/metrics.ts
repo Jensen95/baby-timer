@@ -38,6 +38,7 @@ export interface DailyTotals {
 	pumpMl: number;
 	diaperCount: number;
 	poopCount: number;
+	wetCount: number;
 }
 
 export interface TimelineSegment {
@@ -225,11 +226,13 @@ export function computeDailyTotals(
 
 		let diaperCount = 0;
 		let poopCount = 0;
+		let wetCount = 0;
 		for (const d of diapers) {
 			const dMs = d.startedAt.getTime();
 			if (dMs < dsMs || dMs > deMs) continue;
 			diaperCount++;
 			if (d.hasPoop) poopCount++;
+			if (d.hasPee) wetCount++;
 		}
 
 		days.push({
@@ -241,7 +244,8 @@ export function computeDailyTotals(
 			nightSleepMinutes,
 			pumpMl,
 			diaperCount,
-			poopCount
+			poopCount,
+			wetCount
 		});
 
 		cursor = addDays(cursor, 1);

@@ -38,6 +38,7 @@
 	let todaySegments = $state<TimelineSegment[]>([]);
 	let todayDiaperEvents = $state<{ atMs: number; label: string }[]>([]);
 	let days = $state<string[]>([]);
+	let allDiapers = $state<{ startedAt: Date; hasPoop: boolean; hasPee: boolean }[]>([]);
 
 	function getLast7DayRange(): { start: Date; end: Date; days: string[] } {
 		const dayList: string[] = [];
@@ -128,6 +129,8 @@
 				hasPee: d.has_pee
 			}));
 
+			allDiapers = diapers;
+
 			dailyTotals = computeDailyTotals(feedings, sleepSessions, pumps, diapers, [
 				dayList[0],
 				dayList[dayList.length - 1]
@@ -200,6 +203,18 @@
 		Math.round((dailyTotals.reduce((acc, d) => acc + d.sleepMinutes, 0) / 60) * 10) / 10
 	);
 	let totalDiapers = $derived(dailyTotals.reduce((acc, d) => acc + d.diaperCount, 0));
+	let totalWet = $derived(dailyTotals.reduce((acc, d) => acc + d.wetCount, 0));
+	let totalPoop = $derived(dailyTotals.reduce((acc, d) => acc + d.poopCount, 0));
+
+	let last24hDiaperStats = $derived.by(() => {
+		const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
+		const recent = allDiapers.filter((d) => d.startedAt >= cutoff);
+		return {
+			total: recent.length,
+			wet: recent.filter((d) => d.hasPee).length,
+			poop: recent.filter((d) => d.hasPoop).length
+		};
+	});
 
 	const headSideKeyMap: Record<string, string> = {
 		left: 'track.options.headLeft',
@@ -412,6 +427,24 @@
 
 		{#if activeTab === 'diaper'}
 			<div class="chart-card">
+				<h2 class="chart-title">{t('stats.diaper.last24h')}</h2>
+				<div class="stat-grid stat-grid-3" style="margin-bottom: 0">
+					<div class="stat-card">
+						<span class="stat-value">{last24hDiaperStats.total}</span>
+						<span class="stat-label">{t('stats.diaper.totalLast24h')}</span>
+					</div>
+					<div class="stat-card">
+						<span class="stat-value">{last24hDiaperStats.wet}</span>
+						<span class="stat-label">{t('stats.diaper.wetLast24h')}</span>
+					</div>
+					<div class="stat-card">
+						<span class="stat-value">{last24hDiaperStats.poop}</span>
+						<span class="stat-label">{t('stats.diaper.poopLast24h')}</span>
+					</div>
+				</div>
+			</div>
+
+			<div class="chart-card">
 				<h2 class="chart-title">{t('stats.diaper.chartTitle')}</h2>
 				<BarChart data={diaperBarData} color="var(--diaper-solid)" showValues={true} />
 			</div>
@@ -428,16 +461,12 @@
 					<span class="stat-label">{t('stats.diaper.avgPerDay')}</span>
 				</div>
 				<div class="stat-card">
-					<span class="stat-value">
-						{dailyTotals.reduce((acc, d) => acc + d.poopCount, 0)}
-					</span>
+					<span class="stat-value">{totalPoop}</span>
 					<span class="stat-label">{t('stats.diaper.poop')}</span>
 				</div>
 				<div class="stat-card">
-					<span class="stat-value">
-						{dailyTotals.reduce((acc, d) => acc + d.diaperCount - d.poopCount, 0)}
-					</span>
-					<span class="stat-label">{t('stats.diaper.peeOnly')}</span>
+					<span class="stat-value">{totalWet}</span>
+					<span class="stat-label">{t('stats.diaper.wet')}</span>
 				</div>
 			</div>
 		{/if}
@@ -492,6 +521,9 @@
 		grid-template-columns: 1fr 1fr;
 		gap: var(--space-3);
 		margin-bottom: var(--space-5);
+	}
+	.stat-grid-3 {
+		grid-template-columns: repeat(3, 1fr);
 	}
 	.stat-card {
 		background: var(--surface-2);
