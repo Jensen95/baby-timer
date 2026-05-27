@@ -109,6 +109,7 @@ export async function exchangeDeviceLinkRequest(
 	pollToken: string
 ): Promise<DeviceLinkExchangeResult> {
 	const { data, error } = await client.functions.invoke('device-link-exchange', {
+		method: 'POST',
 		body: { pollToken }
 	});
 

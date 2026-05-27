@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { corsHeaders } from '../_shared/cors.ts';
 
 const supabase = createClient(
 	Deno.env.get('SUPABASE_URL')!,
@@ -12,21 +13,39 @@ interface InvitePayload {
 }
 
 Deno.serve(async (req: Request) => {
+	if (req.method === 'OPTIONS') {
+		return new Response('ok', {
+			headers: {
+				...corsHeaders,
+				'Access-Control-Allow-Methods': 'POST, OPTIONS'
+			}
+		});
+	}
+
 	if (req.method !== 'POST') {
-		return new Response('Method not allowed', { status: 405 });
+		return new Response('Method not allowed', {
+			status: 405,
+			headers: corsHeaders
+		});
 	}
 
 	let payload: InvitePayload;
 	try {
 		payload = await req.json();
 	} catch {
-		return new Response('Invalid JSON', { status: 400 });
+		return new Response('Invalid JSON', {
+			status: 400,
+			headers: corsHeaders
+		});
 	}
 
 	const { familyId, inviteeEmail, familyName } = payload;
 
 	if (!familyId || !inviteeEmail) {
-		return new Response('Missing required fields', { status: 400 });
+		return new Response('Missing required fields', {
+			status: 400,
+			headers: corsHeaders
+		});
 	}
 
 	// In production: use Resend / SendGrid / Supabase Auth admin to send magic link email
@@ -47,7 +66,7 @@ Deno.serve(async (req: Request) => {
 		// Don't fail the whole request — the invite row was created, just email failed
 		return new Response(
 			JSON.stringify({ success: true, emailSent: false, error: magicLinkError.message }),
-			{ headers: { 'Content-Type': 'application/json' } }
+			{ headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
 		);
 	}
 
@@ -58,6 +77,6 @@ Deno.serve(async (req: Request) => {
 
 	return new Response(
 		JSON.stringify({ success: true, emailSent: false, magicLinkGenerated: true }),
-		{ headers: { 'Content-Type': 'application/json' } }
+		{ headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
 	);
 });

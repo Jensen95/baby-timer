@@ -145,7 +145,8 @@ export async function inviteMemberByEmail(
 	// Failures here are non-fatal; the invite row was already created.
 	try {
 		await client.functions.invoke('send-invite', {
-			body: { familyId, inviteeEmail: email, familyName }
+			body: { familyId, inviteeEmail: email, familyName },
+			method: 'POST'
 		});
 	} catch {
 		// Intentionally swallowed – email delivery failure must not block the invite.
@@ -195,7 +196,7 @@ export async function createFamilyInviteCode(
 	ttlMinutes = 60,
 	maxUses = 25
 ): Promise<CreatedFamilyInviteCode> {
-	const { data, error } = await (client as any).rpc('create_family_invite_code', {
+	const { data, error } = await client.rpc('create_family_invite_code', {
 		target_family_id: familyId,
 		ttl_minutes: ttlMinutes,
 		max_uses: maxUses
@@ -214,7 +215,7 @@ export async function listActiveFamilyInviteCodes(
 	client: Client,
 	familyId: string
 ): Promise<FamilyInviteCode[]> {
-	const { data, error } = await (client as any).rpc('list_active_family_invite_codes', {
+	const { data, error } = await client.rpc('list_active_family_invite_codes', {
 		target_family_id: familyId
 	} as never);
 
@@ -227,7 +228,7 @@ export async function revokeFamilyInviteCode(
 	familyId: string,
 	codeId: string
 ): Promise<void> {
-	const { error } = await (client as any).rpc('revoke_family_invite_code', {
+	const { error } = await client.rpc('revoke_family_invite_code', {
 		target_family_id: familyId,
 		target_code_id: codeId
 	} as never);
@@ -236,7 +237,7 @@ export async function revokeFamilyInviteCode(
 }
 
 export async function joinFamilyByCode(client: Client, code: string): Promise<void> {
-	const { error } = await (client as any).rpc('join_family_by_code', {
+	const { error } = await client.rpc('join_family_by_code', {
 		code_input: code
 	} as never);
 
