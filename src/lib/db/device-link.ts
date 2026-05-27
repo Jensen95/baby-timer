@@ -25,6 +25,12 @@ export type ConsumedDeviceLink = {
 	approved_by_user_id?: string;
 };
 
+export type DeviceLinkExchangeResult = {
+	status: 'pending' | 'approved' | 'denied' | 'expired' | 'consumed' | 'not_found';
+	actionLink?: string;
+	error?: string;
+};
+
 export async function createDeviceLinkRequest(
 	client: Client,
 	deviceLabel: string | null,
@@ -96,4 +102,16 @@ export async function consumeDeviceLinkRequest(
 
 	if (error) throw error;
 	return (data ?? { status: 'not_found' }) as ConsumedDeviceLink;
+}
+
+export async function exchangeDeviceLinkRequest(
+	client: Client,
+	pollToken: string
+): Promise<DeviceLinkExchangeResult> {
+	const { data, error } = await client.functions.invoke('device-link-exchange', {
+		body: { pollToken }
+	});
+
+	if (error) throw error;
+	return (data ?? { status: 'not_found' }) as DeviceLinkExchangeResult;
 }

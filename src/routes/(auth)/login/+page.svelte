@@ -7,8 +7,8 @@
 	import { supabase } from '$lib/supabase';
 	import { getGuestId } from '$lib/offline/guest';
 	import {
-		consumeDeviceLinkRequest,
 		createDeviceLinkRequest,
+		exchangeDeviceLinkRequest,
 		getDeviceLinkStatus,
 		type DeviceLinkRequest,
 		type DeviceLinkStatus
@@ -75,7 +75,13 @@
 				lastPolledAt = new Date().toISOString();
 
 				if (status.status === 'approved') {
-					await consumeDeviceLinkRequest(supabase, deviceRequest.poll_token);
+					const exchange = await exchangeDeviceLinkRequest(supabase, deviceRequest.poll_token);
+					if (exchange.status === 'approved' && exchange.actionLink) {
+						window.location.assign(exchange.actionLink);
+						return;
+					}
+
+					deviceStatus = exchange.status;
 					pollingActive = false;
 				} else if (
 					status.status === 'denied' ||

@@ -42,7 +42,7 @@ export function createSession() {
 	async function signInWithMagicLink(
 		email: string,
 		displayName = '',
-		redirectPath = resolve('/app')
+		redirectPath: string = resolve('/app')
 	) {
 		const normalizedDisplayName = displayName.trim();
 		const { error } = await supabase.auth.signInWithOtp({
