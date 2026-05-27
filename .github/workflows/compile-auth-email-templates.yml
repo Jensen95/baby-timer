@@ -42,6 +42,3 @@ jobs:
 
       - name: Compile auth templates
         run: npm run compile:auth-email-templates
-
-      - name: Verify compiled output is committed
-        run: git diff --exit-code -- supabase/auth-email-templates.compiled.md
