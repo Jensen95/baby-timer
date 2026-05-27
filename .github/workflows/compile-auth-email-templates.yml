@@ -11,14 +11,14 @@ on:
       - 'refactor/*'
       - 'claude/*'
     paths:
-      - 'supabase/auth-email-templates.mjml.md'
+      - 'supabase/templates/auth/*.mjml'
       - '.github/workflows/compile-auth-email-templates.yml'
       - 'package.json'
       - 'package-lock.json'
   pull_request:
     branches: [main]
     paths:
-      - 'supabase/auth-email-templates.mjml.md'
+      - 'supabase/templates/auth/*.mjml'
       - '.github/workflows/compile-auth-email-templates.yml'
       - 'package.json'
       - 'package-lock.json'
@@ -47,205 +47,69 @@ jobs:
           SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
-          node <<'NODE'
-          const fs = require('node:fs');
-          const os = require('node:os');
-          const path = require('node:path');
-          const https = require('node:https');
-          const { spawnSync } = require('node:child_process');
+          set -euo pipefail
 
-          const sourcePath = path.resolve('supabase/auth-email-templates.mjml.md');
-          const compiledPath = path.resolve('supabase/auth-email-templates.compiled.md');
+          TEMPLATE_DIR="supabase/templates/auth"
+          OUTPUT_DIR="supabase/templates/auth/html"
 
-          const templateSpecs = {
-            'Magic Link / Sign-in': {
-              subject: 'Your sign-in link',
-              subjectKey: 'mailer_subjects_magic_link',
-              templateKey: 'mailer_templates_magic_link_content'
-            },
-            Invite: {
-              subject: 'You have been invited',
-              subjectKey: 'mailer_subjects_invite',
-              templateKey: 'mailer_templates_invite_content'
-            },
-            Confirmation: {
-              subject: 'Confirm your signup',
-              subjectKey: 'mailer_subjects_confirmation',
-              templateKey: 'mailer_templates_confirmation_content'
-            },
-            'Password reset': {
-              subject: 'Reset your password',
-              subjectKey: 'mailer_subjects_recovery',
-              templateKey: 'mailer_templates_recovery_content'
-            },
-            'Email change': {
-              subject: 'Confirm email change',
-              subjectKey: 'mailer_subjects_email_change',
-              templateKey: 'mailer_templates_email_change_content'
-            }
-          };
+          if [ ! -d "$TEMPLATE_DIR" ]; then
+            echo "Skipping auth template compile: missing directory $TEMPLATE_DIR"
+            exit 0
+          fi
 
-          function extractTemplates(markdown) {
-            const sectionRegex = /^##\s+(.+)$/gm;
-            const matches = [...markdown.matchAll(sectionRegex)];
-            const templates = [];
+          mkdir -p "$OUTPUT_DIR"
 
-            for (let i = 0; i < matches.length; i += 1) {
-              const current = matches[i];
-              const next = matches[i + 1];
-              const sectionStart = current.index;
-              const sectionEnd = next ? next.index : markdown.length;
-              const sectionText = markdown.slice(sectionStart, sectionEnd);
-              const mjmlMatch = sectionText.match(/```mjml\n([\s\S]*?)\n```/);
-              if (mjmlMatch) {
-                templates.push({ title: current[1].trim(), mjml: mjmlMatch[1].trim() });
-              }
-            }
+          npx mjml "$TEMPLATE_DIR/magic_link.mjml" -o "$OUTPUT_DIR/magic_link.html" --config.validationLevel soft
+          npx mjml "$TEMPLATE_DIR/invite.mjml" -o "$OUTPUT_DIR/invite.html" --config.validationLevel soft
+          npx mjml "$TEMPLATE_DIR/confirmation.mjml" -o "$OUTPUT_DIR/confirmation.html" --config.validationLevel soft
+          npx mjml "$TEMPLATE_DIR/recovery.mjml" -o "$OUTPUT_DIR/recovery.html" --config.validationLevel soft
+          npx mjml "$TEMPLATE_DIR/email_change.mjml" -o "$OUTPUT_DIR/email_change.html" --config.validationLevel soft
 
-            return templates;
-          }
+          echo "Compiled auth templates to $OUTPUT_DIR"
 
-          function compileMjml(mjmlSource, tempDir) {
-            const inputPath = path.join(tempDir, 'template.mjml');
-            const outputPath = path.join(tempDir, 'template.html');
-            fs.writeFileSync(inputPath, mjmlSource, 'utf8');
+          should_publish=false
+          if [ "$GITHUB_EVENT_NAME" = "push" ] && [ "$GITHUB_REF" = "refs/heads/main" ]; then
+            should_publish=true
+          fi
 
-            const result = spawnSync(
-              'npx',
-              ['mjml', inputPath, '-o', outputPath, '--config.validationLevel', 'soft'],
-              { encoding: 'utf8' }
-            );
+          if [ "$should_publish" != "true" ]; then
+            echo "Skipping publish for event=$GITHUB_EVENT_NAME ref=$GITHUB_REF"
+            exit 0
+          fi
 
-            if (result.status !== 0) {
-              throw new Error((result.stderr || result.stdout || 'MJML compilation failed').trim());
-            }
+          if [ -z "${SUPABASE_PROJECT_REF:-}" ] || [ -z "${SUPABASE_ACCESS_TOKEN:-}" ]; then
+            echo "SUPABASE_PROJECT_REF and SUPABASE_ACCESS_TOKEN are required to publish auth templates"
+            exit 1
+          fi
 
-            return fs.readFileSync(outputPath, 'utf8').trim();
-          }
+          payload=$(jq -n \
+            --arg subj_magic "Your sign-in link" \
+            --rawfile tmpl_magic "$OUTPUT_DIR/magic_link.html" \
+            --arg subj_invite "You have been invited" \
+            --rawfile tmpl_invite "$OUTPUT_DIR/invite.html" \
+            --arg subj_confirmation "Confirm your signup" \
+            --rawfile tmpl_confirmation "$OUTPUT_DIR/confirmation.html" \
+            --arg subj_recovery "Reset your password" \
+            --rawfile tmpl_recovery "$OUTPUT_DIR/recovery.html" \
+            --arg subj_email_change "Confirm email change" \
+            --rawfile tmpl_email_change "$OUTPUT_DIR/email_change.html" \
+            '{
+              mailer_subjects_magic_link: $subj_magic,
+              mailer_templates_magic_link_content: $tmpl_magic,
+              mailer_subjects_invite: $subj_invite,
+              mailer_templates_invite_content: $tmpl_invite,
+              mailer_subjects_confirmation: $subj_confirmation,
+              mailer_templates_confirmation_content: $tmpl_confirmation,
+              mailer_subjects_recovery: $subj_recovery,
+              mailer_templates_recovery_content: $tmpl_recovery,
+              mailer_subjects_email_change: $subj_email_change,
+              mailer_templates_email_change_content: $tmpl_email_change
+            }')
 
-          function patchSupabaseAuthConfig(projectRef, accessToken, payload) {
-            return new Promise((resolve, reject) => {
-              const body = JSON.stringify(payload);
-              const request = https.request(
-                {
-                  hostname: 'api.supabase.com',
-                  path: `/v1/projects/${projectRef}/config/auth`,
-                  method: 'PATCH',
-                  headers: {
-                    Authorization: `Bearer ${accessToken}`,
-                    'Content-Type': 'application/json',
-                    'Content-Length': Buffer.byteLength(body)
-                  }
-                },
-                (response) => {
-                  let responseBody = '';
-                  response.on('data', (chunk) => {
-                    responseBody += chunk;
-                  });
-                  response.on('end', () => {
-                    if (response.statusCode >= 200 && response.statusCode < 300) {
-                      resolve(response.statusCode);
-                      return;
-                    }
-                    reject(
-                      new Error(
-                        `Supabase API request failed (${response.statusCode}): ${responseBody}`
-                      )
-                    );
-                  });
-                }
-              );
+          curl --fail --silent --show-error \
+            -X PATCH "https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_REF/config/auth" \
+            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data "$payload"
 
-              request.on('error', reject);
-              request.write(body);
-              request.end();
-            });
-          }
-
-          async function main() {
-            if (!fs.existsSync(sourcePath)) {
-              console.log(`Skipping auth template compile: missing source file ${sourcePath}`);
-              return;
-            }
-
-            const source = fs.readFileSync(sourcePath, 'utf8');
-            const templates = extractTemplates(source);
-            if (templates.length === 0) {
-              throw new Error(`No MJML templates found in ${sourcePath}`);
-            }
-
-            const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'baby-timer-mjml-'));
-
-            try {
-              const compiledBlocks = [];
-              for (const { title, mjml } of templates) {
-                const spec = templateSpecs[title];
-                if (!spec) {
-                  throw new Error(`No Supabase mapping configured for template section: ${title}`);
-                }
-                const html = compileMjml(mjml, tempDir);
-                compiledBlocks.push({ title, spec, html });
-              }
-
-              const outputLines = [
-                '# Supabase Auth Email Templates (compiled HTML)',
-                '',
-                'This file is generated from `supabase/auth-email-templates.mjml.md`.',
-                'Paste each HTML block into the matching Supabase Auth template setting.',
-                ''
-              ];
-
-              const payload = {};
-
-              for (const block of compiledBlocks) {
-                outputLines.push(`## ${block.title}`);
-                outputLines.push('');
-                outputLines.push('```html');
-                outputLines.push(block.html);
-                outputLines.push('```');
-                outputLines.push('');
-
-                payload[block.spec.subjectKey] = block.spec.subject;
-                payload[block.spec.templateKey] = block.html;
-              }
-
-              outputLines.push('## Notes');
-              outputLines.push('');
-              outputLines.push('- Regenerate this file after editing the MJML source file.');
-              outputLines.push('- Supabase Auth stores the pasted HTML and renders it at runtime.');
-              outputLines.push('');
-
-              fs.writeFileSync(compiledPath, `${outputLines.join('\n')}`, 'utf8');
-              console.log(`Wrote ${compiledPath}`);
-
-              const shouldPublish =
-                process.env.GITHUB_EVENT_NAME === 'push' &&
-                process.env.GITHUB_REF === 'refs/heads/main';
-
-              if (shouldPublish) {
-                const projectRef = process.env.SUPABASE_PROJECT_REF;
-                const accessToken = process.env.SUPABASE_ACCESS_TOKEN;
-
-                if (!projectRef || !accessToken) {
-                  throw new Error(
-                    'SUPABASE_PROJECT_REF and SUPABASE_ACCESS_TOKEN are required to publish auth templates'
-                  );
-                }
-
-                const statusCode = await patchSupabaseAuthConfig(projectRef, accessToken, payload);
-                console.log(`Published auth templates: HTTP ${statusCode}`);
-              } else {
-                console.log(
-                  `Skipping publish for event=${process.env.GITHUB_EVENT_NAME} ref=${process.env.GITHUB_REF}`
-                );
-              }
-            } finally {
-              fs.rmSync(tempDir, { recursive: true, force: true });
-            }
-          }
-
-          main().catch((error) => {
-            console.error(error);
-            process.exit(1);
-          });
-          NODE
+          echo "Published auth templates to Supabase"
