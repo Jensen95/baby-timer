@@ -65,7 +65,7 @@ export default defineConfig(({ command, mode }) => {
 					background_color: '#fdf6f9',
 					display: 'standalone',
 					orientation: 'portrait',
-					start_url: appPath,
+					start_url: appShellPath,
 					scope: appScope,
 					icons: [
 						{
