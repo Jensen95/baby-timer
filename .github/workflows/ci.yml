@@ -12,8 +12,6 @@ on:
       - 'claude/*'
   pull_request:
     branches: [main]
-  pull_request_target:
-    branches: [main]
 
 permissions:
   contents: read
