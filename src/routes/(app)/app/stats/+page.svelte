@@ -475,8 +475,10 @@
 
 <style>
 	.page {
+		--stats-page-max-width: 1080px;
 		padding: var(--space-4) var(--space-4) calc(var(--bottom-nav-h) + var(--space-6));
-		max-width: 720px;
+		width: 100%;
+		max-width: var(--stats-page-max-width);
 		margin: 0 auto;
 	}
 	.page-title {
@@ -492,6 +494,7 @@
 	}
 	.tab-bar {
 		display: flex;
+		flex-wrap: wrap;
 		border-bottom: 2px solid var(--border);
 		margin-bottom: var(--space-5);
 		gap: 0;
@@ -587,5 +590,39 @@
 	.error-msg {
 		color: var(--danger);
 		font-size: var(--font-size-2);
+	}
+
+	@media (min-width: 768px) {
+		.page {
+			padding-inline: var(--space-6);
+		}
+
+		.tab-bar {
+			width: fit-content;
+			max-width: 100%;
+			gap: var(--space-1);
+			padding: var(--space-1);
+			margin-bottom: var(--space-6);
+			border: 1px solid var(--border);
+			border-radius: var(--radius-round);
+			background: var(--surface-2);
+		}
+
+		.tab-bar button {
+			min-width: 7.5rem;
+			border-radius: var(--radius-round);
+			border: 1px solid transparent;
+			border-bottom-color: transparent;
+			margin-bottom: 0;
+		}
+
+		.tab-bar button[aria-selected='true'] {
+			background: var(--surface);
+			border-color: var(--border);
+		}
+
+		.stat-grid {
+			grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+		}
 	}
 </style>
