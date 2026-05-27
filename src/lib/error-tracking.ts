@@ -1,8 +1,8 @@
 import * as Sentry from '@sentry/sveltekit';
 import type { CaptureContext } from '@sentry/sveltekit';
-import { PUBLIC_BUGSINK_DSN } from '$env/static/public';
+import { env } from '$env/dynamic/public';
 
-const bugsinkDsn = PUBLIC_BUGSINK_DSN?.trim();
+const bugsinkDsn = env.PUBLIC_BUGSINK_DSN?.trim();
 const trackingEnabled = Boolean(bugsinkDsn);
 
 let initialized = false;
