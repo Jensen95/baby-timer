@@ -145,34 +145,35 @@ begin
 	end if;
 
 	loop
-		generated_code := public.generate_short_code();
-		generated_hash := public.short_code_hash(generated_code);
+		begin
+			generated_code := public.generate_short_code();
+			generated_hash := public.short_code_hash(generated_code);
 
-		insert into public.family_invite_codes (
-			family_id,
-			code_hash,
-			code_hint,
-			created_by,
-			expires_at,
-			max_uses
-		)
-		values (
-			target_family_id,
-			generated_hash,
-			right(generated_code, 4),
-			auth.uid(),
-			now() + make_interval(mins => effective_ttl),
-			effective_max_uses
-		)
-		returning id, family_invite_codes.expires_at into code_id, create_family_invite_code.expires_at;
+			insert into public.family_invite_codes (
+				family_id,
+				code_hash,
+				code_hint,
+				created_by,
+				expires_at,
+				max_uses
+			)
+			values (
+				target_family_id,
+				generated_hash,
+				right(generated_code, 4),
+				auth.uid(),
+				now() + make_interval(mins => effective_ttl),
+				effective_max_uses
+			)
+			returning id, family_invite_codes.expires_at into code_id, expires_at;
 
-		code := generated_code;
-		return next;
-		return;
-	exception
-		when unique_violation then
-			-- retry on rare collisions
-	end;
+			code := generated_code;
+			return next;
+			return;
+		exception
+			when unique_violation then
+				-- retry on rare collisions
+		end;
 	end loop;
 end;
 $$;
