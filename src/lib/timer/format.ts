@@ -1,3 +1,5 @@
+import { getLocale } from '$lib/i18n';
+
 export function formatTimerDisplay(totalSeconds: number): string {
 	const h = Math.floor(totalSeconds / 3600);
 	const m = Math.floor((totalSeconds % 3600) / 60);
@@ -28,11 +30,11 @@ export function elapsedSeconds(start: Date, now: Date): number {
 }
 
 export function formatTime(date: Date): string {
-	return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+	return date.toLocaleTimeString(getLocale(), { hour: '2-digit', minute: '2-digit' });
 }
 
 export function formatDate(date: Date): string {
-	return date.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+	return date.toLocaleDateString(getLocale(), { weekday: 'short', month: 'short', day: 'numeric' });
 }
 
 export function formatDateTime(date: Date): string {

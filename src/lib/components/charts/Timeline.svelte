@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { t } from '@sveltia/i18n';
 	import type { TimelineSegment } from '$lib/insights/metrics';
 
 	interface DiaperEvent {
@@ -52,9 +53,9 @@
 	);
 
 	const hourMarks = [
-		{ hour: 6, label: '6am' },
-		{ hour: 12, label: '12pm' },
-		{ hour: 18, label: '6pm' }
+		{ hour: 6, label: t('charts.timeline6am') },
+		{ hour: 12, label: t('charts.timeline12pm') },
+		{ hour: 18, label: t('charts.timeline6pm') }
 	];
 
 	let marks = $derived(

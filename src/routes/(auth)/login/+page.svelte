@@ -5,6 +5,7 @@
 	import { SESSION_KEY } from '$lib/auth/context';
 	import type { SessionStore } from '$lib/auth/context';
 	import { getGuestId } from '$lib/offline/guest';
+	import { t } from '@sveltia/i18n';
 	import Button from '$lib/components/Button.svelte';
 
 	const session = getContext<SessionStore>(SESSION_KEY);
@@ -42,43 +43,43 @@
 </script>
 
 <svelte:head>
-	<title>Sign in — Baby Tracker</title>
+	<title>{t('auth.pageTitle')}</title>
 </svelte:head>
 
 <div class="page">
 	<div class="login-card">
-		<h1 class="login-title">Baby Tracker</h1>
+		<h1 class="login-title">{t('auth.heading')}</h1>
 
 		{#if sent}
 			<div class="confirmation">
 				<div class="confirmation-icon">✓</div>
-				<h2 class="confirmation-title">Check your email</h2>
+				<h2 class="confirmation-title">{t('auth.checkEmail')}</h2>
 				<p class="confirmation-text">
-					We sent a magic link to <strong>{email}</strong>. Click it to sign in and start syncing.
+					{t('auth.magicLinkSent', { values: { email } })}
 				</p>
-				<p class="confirmation-hint">The link works for 24 hours.</p>
+				<p class="confirmation-hint">{t('auth.linkExpiry')}</p>
 			</div>
 		{:else}
 			<form onsubmit={handleSubmit} class="login-form">
 				<div class="form-group">
-					<label class="form-label" for="display-name">Your name</label>
+					<label class="form-label" for="display-name">{t('auth.nameLabel')}</label>
 					<input
 						id="display-name"
 						class="form-input"
 						type="text"
-						placeholder="Alex"
+						placeholder={t('auth.namePlaceholder')}
 						bind:value={displayName}
 					/>
-					<p class="form-help">Optional, but it helps your family recognize you.</p>
+					<p class="form-help">{t('auth.nameHelp')}</p>
 				</div>
 
 				<div class="form-group">
-					<label class="form-label" for="email">Email</label>
+					<label class="form-label" for="email">{t('auth.emailLabel')}</label>
 					<input
 						id="email"
 						class="form-input"
 						type="email"
-						placeholder="you@example.com"
+						placeholder={t('auth.emailPlaceholder')}
 						bind:value={email}
 						required
 					/>
@@ -98,16 +99,16 @@
 					{loading}
 					class="form-submit"
 				>
-					{loading ? 'Sending...' : 'Send Magic Link'}
+					{loading ? t('auth.sending') : t('auth.sendMagicLink')}
 				</Button>
 			</form>
 
 			<div class="form-divider">
-				<span>or</span>
+				<span>{t('auth.or')}</span>
 			</div>
 
 			<button type="button" class="guest-link" onclick={handleGuestMode}>
-				Continue without an account
+				{t('auth.continueWithoutAccount')}
 			</button>
 		{/if}
 	</div>

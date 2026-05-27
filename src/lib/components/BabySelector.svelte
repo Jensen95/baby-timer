@@ -2,6 +2,7 @@
 	import { getContext } from 'svelte';
 	import { base } from '$app/paths';
 	import { ChevronDown, Check } from '@lucide/svelte';
+	import { t } from '@sveltia/i18n';
 	import Sheet from './Sheet.svelte';
 	import { BABY_STATE_KEY } from '$lib/state/baby.svelte';
 	import type { BabyState } from '$lib/state/baby.svelte';
@@ -15,9 +16,11 @@
 		const now = new Date();
 		const months =
 			(now.getFullYear() - birth.getFullYear()) * 12 + now.getMonth() - birth.getMonth();
-		if (months < 1) return 'newborn';
-		if (months < 24) return `${months}m`;
-		return `${Math.floor(months / 12)}y ${months % 12}m`;
+		if (months < 1) return t('babySelector.newborn');
+		if (months < 24) return t('babySelector.ageMonths', { values: { months } });
+		return t('babySelector.ageYearsMonths', {
+			values: { years: Math.floor(months / 12), months: months % 12 }
+		});
 	}
 
 	function selectBaby(id: string) {
@@ -28,17 +31,17 @@
 
 {#if babyState.babies.length <= 1}
 	<span class="pill pill--static">
-		{babyState.selectedBaby?.name ?? 'Select baby'}
+		{babyState.selectedBaby?.name ?? t('babySelector.selectBaby')}
 	</span>
 {:else}
 	<button class="pill" type="button" onclick={() => (open = true)}>
-		{babyState.selectedBaby?.name ?? 'Select baby'}
+		{babyState.selectedBaby?.name ?? t('babySelector.selectBaby')}
 		<ChevronDown size={16} aria-hidden="true" />
 	</button>
 {/if}
 
-<Sheet title="Switch baby" {open} onclose={() => (open = false)}>
-	<ul class="baby-list" role="listbox" aria-label="Select baby">
+<Sheet title={t('babySelector.switchBaby')} {open} onclose={() => (open = false)}>
+	<ul class="baby-list" role="listbox" aria-label={t('babySelector.selectBaby')}>
 		{#each babyState.babies as baby (baby.id)}
 			{@const selected = baby.id === babyState.selectedBabyId}
 			{@const age = baby.birth_date ? computeAge(baby.birth_date) : null}
@@ -66,7 +69,7 @@
 	</ul>
 	{#snippet footer()}
 		<a href="{base}/app/family" class="manage-link" onclick={() => (open = false)}>
-			Manage babies
+			{t('babySelector.manageBabies')}
 		</a>
 	{/snippet}
 </Sheet>

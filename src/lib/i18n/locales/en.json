@@ -1,0 +1,258 @@
+{
+	"common": {
+		"save": "Save",
+		"cancel": "Cancel",
+		"delete": "Delete",
+		"edit": "Edit",
+		"loading": "Loading",
+		"loadingEllipsis": "Loading…",
+		"back": "Back",
+		"done": "Done",
+		"start": "Start",
+		"stop": "Stop",
+		"log": "Log",
+		"add": "+ Add",
+		"tapToStart": "Tap to start",
+		"noSessionsYet": "No sessions yet.",
+		"optional": "(optional)"
+	},
+	"nav": {
+		"track": "Track",
+		"history": "History",
+		"insights": "Insights",
+		"more": "More",
+		"bottomNavLabel": "bottom navigation"
+	},
+	"appBar": {
+		"primaryNavLabel": "primary navigation",
+		"switchThemeTo": "Switch to {$theme} theme",
+		"settingsLabel": "Settings"
+	},
+	"landing": {
+		"title": "Baby Tracker",
+		"metaDescription": "A simple family app for tracking baby feeding and sleep sessions in real time.",
+		"headline": "Baby Tracker",
+		"subheadline": "Track feeds, sleep & more — syncs across your family",
+		"openDashboard": "Open Dashboard",
+		"startTracking": "Start Tracking — Free",
+		"trackWithoutAccount": "Track without an account",
+		"worksOfflineTitle": "Works offline",
+		"worksOfflineDesc": "Start tracking without internet. Syncs when you're back online.",
+		"shareFamilyTitle": "Share with family",
+		"shareFamilyDesc": "Both parents see live updates. No manual syncing needed.",
+		"trackEverythingTitle": "Track everything",
+		"trackEverythingDesc": "Feedings, sleep, diapers, temperatures, and notes — all in one place.",
+		"footer": "Open source · Hosted on GitHub Pages · Data stored securely on Supabase"
+	},
+	"auth": {
+		"pageTitle": "Sign in — Baby Tracker",
+		"heading": "Baby Tracker",
+		"checkEmail": "Check your email",
+		"magicLinkSent": "We sent a magic link to {$email}. Click it to sign in and start syncing.",
+		"linkExpiry": "The link works for 24 hours.",
+		"namePlaceholder": "Alex",
+		"nameLabel": "Your name",
+		"nameHelp": "Optional, but it helps your family recognize you.",
+		"emailLabel": "Email",
+		"emailPlaceholder": "you@example.com",
+		"sendMagicLink": "Send Magic Link",
+		"sending": "Sending...",
+		"or": "or",
+		"continueWithoutAccount": "Continue without an account",
+		"signingOut": "Signing out..."
+	},
+	"app": {
+		"offlineBanner": "You're offline — data stays on this device.",
+		"signInToSync": "Sign in to sync",
+		"noBabyYetTitle": "No babies yet",
+		"noBabyYetDesc": "Add a baby to start tracking.",
+		"addABaby": "Add a baby",
+		"recent": "Recent",
+		"noSessionsYet": "No sessions yet."
+	},
+	"track": {
+		"feed": "Feed",
+		"sleep": "Sleep",
+		"pump": "Pump",
+		"diaper": "Diaper",
+		"startLabel": "Start {$label}",
+		"startFeeding": "Start feeding",
+		"startSleep": "Start sleep",
+		"startPump": "Start pump",
+		"logDiaper": "Log diaper change",
+		"pumpComplete": "Pump complete",
+		"side": "Side",
+		"headPosition": "Head position",
+		"contents": "Contents",
+		"leftYield": "Left yield (ml)",
+		"rightYield": "Right yield (ml)",
+		"options": {
+			"left": "Left",
+			"right": "Right",
+			"both": "Both",
+			"back": "Back",
+			"headLeft": "Head Left",
+			"headRight": "Head Right",
+			"tummy": "Tummy",
+			"side": "Side",
+			"poop": "Poop",
+			"pee": "Pee",
+			"bothWaste": "Both"
+		}
+	},
+	"timer": {
+		"type": {
+			"feed": "FEEDING",
+			"sleep": "SLEEP",
+			"pump": "PUMP"
+		},
+		"stop": "STOP",
+		"stopping": "…",
+		"elapsed": ".input {$count :integer}\n.match $count\n  one {{{$type}, {$count} minute}}\n  *   {{{$type}, {$count} minutes}}",
+		"justNow": "just now",
+		"activeTimersLabel": "Active timers",
+		"viewTimerLabel": "View {$type} timer",
+		"stopTimerLabel": "Stop {$type} timer"
+	},
+	"quickActions": {
+		"navLabel": "Quick tracking actions",
+		"startLabel": "Quick start {$label}"
+	},
+	"sessions": {
+		"bothContent": "Poop + Pee",
+		"types": {
+			"feed": "Feeding",
+			"sleep": "Sleep",
+			"pump": "Pump",
+			"diaper": "Diaper"
+		},
+		"edit": "Edit session",
+		"time": "Time",
+		"startTime": "Start time",
+		"endTime": "End time",
+		"side": "Side",
+		"headPosition": "Head position",
+		"contents": "Contents",
+		"leftYield": "Left yield (ml)",
+		"rightYield": "Right yield (ml)",
+		"deleteConfirm": "Delete this session?",
+		"errors": {
+			"startRequired": "Start time is required and must be a valid date.",
+			"endInvalid": "End time must be a valid date.",
+			"endBeforeStart": "End time must be after start time.",
+			"yieldInvalid": "Yield must be a non-negative number",
+			"saveFailed": "Failed to save.",
+			"deleteFailed": "Failed to delete."
+		}
+	},
+	"history": {
+		"title": "History",
+		"selectBaby": "Select a baby to see history.",
+		"noSessions": "No sessions yet. Start tracking!",
+		"today": "Today",
+		"yesterday": "Yesterday"
+	},
+	"stats": {
+		"title": "Insights",
+		"last7Days": "Last 7 days",
+		"tabs": {
+			"overview": "Overview",
+			"feeding": "Feeding",
+			"sleep": "Sleep",
+			"diaper": "Diaper"
+		},
+		"selectBaby": "Select a baby to see insights.",
+		"overview": {
+			"totalFeeds": "Total Feeds",
+			"avgPerDay": "Avg / Day",
+			"totalSleep": "Total Sleep",
+			"diaperChanges": "Diaper Changes",
+			"todayTimeline": "Today's timeline",
+			"noSessions": "No sessions recorded today yet."
+		},
+		"feeding": {
+			"chartTitle": "Feeding time (min/day)",
+			"totalFeeds": "Total Feeds",
+			"avgPerDay": "Avg / Day",
+			"avgDuration": "Avg Duration",
+			"avgGap": "Avg Gap",
+			"sideBalance": "Side balance",
+			"left": "Left",
+			"right": "Right",
+			"both": "Both"
+		},
+		"sleep": {
+			"chartTitle": "Sleep time (min/day)",
+			"totalSleep": "Total Sleep",
+			"avgPerDay": "Avg / Day",
+			"longestStretch": "Longest Stretch",
+			"sessions": "Sessions",
+			"positionBalance": "Sleep position balance",
+			"balanced": "Sleep positions look balanced. Keep alternating head direction between sleeps.",
+			"positionWarning": "Sleep has been mostly {$side} ({$percent}%). Try rotating positions between naps to avoid too much pressure on one area of the head.",
+			"tummyAddendum": "For safe sleep, place baby on their back unless your pediatrician says otherwise.",
+			"noSessions": "No completed sleep sessions in the last 7 days yet."
+		},
+		"diaper": {
+			"chartTitle": "Diaper changes (count/day)",
+			"totalChanges": "Total Changes",
+			"avgPerDay": "Avg / Day",
+			"poop": "Poop",
+			"peeOnly": "Pee Only"
+		}
+	},
+	"settings": {
+		"title": "Settings",
+		"theme": "Theme",
+		"language": "Language",
+		"profile": "Profile",
+		"namePlaceholder": "Your name",
+		"saved": "Saved!",
+		"familyManagement": "Family management",
+		"manageFamilyLink": "Manage family members, babies, and invites",
+		"account": "Account",
+		"signOut": "Sign out",
+		"signInPrompt": "Sign in to sync your data across devices.",
+		"signIn": "Sign in"
+	},
+	"family": {
+		"title": "Family",
+		"babies": "Babies",
+		"noBabies": "No babies yet.",
+		"bornDate": "Born {$date}",
+		"babyNamePlaceholder": "Baby name",
+		"loading": "Loading...",
+		"signInPrompt": "Sign in to manage your family and sync data.",
+		"pendingInvitations": "Pending invitations",
+		"accept": "Accept",
+		"decline": "Decline",
+		"createFamilyTitle": "Create a family",
+		"notInFamily": "You're not in a family yet.",
+		"familyNamePlaceholder": "Family name",
+		"createFamily": "Create Family",
+		"membersHeading": ".input {$count :integer}\n.match $count\n  one {{Members ({$count})}}\n  *   {{Members ({$count})}}",
+		"youTag": "You",
+		"ownerTag": "owner",
+		"pendingTag": "pending",
+		"invitedTag": "invited",
+		"inviteMember": "Invite family member",
+		"emailPlaceholder": "partner@example.com",
+		"sendInvitation": "Send invitation",
+		"invitationSent": "Invitation sent to {$email}.",
+		"joinedFamily": "You have joined {$family}.",
+		"inviteDeclined": "Invitation to {$family} declined."
+	},
+	"babySelector": {
+		"selectBaby": "Select baby",
+		"switchBaby": "Switch baby",
+		"manageBabies": "Manage babies",
+		"newborn": "newborn",
+		"ageMonths": "{$months}m",
+		"ageYearsMonths": "{$years}y {$months}m"
+	},
+	"charts": {
+		"timeline6am": "6am",
+		"timeline12pm": "12pm",
+		"timeline6pm": "6pm"
+	}
+}

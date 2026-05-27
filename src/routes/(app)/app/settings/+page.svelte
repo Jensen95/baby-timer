@@ -7,10 +7,13 @@
 	import { supabase } from '$lib/supabase';
 	import { getTheme, setTheme, THEMES, THEME_LABELS } from '$lib/state/theme.svelte';
 	import Button from '$lib/components/Button.svelte';
+	import { t, locale } from '@sveltia/i18n';
+	import { setLocale, SUPPORTED_LOCALES, LOCALE_LABELS, type AppLocale } from '$lib/i18n';
 
 	const session = getContext<SessionStore>(SESSION_KEY);
 
 	let currentTheme = $derived(getTheme());
+	let currentLocale = $derived(locale.current as AppLocale);
 
 	let displayName = $state('');
 	let saving = $state(false);
@@ -70,21 +73,39 @@
 
 <div class="page">
 	<div class="page-header">
-		<button type="button" class="back-btn" onclick={handleBack} aria-label="Go back"> Back </button>
+		<button type="button" class="back-btn" onclick={handleBack} aria-label="Go back">
+			{t('common.back')}
+		</button>
 	</div>
-	<h1 class="page-title">Settings</h1>
+	<h1 class="page-title">{t('settings.title')}</h1>
 
 	<section class="section-card">
-		<h2 class="section-title">Theme</h2>
+		<h2 class="section-title">{t('settings.theme')}</h2>
 		<div class="theme-picker">
-			{#each THEMES as t}
+			{#each THEMES as themeId}
 				<button
 					class="theme-option"
-					class:theme-option--active={currentTheme === t}
-					onclick={() => setTheme(t)}
-					aria-pressed={currentTheme === t}
+					class:theme-option--active={currentTheme === themeId}
+					onclick={() => setTheme(themeId)}
+					aria-pressed={currentTheme === themeId}
 				>
-					{THEME_LABELS[t]}
+					{THEME_LABELS[themeId]}
+				</button>
+			{/each}
+		</div>
+	</section>
+
+	<section class="section-card">
+		<h2 class="section-title">{t('settings.language')}</h2>
+		<div class="theme-picker lang-picker">
+			{#each SUPPORTED_LOCALES as l}
+				<button
+					class="theme-option"
+					class:theme-option--active={currentLocale === l}
+					onclick={() => setLocale(l)}
+					aria-pressed={currentLocale === l}
+				>
+					{LOCALE_LABELS[l]}
 				</button>
 			{/each}
 		</div>
@@ -92,7 +113,7 @@
 
 	{#if session.user}
 		<section class="section-card">
-			<h2 class="section-title">Profile</h2>
+			<h2 class="section-title">{t('settings.profile')}</h2>
 			<form onsubmit={handleSave} class="profile-form">
 				<input
 					id="email"
@@ -106,7 +127,7 @@
 					class="form-input"
 					type="text"
 					bind:value={displayName}
-					placeholder="Your name"
+					placeholder={t('settings.namePlaceholder')}
 				/>
 
 				{#if error}
@@ -114,30 +135,32 @@
 				{/if}
 
 				{#if saved}
-					<div class="success-msg">Saved!</div>
+					<div class="success-msg">{t('settings.saved')}</div>
 				{/if}
 
 				<div class="form-row">
-					<Button variant="primary" size="sm" type="submit" loading={saving}>Save</Button>
+					<Button variant="primary" size="sm" type="submit" loading={saving}
+						>{t('common.save')}</Button
+					>
 				</div>
 			</form>
 		</section>
 
 		<section class="section-card">
-			<h2 class="section-title">Family management</h2>
+			<h2 class="section-title">{t('settings.familyManagement')}</h2>
 			<a href="{base}/app/family" class="action-link manage-family-link">
-				Manage family members, babies, and invites
+				{t('settings.manageFamilyLink')}
 			</a>
 		</section>
 
 		<section class="section-card">
-			<h2 class="section-title">Account</h2>
-			<a href="{base}/logout" class="action-link sign-out-link">Sign out</a>
+			<h2 class="section-title">{t('settings.account')}</h2>
+			<a href="{base}/logout" class="action-link sign-out-link">{t('settings.signOut')}</a>
 		</section>
 	{:else}
 		<section class="section-card">
-			<p class="empty">Sign in to sync your data across devices.</p>
-			<a href="{base}/login" class="sign-in-link">Sign in</a>
+			<p class="empty">{t('settings.signInPrompt')}</p>
+			<a href="{base}/login" class="sign-in-link">{t('settings.signIn')}</a>
 		</section>
 	{/if}
 </div>
@@ -194,6 +217,9 @@
 		grid-template-columns: repeat(4, 1fr);
 		gap: var(--space-2);
 		margin-top: var(--space-2);
+	}
+	.lang-picker {
+		grid-template-columns: repeat(2, 1fr);
 	}
 	.theme-option {
 		padding: var(--space-3) var(--space-2);

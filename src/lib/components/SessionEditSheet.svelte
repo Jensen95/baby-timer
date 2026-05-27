@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { t } from '@sveltia/i18n';
 	import Sheet from './Sheet.svelte';
 	import Button from './Button.svelte';
 	import OptionGrid from './OptionGrid.svelte';
@@ -49,7 +50,7 @@
 			numValue = trimmed;
 		}
 		const n = Number(numValue);
-		if (!Number.isFinite(n) || n < 0) throw new Error('Yield must be a non-negative number');
+		if (!Number.isFinite(n) || n < 0) throw new Error(t('sessions.errors.yieldInvalid'));
 		return Math.round(n);
 	}
 
@@ -79,31 +80,31 @@
 		confirmDelete = false;
 	});
 
-	const FEEDING_OPTIONS = [
-		{ value: 'left', label: 'Left' },
-		{ value: 'right', label: 'Right' },
-		{ value: 'both', label: 'Both' }
-	];
+	const FEEDING_OPTIONS = $derived([
+		{ value: 'left', label: t('track.options.left') },
+		{ value: 'right', label: t('track.options.right') },
+		{ value: 'both', label: t('track.options.both') }
+	]);
 
-	const SLEEP_OPTIONS = [
-		{ value: 'back', label: 'Back' },
-		{ value: 'left', label: 'Head Left' },
-		{ value: 'right', label: 'Head Right' },
-		{ value: 'tummy', label: 'Tummy' },
-		{ value: 'side', label: 'Side' }
-	];
+	const SLEEP_OPTIONS = $derived([
+		{ value: 'back', label: t('track.options.back') },
+		{ value: 'left', label: t('track.options.headLeft') },
+		{ value: 'right', label: t('track.options.headRight') },
+		{ value: 'tummy', label: t('track.options.tummy') },
+		{ value: 'side', label: t('track.options.side') }
+	]);
 
-	const PUMP_OPTIONS = [
-		{ value: 'left', label: 'Left' },
-		{ value: 'right', label: 'Right' },
-		{ value: 'both', label: 'Both' }
-	];
+	const PUMP_OPTIONS = $derived([
+		{ value: 'left', label: t('track.options.left') },
+		{ value: 'right', label: t('track.options.right') },
+		{ value: 'both', label: t('track.options.both') }
+	]);
 
-	const DIAPER_OPTIONS = [
-		{ value: 'poop', label: 'Poop' },
-		{ value: 'pee', label: 'Pee' },
-		{ value: 'both', label: 'Both' }
-	];
+	const DIAPER_OPTIONS = $derived([
+		{ value: 'poop', label: t('track.options.poop') },
+		{ value: 'pee', label: t('track.options.pee') },
+		{ value: 'both', label: t('track.options.both') }
+	]);
 
 	const showYieldLeft = $derived(editSide === 'left' || editSide === 'both');
 	const showYieldRight = $derived(editSide === 'right' || editSide === 'both');
@@ -114,17 +115,17 @@
 
 		const startedAt = parseDateTimeInput(editStartedAt);
 		if (!startedAt) {
-			validationError = 'Start time is required and must be a valid date.';
+			validationError = t('sessions.errors.startRequired');
 			return;
 		}
 
 		const endedAt = editEndedAt.trim() ? parseDateTimeInput(editEndedAt) : null;
 		if (editEndedAt.trim() && !endedAt) {
-			validationError = 'End time must be a valid date.';
+			validationError = t('sessions.errors.endInvalid');
 			return;
 		}
 		if (endedAt && endedAt < startedAt) {
-			validationError = 'End time must be after start time.';
+			validationError = t('sessions.errors.endBeforeStart');
 			return;
 		}
 
@@ -135,7 +136,7 @@
 				yieldLeftMl = parseOptionalYield(editYieldLeftMl);
 				yieldRightMl = parseOptionalYield(editYieldRightMl);
 			} catch (e) {
-				validationError = e instanceof Error ? e.message : 'Invalid yield value.';
+				validationError = e instanceof Error ? e.message : t('sessions.errors.yieldInvalid');
 				return;
 			}
 		}
@@ -182,7 +183,7 @@
 		try {
 			await onsave(updated);
 		} catch (e) {
-			validationError = e instanceof Error ? e.message : 'Failed to save.';
+			validationError = e instanceof Error ? e.message : t('sessions.errors.saveFailed');
 		} finally {
 			saving = false;
 		}
@@ -194,7 +195,7 @@
 		try {
 			await ondelete(session);
 		} catch (e) {
-			validationError = e instanceof Error ? e.message : 'Failed to delete.';
+			validationError = e instanceof Error ? e.message : t('sessions.errors.deleteFailed');
 			deleting = false;
 		}
 	}
@@ -205,12 +206,12 @@
 	}
 </script>
 
-<Sheet {open} title="Edit session" onclose={handleClose}>
+<Sheet {open} title={t('sessions.edit')} onclose={handleClose}>
 	{#if session}
 		<div class="form">
 			{#if session.type === 'diaper_change'}
 				<div class="field">
-					<label class="field-label" for="edit-started-at">Time</label>
+					<label class="field-label" for="edit-started-at">{t('sessions.time')}</label>
 					<input
 						id="edit-started-at"
 						class="time-input"
@@ -219,7 +220,7 @@
 					/>
 				</div>
 				<div class="field">
-					<span class="field-label">Contents</span>
+					<span class="field-label">{t('sessions.contents')}</span>
 					<OptionGrid
 						options={DIAPER_OPTIONS}
 						value={editSide}
@@ -229,7 +230,7 @@
 				</div>
 			{:else if session.type === 'feeding'}
 				<div class="field">
-					<label class="field-label" for="edit-started-at">Start time</label>
+					<label class="field-label" for="edit-started-at">{t('sessions.startTime')}</label>
 					<input
 						id="edit-started-at"
 						class="time-input"
@@ -239,7 +240,7 @@
 				</div>
 				<div class="field">
 					<label class="field-label" for="edit-ended-at"
-						>End time <span class="optional">(optional)</span></label
+						>{t('sessions.endTime')} <span class="optional">{t('common.optional')}</span></label
 					>
 					<input
 						id="edit-ended-at"
@@ -249,7 +250,7 @@
 					/>
 				</div>
 				<div class="field">
-					<span class="field-label">Side</span>
+					<span class="field-label">{t('sessions.side')}</span>
 					<OptionGrid
 						options={FEEDING_OPTIONS}
 						value={editSide}
@@ -259,7 +260,7 @@
 				</div>
 			{:else if session.type === 'sleep'}
 				<div class="field">
-					<label class="field-label" for="edit-started-at">Start time</label>
+					<label class="field-label" for="edit-started-at">{t('sessions.startTime')}</label>
 					<input
 						id="edit-started-at"
 						class="time-input"
@@ -269,7 +270,7 @@
 				</div>
 				<div class="field">
 					<label class="field-label" for="edit-ended-at"
-						>End time <span class="optional">(optional)</span></label
+						>{t('sessions.endTime')} <span class="optional">{t('common.optional')}</span></label
 					>
 					<input
 						id="edit-ended-at"
@@ -279,7 +280,7 @@
 					/>
 				</div>
 				<div class="field">
-					<span class="field-label">Head position</span>
+					<span class="field-label">{t('sessions.headPosition')}</span>
 					<OptionGrid
 						options={SLEEP_OPTIONS}
 						value={editSide}
@@ -289,7 +290,7 @@
 				</div>
 			{:else if session.type === 'breast_pump'}
 				<div class="field">
-					<label class="field-label" for="edit-started-at">Start time</label>
+					<label class="field-label" for="edit-started-at">{t('sessions.startTime')}</label>
 					<input
 						id="edit-started-at"
 						class="time-input"
@@ -299,7 +300,7 @@
 				</div>
 				<div class="field">
 					<label class="field-label" for="edit-ended-at"
-						>End time <span class="optional">(optional)</span></label
+						>{t('sessions.endTime')} <span class="optional">{t('common.optional')}</span></label
 					>
 					<input
 						id="edit-ended-at"
@@ -309,7 +310,7 @@
 					/>
 				</div>
 				<div class="field">
-					<span class="field-label">Side</span>
+					<span class="field-label">{t('sessions.side')}</span>
 					<OptionGrid
 						options={PUMP_OPTIONS}
 						value={editSide}
@@ -319,7 +320,7 @@
 				</div>
 				{#if showYieldLeft}
 					<div class="field">
-						<label class="field-label" for="edit-yield-left">Left yield (ml)</label>
+						<label class="field-label" for="edit-yield-left">{t('sessions.leftYield')}</label>
 						<input
 							id="edit-yield-left"
 							class="number-input"
@@ -332,7 +333,7 @@
 				{/if}
 				{#if showYieldRight}
 					<div class="field">
-						<label class="field-label" for="edit-yield-right">Right yield (ml)</label>
+						<label class="field-label" for="edit-yield-right">{t('sessions.rightYield')}</label>
 						<input
 							id="edit-yield-right"
 							class="number-input"
@@ -354,16 +355,21 @@
 	{#snippet footer()}
 		{#if confirmDelete}
 			<div class="confirm-delete">
-				<p class="confirm-delete__text">Delete this session?</p>
+				<p class="confirm-delete__text">{t('sessions.deleteConfirm')}</p>
 				<div class="confirm-delete__actions">
-					<Button variant="ghost" onclick={() => (confirmDelete = false)}>Cancel</Button>
-					<Button variant="danger" loading={deleting} onclick={handleDelete}>Delete</Button>
+					<Button variant="ghost" onclick={() => (confirmDelete = false)}
+						>{t('common.cancel')}</Button
+					>
+					<Button variant="danger" loading={deleting} onclick={handleDelete}
+						>{t('common.delete')}</Button
+					>
 				</div>
 			</div>
 		{:else}
 			<div class="footer-actions">
-				<Button variant="danger" onclick={() => (confirmDelete = true)}>Delete</Button>
-				<Button variant="primary" loading={saving} onclick={handleSave}>Save</Button>
+				<Button variant="danger" onclick={() => (confirmDelete = true)}>{t('common.delete')}</Button
+				>
+				<Button variant="primary" loading={saving} onclick={handleSave}>{t('common.save')}</Button>
 			</div>
 		{/if}
 	{/snippet}

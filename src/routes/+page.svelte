@@ -5,6 +5,7 @@
 	import { SESSION_KEY } from '$lib/auth/context';
 	import type { SessionStore } from '$lib/auth/context';
 	import { getGuestId } from '$lib/offline/guest';
+	import { t } from '@sveltia/i18n';
 	import Button from '$lib/components/Button.svelte';
 
 	const session = getContext<SessionStore>(SESSION_KEY);
@@ -15,29 +16,28 @@
 	}
 
 	let primaryHref = $derived(session.user ? `${base}/app` : `${base}/login`);
-	let primaryLabel = $derived(session.user ? 'Open Dashboard' : 'Start Tracking — Free');
+	let primaryLabel = $derived(
+		session.user ? t('landing.openDashboard') : t('landing.startTracking')
+	);
 </script>
 
 <svelte:head>
-	<title>Baby Tracker — Track feeding & sleep</title>
-	<meta
-		name="description"
-		content="A simple family app for tracking baby feeding and sleep sessions in real time."
-	/>
+	<title>{t('landing.title')}</title>
+	<meta name="description" content={t('landing.metaDescription')} />
 </svelte:head>
 
 <div class="page">
 	<section class="hero">
 		<div class="hero-content">
-			<h1 class="headline">Baby Tracker</h1>
-			<p class="subheadline">Track feeds, sleep & more — syncs across your family</p>
+			<h1 class="headline">{t('landing.headline')}</h1>
+			<p class="subheadline">{t('landing.subheadline')}</p>
 
 			<div class="cta-group">
 				<Button variant="primary" size="lg" href={primaryHref}>
 					{primaryLabel}
 				</Button>
 				<Button variant="ghost" size="lg" onclick={handleGuestMode}>
-					Track without an account
+					{t('landing.trackWithoutAccount')}
 				</Button>
 			</div>
 		</div>
@@ -47,28 +47,28 @@
 		<div class="features-grid">
 			<div class="feature-card">
 				<div class="feature-emoji">✓</div>
-				<h3 class="feature-title">Works offline</h3>
-				<p class="feature-desc">Start tracking without internet. Syncs when you're back online.</p>
+				<h3 class="feature-title">{t('landing.worksOfflineTitle')}</h3>
+				<p class="feature-desc">{t('landing.worksOfflineDesc')}</p>
 			</div>
 
 			<div class="feature-card">
 				<div class="feature-emoji">✓</div>
-				<h3 class="feature-title">Share with family</h3>
-				<p class="feature-desc">Both parents see live updates. No manual syncing needed.</p>
+				<h3 class="feature-title">{t('landing.shareFamilyTitle')}</h3>
+				<p class="feature-desc">{t('landing.shareFamilyDesc')}</p>
 			</div>
 
 			<div class="feature-card">
 				<div class="feature-emoji">✓</div>
-				<h3 class="feature-title">Track everything</h3>
+				<h3 class="feature-title">{t('landing.trackEverythingTitle')}</h3>
 				<p class="feature-desc">
-					Feedings, sleep, diapers, temperatures, and notes — all in one place.
+					{t('landing.trackEverythingDesc')}
 				</p>
 			</div>
 		</div>
 	</section>
 
 	<footer class="page-footer">
-		<p>Open source · Hosted on GitHub Pages · Data stored securely on Supabase</p>
+		<p>{t('landing.footer')}</p>
 	</footer>
 </div>
 

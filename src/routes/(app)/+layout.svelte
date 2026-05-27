@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { getContext, setContext } from 'svelte';
+	import { t } from '@sveltia/i18n';
 	import { base } from '$app/paths';
 	import { SESSION_KEY } from '$lib/auth/context';
 	import type { SessionStore } from '$lib/auth/context';
@@ -45,13 +46,15 @@
 
 {#if session.loading}
 	<div style="min-height: 100vh; display: flex; align-items: center; justify-content: center;">
-		<progress style="width: 200px; accent-color: var(--brand);" max="100">Loading</progress>
+		<progress style="width: 200px; accent-color: var(--brand);" max="100"
+			>{t('common.loading')}</progress
+		>
 	</div>
 {:else}
 	{#if !session.user}
 		<div class="guest-banner">
-			<span>You're offline — data stays on this device.</span>
-			<a href="{base}/login" class="guest-banner-link">Sign in to sync</a>
+			<span>{t('app.offlineBanner')}</span>
+			<a href="{base}/login" class="guest-banner-link">{t('app.signInToSync')}</a>
 		</div>
 	{/if}
 	{@render children()}

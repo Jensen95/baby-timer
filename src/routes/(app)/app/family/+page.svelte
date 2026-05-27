@@ -21,6 +21,7 @@
 	import { getLocalFamily, putLocalFamily } from '$lib/db/local-family';
 	import { listBabiesLocal, createBabyLocal, type LocalBaby } from '$lib/db/local-babies';
 	import Button from '$lib/components/Button.svelte';
+	import { t } from '@sveltia/i18n';
 
 	const session = getContext<SessionStore>(SESSION_KEY);
 	const sync = getContext<SyncEngineStore>(SYNC_KEY);
@@ -149,7 +150,7 @@
 		try {
 			await inviteMemberByEmail(supabase, familyId, currentFamilyName, normalizedInviteEmail);
 			members = await listFamilyMemberDetails(supabase, familyId);
-			success = `Invitation sent to ${normalizedInviteEmail}.`;
+			success = t('family.invitationSent', { values: { email: normalizedInviteEmail } });
 			inviteEmail = '';
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Failed to send invitation';
@@ -172,7 +173,7 @@
 			}
 			members = await listFamilyMemberDetails(supabase, invite.family_id);
 			pendingInvites = pendingInvites.filter((p) => p.family_id !== invite.family_id);
-			success = `You have joined ${invite.family_name}.`;
+			success = t('family.joinedFamily', { values: { family: invite.family_name } });
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Failed to accept invitation';
 		} finally {
@@ -187,7 +188,7 @@
 		try {
 			await declineFamilyMembership(supabase, invite.family_id);
 			pendingInvites = pendingInvites.filter((p) => p.family_id !== invite.family_id);
-			success = `Invitation to ${invite.family_name} declined.`;
+			success = t('family.inviteDeclined', { values: { family: invite.family_name } });
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Failed to decline invitation';
 		} finally {
@@ -197,7 +198,7 @@
 </script>
 
 <div class="page">
-	<h1 class="page-title">Family</h1>
+	<h1 class="page-title">{t('family.title')}</h1>
 
 	{#if error}
 		<div class="error-msg">{error}</div>
@@ -209,9 +210,9 @@
 
 	<section class="section-card">
 		<div class="section-header">
-			<h2 class="section-title">Babies</h2>
+			<h2 class="section-title">{t('family.babies')}</h2>
 			<Button variant="ghost" size="sm" onclick={() => (showAddBabyForm = !showAddBabyForm)}>
-				+ Add
+				{t('common.add')}
 			</Button>
 		</div>
 
@@ -221,29 +222,33 @@
 					class="form-input"
 					type="text"
 					bind:value={newBabyName}
-					placeholder="Baby name"
+					placeholder={t('family.babyNamePlaceholder')}
 					required
 				/>
 				<input class="form-input" type="date" bind:value={newBabyBirthDate} />
 				<div class="form-row">
 					<Button variant="ghost" size="sm" type="button" onclick={() => (showAddBabyForm = false)}>
-						Cancel
+						{t('common.cancel')}
 					</Button>
-					<Button variant="primary" size="sm" type="submit" loading={addingBaby}>Save</Button>
+					<Button variant="primary" size="sm" type="submit" loading={addingBaby}
+						>{t('common.save')}</Button
+					>
 				</div>
 			</form>
 		{/if}
 
 		{#if loading}
-			<p class="empty">Loading...</p>
+			<p class="empty">{t('family.loading')}</p>
 		{:else if babies.length === 0}
-			<p class="empty">No babies yet.</p>
+			<p class="empty">{t('family.noBabies')}</p>
 		{:else}
 			{#each babies as baby (baby.id)}
 				<div class="baby-row">
 					<span>{baby.name}</span>
 					{#if baby.birth_date}
-						<span class="birth-date">Born {baby.birth_date}</span>
+						<span class="birth-date"
+							>{t('family.bornDate', { values: { date: baby.birth_date } })}</span
+						>
 					{/if}
 				</div>
 			{/each}
@@ -252,12 +257,12 @@
 
 	{#if !session.user}
 		<section class="section-card">
-			<p class="empty">Sign in to manage your family and sync data.</p>
+			<p class="empty">{t('family.signInPrompt')}</p>
 		</section>
 	{:else}
 		{#if pendingInvites.length > 0}
 			<section class="section-card">
-				<h2 class="section-title">Pending invitations</h2>
+				<h2 class="section-title">{t('family.pendingInvitations')}</h2>
 				{#each pendingInvites as invite (invite.family_id)}
 					<div class="pending-invite-row">
 						<div>
@@ -273,7 +278,7 @@
 								loading={responding === invite.family_id}
 								onclick={() => handleAcceptInvite(invite)}
 							>
-								Accept
+								{t('family.accept')}
 							</Button>
 							<Button
 								variant="ghost"
@@ -281,7 +286,7 @@
 								loading={responding === invite.family_id}
 								onclick={() => handleDeclineInvite(invite)}
 							>
-								Decline
+								{t('family.decline')}
 							</Button>
 						</div>
 					</div>
@@ -291,15 +296,15 @@
 
 		{#if !familyId}
 			<section class="section-card">
-				<h2 class="section-title">Create a family</h2>
-				<p class="empty">You're not in a family yet.</p>
+				<h2 class="section-title">{t('family.createFamilyTitle')}</h2>
+				<p class="empty">{t('family.notInFamily')}</p>
 				{#if showCreateForm}
 					<form onsubmit={handleCreateFamily} class="invite-form">
 						<input
 							class="form-input"
 							type="text"
 							bind:value={newFamilyName}
-							placeholder="Family name"
+							placeholder={t('family.familyNamePlaceholder')}
 							required
 						/>
 						<div class="form-row">
@@ -309,21 +314,25 @@
 								type="button"
 								onclick={() => (showCreateForm = false)}
 							>
-								Cancel
+								{t('common.cancel')}
 							</Button>
-							<Button variant="primary" size="sm" type="submit" loading={saving}>Create</Button>
+							<Button variant="primary" size="sm" type="submit" loading={saving}
+								>{t('family.createFamily')}</Button
+							>
 						</div>
 					</form>
 				{:else}
 					<Button variant="primary" size="sm" onclick={() => (showCreateForm = true)}>
-						Create Family
+						{t('family.createFamily')}
 					</Button>
 				{/if}
 			</section>
 		{:else}
 			<section class="section-card">
 				<div class="section-header">
-					<h2 class="section-title">Members ({members.length})</h2>
+					<h2 class="section-title">
+						{t('family.membersHeading', { values: { count: members.length } })}
+					</h2>
 				</div>
 				{#each members as member (member.user_id ?? member.email)}
 					<div class="member-row">
@@ -331,7 +340,7 @@
 							<p class="member-name">
 								{getMemberDisplayLabel(member)}
 								{#if member.user_id === session.user?.id}
-									<span class="tag tag--you">You</span>
+									<span class="tag tag--you">{t('family.youTag')}</span>
 								{/if}
 							</p>
 							{#if member.display_name && member.email}
@@ -340,11 +349,11 @@
 						</div>
 						<div>
 							<span class="tag {member.role === 'owner' ? 'tag--owner' : ''}">
-								{member.role}
+								{member.role === 'owner' ? t('family.ownerTag') : member.role}
 							</span>
 							{#if member.status !== 'joined'}
 								<span class="tag tag--pending">
-									{member.status === 'pending' ? 'pending' : 'invited'}
+									{member.status === 'pending' ? t('family.pendingTag') : t('family.invitedTag')}
 								</span>
 							{/if}
 						</div>
@@ -354,19 +363,19 @@
 
 			{#if isOwner}
 				<section class="section-card">
-					<h2 class="section-title">Invite family member</h2>
+					<h2 class="section-title">{t('family.inviteMember')}</h2>
 					<form onsubmit={handleInviteMember} class="invite-form">
 						<input
 							id="invite-email"
 							class="form-input"
 							type="email"
 							bind:value={inviteEmail}
-							placeholder="partner@example.com"
+							placeholder={t('family.emailPlaceholder')}
 							required
 						/>
 						<div class="form-row">
 							<Button variant="primary" size="sm" type="submit" loading={inviting}>
-								Send invitation
+								{t('family.sendInvitation')}
 							</Button>
 						</div>
 					</form>

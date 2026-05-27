@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
+	import { t } from '@sveltia/i18n';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import type { Component } from 'svelte';
@@ -77,28 +78,45 @@
 	const pumpIcon = Wind as unknown as Component<IconProps>;
 	const diaperIcon = Baby as unknown as Component<IconProps>;
 
-	const FEEDING_OPTIONS = [
-		{ value: 'left', label: 'Left' },
-		{ value: 'right', label: 'Right' },
-		{ value: 'both', label: 'Both' }
-	];
-	const SLEEP_OPTIONS = [
-		{ value: 'back', label: 'Back' },
-		{ value: 'left', label: 'Head Left' },
-		{ value: 'right', label: 'Head Right' },
-		{ value: 'tummy', label: 'Tummy' },
-		{ value: 'side', label: 'Side' }
-	];
-	const PUMP_OPTIONS = [
-		{ value: 'left', label: 'Left' },
-		{ value: 'right', label: 'Right' },
-		{ value: 'both', label: 'Both' }
-	];
-	const DIAPER_OPTIONS = [
-		{ value: 'poop', label: 'Poop' },
-		{ value: 'pee', label: 'Pee' },
-		{ value: 'both', label: 'Both' }
-	];
+	const sideKeyMap: Record<string, string> = {
+		left: 'track.options.left',
+		right: 'track.options.right',
+		both: 'track.options.both',
+		back: 'track.options.back',
+		tummy: 'track.options.tummy',
+		side: 'track.options.side'
+	};
+
+	const headSideKeyMap: Record<string, string> = {
+		left: 'track.options.headLeft',
+		right: 'track.options.headRight',
+		back: 'track.options.back',
+		tummy: 'track.options.tummy',
+		side: 'track.options.side'
+	};
+
+	const FEEDING_OPTIONS = $derived([
+		{ value: 'left', label: t('track.options.left') },
+		{ value: 'right', label: t('track.options.right') },
+		{ value: 'both', label: t('track.options.both') }
+	]);
+	const SLEEP_OPTIONS = $derived([
+		{ value: 'back', label: t('track.options.back') },
+		{ value: 'left', label: t('track.options.headLeft') },
+		{ value: 'right', label: t('track.options.headRight') },
+		{ value: 'tummy', label: t('track.options.tummy') },
+		{ value: 'side', label: t('track.options.side') }
+	]);
+	const PUMP_OPTIONS = $derived([
+		{ value: 'left', label: t('track.options.left') },
+		{ value: 'right', label: t('track.options.right') },
+		{ value: 'both', label: t('track.options.both') }
+	]);
+	const DIAPER_OPTIONS = $derived([
+		{ value: 'poop', label: t('track.options.poop') },
+		{ value: 'pee', label: t('track.options.pee') },
+		{ value: 'both', label: t('track.options.bothWaste') }
+	]);
 
 	let feedSheetOpen = $state(false);
 	let feedSide = $state<FeedingSide>('left');
@@ -273,7 +291,7 @@
 
 	function relativeAgo(iso: string): string {
 		const seconds = Math.max(0, Math.floor((getNow() - new Date(iso).getTime()) / 1000));
-		if (seconds < 60) return 'just now';
+		if (seconds < 60) return t('timer.justNow');
 		const minutes = Math.floor(seconds / 60);
 		if (minutes < 60) return `${minutes}m ago`;
 		const hours = Math.floor(minutes / 60);
@@ -285,10 +303,6 @@
 		return `${days}d ago`;
 	}
 
-	function capitalize(value: string): string {
-		return value.charAt(0).toUpperCase() + value.slice(1);
-	}
-
 	function summaryFor(type: LocalSession['type']): string | undefined {
 		const last = recentSessions.find((s) => s.type === type);
 		if (!last) return undefined;
@@ -296,11 +310,18 @@
 		if (type === 'diaper_change') {
 			const hasPoop = last.has_poop ?? false;
 			const hasPee = last.has_pee ?? false;
-			const detail = hasPoop && hasPee ? 'Both' : hasPoop ? 'Poop' : 'Pee';
+			const detail =
+				hasPoop && hasPee
+					? t('track.options.bothWaste')
+					: hasPoop
+						? t('track.options.poop')
+						: t('track.options.pee');
 			return `${when} · ${detail}`;
 		}
 		if (last.side) {
-			return `${when} · ${capitalize(last.side)}`;
+			const keyMap = type === 'sleep' ? headSideKeyMap : sideKeyMap;
+			const sideLabel = keyMap[last.side] ? t(keyMap[last.side]) : last.side;
+			return `${when} · ${sideLabel}`;
 		}
 		return when;
 	}
@@ -485,15 +506,15 @@
 
 <div class="page" class:has-active-timer={hasActiveTimer}>
 	{#if pageLoading}
-		<p class="loading-msg">Loading…</p>
+		<p class="loading-msg">{t('common.loadingEllipsis')}</p>
 	{:else if !babyId}
 		{#if error}
 			<p class="error-msg" role="alert">{error}</p>
 		{/if}
 		<div class="empty">
-			<h2 class="empty-title">No babies yet</h2>
-			<p class="empty-text">Add a baby to start tracking.</p>
-			<Button variant="primary" href="{base}/app/family">Add a baby</Button>
+			<h2 class="empty-title">{t('app.noBabyYetTitle')}</h2>
+			<p class="empty-text">{t('app.noBabyYetDesc')}</p>
+			<Button variant="primary" href="{base}/app/family">{t('app.addABaby')}</Button>
 		</div>
 	{:else}
 		{#if error}
@@ -513,7 +534,7 @@
 			{:else}
 				<TrackTile
 					type="feed"
-					label="Feed"
+					label={t('track.feed')}
 					icon={feedIcon}
 					lastSummary={feedSummary}
 					disabled={!feedCanStart?.allowed}
@@ -534,7 +555,7 @@
 			{:else}
 				<TrackTile
 					type="sleep"
-					label="Sleep"
+					label={t('track.sleep')}
 					icon={sleepIcon}
 					lastSummary={sleepSummary}
 					disabled={!sleepCanStart?.allowed}
@@ -555,7 +576,7 @@
 			{:else}
 				<TrackTile
 					type="pump"
-					label="Pump"
+					label={t('track.pump')}
 					icon={pumpIcon}
 					lastSummary={pumpSummary}
 					disabled={!pumpCanStart?.allowed}
@@ -566,7 +587,7 @@
 
 			<TrackTile
 				type="diaper"
-				label="Diaper"
+				label={t('track.diaper')}
 				icon={diaperIcon}
 				lastSummary={diaperSummary}
 				onstart={() => (diaperSheetOpen = true)}
@@ -574,9 +595,9 @@
 		</div>
 
 		<section class="recent">
-			<h2 class="recent-title">Recent</h2>
+			<h2 class="recent-title">{t('app.recent')}</h2>
 			{#if recentSessions.length === 0}
-				<p class="recent-empty">No sessions yet.</p>
+				<p class="recent-empty">{t('app.noSessionsYet')}</p>
 			{:else}
 				<div class="recent-list">
 					{#each recentSessions as item, i (item.id)}
@@ -593,8 +614,8 @@
 	{/if}
 </div>
 
-<Sheet open={feedSheetOpen} title="Start feeding" onclose={() => (feedSheetOpen = false)}>
-	<span class="sheet-label">Side</span>
+<Sheet open={feedSheetOpen} title={t('track.startFeeding')} onclose={() => (feedSheetOpen = false)}>
+	<span class="sheet-label">{t('track.side')}</span>
 	<OptionGrid
 		options={FEEDING_OPTIONS}
 		value={feedSide}
@@ -602,12 +623,12 @@
 		onchange={(v) => (feedSide = v as FeedingSide)}
 	/>
 	{#snippet footer()}
-		<Button variant="primary" class="full" onclick={confirmStartFeed}>Start</Button>
+		<Button variant="primary" class="full" onclick={confirmStartFeed}>{t('common.start')}</Button>
 	{/snippet}
 </Sheet>
 
-<Sheet open={sleepSheetOpen} title="Start sleep" onclose={() => (sleepSheetOpen = false)}>
-	<span class="sheet-label">Head position</span>
+<Sheet open={sleepSheetOpen} title={t('track.startSleep')} onclose={() => (sleepSheetOpen = false)}>
+	<span class="sheet-label">{t('track.headPosition')}</span>
 	<OptionGrid
 		options={SLEEP_OPTIONS}
 		value={sleepSide}
@@ -615,12 +636,12 @@
 		onchange={(v) => (sleepSide = v as HeadSide)}
 	/>
 	{#snippet footer()}
-		<Button variant="primary" class="full" onclick={confirmStartSleep}>Start</Button>
+		<Button variant="primary" class="full" onclick={confirmStartSleep}>{t('common.start')}</Button>
 	{/snippet}
 </Sheet>
 
-<Sheet open={pumpSheetOpen} title="Start pump" onclose={() => (pumpSheetOpen = false)}>
-	<span class="sheet-label">Side</span>
+<Sheet open={pumpSheetOpen} title={t('track.startPump')} onclose={() => (pumpSheetOpen = false)}>
+	<span class="sheet-label">{t('track.side')}</span>
 	<OptionGrid
 		options={PUMP_OPTIONS}
 		value={pumpSide}
@@ -628,12 +649,16 @@
 		onchange={(v) => (pumpSide = v as PumpSide)}
 	/>
 	{#snippet footer()}
-		<Button variant="primary" class="full" onclick={confirmStartPump}>Start</Button>
+		<Button variant="primary" class="full" onclick={confirmStartPump}>{t('common.start')}</Button>
 	{/snippet}
 </Sheet>
 
-<Sheet open={diaperSheetOpen} title="Log diaper change" onclose={() => (diaperSheetOpen = false)}>
-	<span class="sheet-label">Contents</span>
+<Sheet
+	open={diaperSheetOpen}
+	title={t('track.logDiaper')}
+	onclose={() => (diaperSheetOpen = false)}
+>
+	<span class="sheet-label">{t('track.contents')}</span>
 	<OptionGrid
 		options={DIAPER_OPTIONS}
 		value={diaperContent}
@@ -641,14 +666,18 @@
 		onchange={(v) => (diaperContent = v as DiaperContent)}
 	/>
 	{#snippet footer()}
-		<Button variant="primary" class="full" onclick={confirmLogDiaper}>Log</Button>
+		<Button variant="primary" class="full" onclick={confirmLogDiaper}>{t('common.log')}</Button>
 	{/snippet}
 </Sheet>
 
-<Sheet open={pumpCompleteOpen} title="Pump complete" onclose={() => (pumpCompleteOpen = false)}>
+<Sheet
+	open={pumpCompleteOpen}
+	title={t('track.pumpComplete')}
+	onclose={() => (pumpCompleteOpen = false)}
+>
 	<div class="yield-fields">
 		<div class="field">
-			<label class="sheet-label" for="pump-yield-left">Left yield (ml)</label>
+			<label class="sheet-label" for="pump-yield-left">{t('track.leftYield')}</label>
 			<input
 				id="pump-yield-left"
 				class="number-input"
@@ -660,7 +689,7 @@
 			/>
 		</div>
 		<div class="field">
-			<label class="sheet-label" for="pump-yield-right">Right yield (ml)</label>
+			<label class="sheet-label" for="pump-yield-right">{t('track.rightYield')}</label>
 			<input
 				id="pump-yield-right"
 				class="number-input"
@@ -674,7 +703,7 @@
 	</div>
 	{#snippet footer()}
 		<Button variant="primary" class="full" loading={pumpStopping} onclick={confirmPumpComplete}>
-			Done
+			{t('common.done')}
 		</Button>
 	{/snippet}
 </Sheet>

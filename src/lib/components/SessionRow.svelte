@@ -1,9 +1,6 @@
 <script lang="ts">
+	import { t } from '@sveltia/i18n';
 	import { formatDuration, formatTime } from '$lib/timer/format';
-	import { formatDiaperContentLabel } from '$lib/sessions/diaper-change';
-	import { formatHeadSideLabel } from '$lib/sessions/sleep-balance';
-	import type { HeadSide } from '$lib/sessions/sleep';
-	import type { DiaperContent } from '$lib/sessions/diaper-change';
 	import type { LocalSession } from '$lib/sessions/local-session';
 
 	interface Props {
@@ -138,34 +135,41 @@
 		}
 	}
 
+	const headSideKeyMap: Record<string, string> = {
+		left: 'track.options.headLeft',
+		right: 'track.options.headRight',
+		back: 'track.options.back',
+		tummy: 'track.options.tummy',
+		side: 'track.options.side'
+	};
+
 	// Label derivations
 	const typeLabel = $derived.by(() => {
 		switch (session.type) {
 			case 'feeding':
-				return 'Feeding';
+				return t('sessions.types.feed');
 			case 'sleep':
-				return 'Sleep';
+				return t('sessions.types.sleep');
 			case 'breast_pump':
-				return 'Pump';
+				return t('sessions.types.pump');
 			case 'diaper_change':
-				return 'Diaper';
+				return t('sessions.types.diaper');
 		}
 	});
 
 	const detailLabel = $derived.by(() => {
 		if (session.type === 'feeding') {
 			const s = session.side ?? 'left';
-			return s.charAt(0).toUpperCase() + s.slice(1);
+			return t(`track.options.${s}`);
 		}
 		if (session.type === 'sleep') {
-			const s = session.side as HeadSide | null | undefined;
+			const s = session.side as string | null | undefined;
 			if (!s) return '';
-			const label = formatHeadSideLabel(s);
-			return label.charAt(0).toUpperCase() + label.slice(1);
+			return t(headSideKeyMap[s] ?? 'track.options.back');
 		}
 		if (session.type === 'breast_pump') {
 			const side = session.side ?? 'both';
-			const sideLbl = side.charAt(0).toUpperCase() + side.slice(1);
+			const sideLbl = t(`track.options.${side}`);
 			const parts: string[] = [sideLbl];
 			if (session.yield_left_ml != null && session.yield_left_ml > 0) {
 				parts.push(`L: ${session.yield_left_ml}ml`);
@@ -178,10 +182,9 @@
 		if (session.type === 'diaper_change') {
 			const hasPoop = session.has_poop ?? false;
 			const hasPee = session.has_pee ?? false;
-			let content: DiaperContent = 'pee';
-			if (hasPoop && hasPee) content = 'both';
-			else if (hasPoop) content = 'poop';
-			return formatDiaperContentLabel(content);
+			if (hasPoop && hasPee) return t('sessions.bothContent');
+			if (hasPoop) return t('track.options.poop');
+			return t('track.options.pee');
 		}
 		return '';
 	});
@@ -229,7 +232,7 @@
 			onclick={() => {
 				snapBack();
 				onedit(session);
-			}}>Edit</button
+			}}>{t('common.edit')}</button
 		>
 		<button
 			class="action-btn action-btn--delete"
@@ -238,7 +241,7 @@
 			onclick={() => {
 				snapBack();
 				ondelete(session);
-			}}>Delete</button
+			}}>{t('common.delete')}</button
 		>
 	</div>
 
@@ -345,10 +348,10 @@
 
 		<!-- Visually-hidden keyboard-accessible action buttons -->
 		<button class="visually-hidden" type="button" onclick={() => onedit(session)}
-			>Edit {typeLabel} session</button
+			>{t('common.edit')} {typeLabel}</button
 		>
 		<button class="visually-hidden" type="button" onclick={() => ondelete(session)}
-			>Delete {typeLabel} session</button
+			>{t('common.delete')} {typeLabel}</button
 		>
 	</div>
 </div>
