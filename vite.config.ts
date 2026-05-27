@@ -1,3 +1,4 @@
+import { sentryVitePlugin } from '@sentry/vite-plugin';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig, loadEnv } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
@@ -29,6 +30,8 @@ const appScope = `${basePath}/`;
 const appShellPath = `${appPath}.html`;
 const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
+const bugsinkAuthToken = process.env.BUGSINK_AUTH_TOKEN?.trim();
+
 export default defineConfig(({ command, mode }) => {
 	const env = loadEnv(mode, process.cwd(), '');
 	const npmLifecycleEvent = process.env.npm_lifecycle_event;
@@ -49,6 +52,9 @@ export default defineConfig(({ command, mode }) => {
 	const config = {
 		define: {
 			'import.meta.env.VITE_RELEASE': JSON.stringify(process.env.GITHUB_SHA ?? '')
+		},
+		build: {
+			sourcemap: bugsinkAuthToken ? ('hidden' as const) : false
 		},
 		plugins: [
 			sveltekit(),
@@ -101,7 +107,24 @@ export default defineConfig(({ command, mode }) => {
 					clientsClaim: true,
 					skipWaiting: true
 				}
-			})
+			}),
+			...(bugsinkAuthToken
+				? [
+						sentryVitePlugin({
+							url: process.env.BUGSINK_URL,
+							authToken: bugsinkAuthToken,
+							org: process.env.BUGSINK_ORG || '',
+							project: process.env.BUGSINK_PROJECT || 'baby-timer',
+							telemetry: false,
+							release: {
+								name: process.env.GITHUB_SHA || 'development'
+							},
+							sourcemaps: {
+								filesToDeleteAfterUpload: ['./build/**/*.js.map']
+							}
+						})
+					]
+				: [])
 		],
 
 		test: {
