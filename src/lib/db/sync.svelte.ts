@@ -1,10 +1,10 @@
 import { db } from './local';
 import { supabase } from '$lib/supabase';
 import { captureException } from '$lib/error-tracking';
-import type { Tables } from './database.types';
+import { getUserFamilies } from './family';
+import { listBabies } from './babies';
 
 export const SYNC_KEY = Symbol('sync');
-type BabyRow = Tables<'babies'>;
 
 export function createSyncEngine() {
 	let syncing = $state(false);
@@ -97,37 +97,29 @@ export function createSyncEngine() {
 				}
 			}
 
-			const { data: familyRows, error: familyError } = await supabase.from('families').select('id');
-			if (familyError) {
-				captureException(familyError);
-				anyError = true;
-			}
-
-			const familyIds = ((familyRows ?? []) as Array<{ id: string }>).map((family) => family.id);
-			if (familyIds.length > 0) {
-				const { data: sharedBabies, error: sharedBabiesError } = await supabase
-					.from('babies')
-					.select('*')
-					.in('family_id', familyIds)
-					.order('created_at', { ascending: true });
-
-				if (sharedBabiesError) {
-					captureException(sharedBabiesError);
-					anyError = true;
-				} else if (sharedBabies) {
+			try {
+				const families = await getUserFamilies(supabase);
+				if (families.length > 0) {
 					const pendingIds = new Set(
 						(await db.babies.where('_sync').equals('pending').primaryKeys()) as string[]
 					);
-					for (const sharedBaby of sharedBabies as BabyRow[]) {
-						if (pendingIds.has(sharedBaby.id)) {
-							continue;
-						}
-						await db.babies.put({
+					const sharedBabyLists = await Promise.all(
+						families.map((family) => listBabies(supabase, family.id))
+					);
+					const syncedBabies = sharedBabyLists
+						.flat()
+						.filter((sharedBaby) => !pendingIds.has(sharedBaby.id))
+						.map((sharedBaby) => ({
 							...sharedBaby,
-							_sync: 'synced'
-						});
+							_sync: 'synced' as const
+						}));
+					if (syncedBabies.length > 0) {
+						await db.babies.bulkPut(syncedBabies);
 					}
 				}
+			} catch (syncError) {
+				captureException(syncError);
+				anyError = true;
 			}
 
 			if (anyError) {
