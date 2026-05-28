@@ -211,12 +211,6 @@ begin
 		raise exception 'You are already in this family.';
 	end if;
 
-	insert into public.family_members (family_id, user_id, role, joined_at)
-	values (target_family_id, auth.uid(), 'member', now())
-	on conflict (family_id, user_id)
-	do update
-	set joined_at = coalesce(family_members.joined_at, now());
-
 	update public.family_invite_codes
 	set uses = uses + 1
 	where family_id = target_family_id
@@ -228,6 +222,12 @@ begin
 	if not found then
 		raise exception 'Invalid or expired invite code.';
 	end if;
+
+	insert into public.family_members (family_id, user_id, role, joined_at)
+	values (target_family_id, auth.uid(), 'member', now())
+	on conflict (family_id, user_id)
+	do update
+	set joined_at = now();
 
 	return target_family_id;
 end;
