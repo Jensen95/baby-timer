@@ -13,6 +13,11 @@
 							return segment.replace(/~and~/g, '&');
 						})
 						.join('?');
+					var basePath = '%sveltekit.assets%';
+
+					if (basePath && decoded.indexOf(basePath + '/') === 0) {
+						decoded = decoded.slice(basePath.length);
+					}
 
 					window.history.replaceState(
 						null,
