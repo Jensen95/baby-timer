@@ -11,6 +11,26 @@ export function createSyncEngine() {
 	let lastSyncedAt = $state<Date | null>(null);
 	let error = $state<string | null>(null);
 	let intervalId: ReturnType<typeof setInterval> | null = null;
+	const babiesRetryState = new Map<string, { attempts: number; nextAllowedAt: number }>();
+
+	function canSyncBabyNow(id: string): boolean {
+		const retry = babiesRetryState.get(id);
+		return !retry || Date.now() >= retry.nextAllowedAt;
+	}
+
+	function markBabySyncSuccess(id: string): void {
+		babiesRetryState.delete(id);
+	}
+
+	function markBabySyncFailure(id: string): void {
+		const previous = babiesRetryState.get(id);
+		const attempts = (previous?.attempts ?? 0) + 1;
+		const delayMs = Math.min(15_000 * 2 ** (attempts - 1), 5 * 60_000);
+		babiesRetryState.set(id, {
+			attempts,
+			nextAllowedAt: Date.now() + delayMs
+		});
+	}
 
 	async function syncNow() {
 		if (syncing) return;
@@ -29,10 +49,16 @@ export function createSyncEngine() {
 				if (!baby.family_id) {
 					continue;
 				}
+				if (!canSyncBabyNow(baby.id)) {
+					continue;
+				}
 				const { _sync, ...payload } = baby;
 				const { error: err } = await supabase.from('babies').upsert(payload as any);
-				if (!err) await db.babies.update(baby.id, { _sync: 'synced' });
-				else {
+				if (!err) {
+					await db.babies.update(baby.id, { _sync: 'synced' });
+					markBabySyncSuccess(baby.id);
+				} else {
+					markBabySyncFailure(baby.id);
 					captureException(err);
 					anyError = true;
 				}

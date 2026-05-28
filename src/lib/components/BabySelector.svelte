@@ -29,7 +29,7 @@
 	}
 </script>
 
-{#if babyState.babies.length <= 1}
+{#if babyState.babies.length < 1}
 	<span class="pill pill--static">
 		{babyState.selectedBaby?.name ?? t('babySelector.selectBaby')}
 	</span>

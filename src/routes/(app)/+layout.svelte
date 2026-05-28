@@ -8,7 +8,7 @@
 	import type { SyncEngineStore } from '$lib/db/sync.svelte';
 	import { BABY_STATE_KEY } from '$lib/state/baby.svelte';
 	import type { BabyState } from '$lib/state/baby.svelte';
-	import { createFamily } from '$lib/db/family';
+	import { ensureLocalFamilyForUser } from '$lib/db/local-family';
 	import { supabase } from '$lib/supabase';
 	import ActiveTimerBar from '$lib/components/ActiveTimerBar.svelte';
 	import QuickActionBar from '$lib/components/QuickActionBar.svelte';
@@ -25,15 +25,8 @@
 		async function handleSignedIn(e: Event) {
 			const { userId } = (e as CustomEvent).detail;
 			try {
-				const families = await (supabase as any).from('families').select('id').limit(1);
-				let familyId: string;
-				if (families.data && families.data.length > 0) {
-					familyId = families.data[0].id;
-				} else {
-					const newFamily = await createFamily(supabase, 'My Family');
-					familyId = newFamily.id;
-				}
-				await sync.migrateGuestData(userId, familyId);
+				const family = await ensureLocalFamilyForUser(supabase, userId, 'My Family');
+				await sync.migrateGuestData(userId, family.id);
 			} catch (e) {
 				console.error('Guest migration failed:', e);
 			}
