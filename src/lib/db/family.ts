@@ -12,6 +12,8 @@ type AddFamilyMemberByEmailArgs =
 	Database['public']['Functions']['add_family_member_by_email']['Args'];
 type JoinFamilyByCodeArgs = Database['public']['Functions']['join_family_by_code']['Args'];
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 export type MemberStatus = 'joined' | 'pending' | 'invited';
 
 export type FamilyMemberDetails = {
@@ -269,7 +271,7 @@ export async function joinFamilyByCode(client: Client, code: string): Promise<st
 	if (error) captureAndThrow(error);
 
 	const familyId = data as string | null;
-	if (!familyId) {
+	if (!familyId || !UUID_PATTERN.test(familyId)) {
 		captureAndThrow(new Error('Failed to resolve joined family.'));
 	}
 

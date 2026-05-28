@@ -201,6 +201,16 @@ begin
 		raise exception 'You can only be part of one family at a time.';
 	end if;
 
+	if exists (
+		select 1
+		from public.family_members
+		where user_id = auth.uid()
+			and family_id = target_family_id
+			and joined_at is not null
+	) then
+		raise exception 'You are already in this family.';
+	end if;
+
 	insert into public.family_members (family_id, user_id, role, joined_at)
 	values (target_family_id, auth.uid(), 'member', now())
 	on conflict (family_id, user_id)
