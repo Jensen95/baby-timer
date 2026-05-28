@@ -95,6 +95,39 @@ export function createSyncEngine() {
 				}
 			}
 
+			const { data: familyRows, error: familyError } = await supabase.from('families').select('id');
+			if (familyError) {
+				captureException(familyError);
+				anyError = true;
+			}
+
+			const familyIds = (familyRows ?? []).map((family) => family.id);
+			if (familyIds.length > 0) {
+				const { data: sharedBabies, error: sharedBabiesError } = await supabase
+					.from('babies')
+					.select('*')
+					.in('family_id', familyIds)
+					.order('created_at', { ascending: true });
+
+				if (sharedBabiesError) {
+					captureException(sharedBabiesError);
+					anyError = true;
+				} else if (sharedBabies) {
+					const pendingIds = new Set(
+						(await db.babies.where('_sync').equals('pending').primaryKeys()) as string[]
+					);
+					for (const sharedBaby of sharedBabies) {
+						if (pendingIds.has(sharedBaby.id)) {
+							continue;
+						}
+						await db.babies.put({
+							...sharedBaby,
+							_sync: 'synced'
+						});
+					}
+				}
+			}
+
 			if (anyError) {
 				error = 'Some rows failed to sync';
 			} else {
