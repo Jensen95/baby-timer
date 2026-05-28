@@ -1,8 +1,10 @@
 import { db } from './local';
 import { supabase } from '$lib/supabase';
 import { captureException } from '$lib/error-tracking';
+import type { Tables } from './database.types';
 
 export const SYNC_KEY = Symbol('sync');
+type BabyRow = Tables<'babies'>;
 
 export function createSyncEngine() {
 	let syncing = $state(false);
@@ -101,7 +103,7 @@ export function createSyncEngine() {
 				anyError = true;
 			}
 
-			const familyIds = (familyRows ?? []).map((family) => family.id);
+			const familyIds = ((familyRows ?? []) as Array<{ id: string }>).map((family) => family.id);
 			if (familyIds.length > 0) {
 				const { data: sharedBabies, error: sharedBabiesError } = await supabase
 					.from('babies')
@@ -116,7 +118,7 @@ export function createSyncEngine() {
 					const pendingIds = new Set(
 						(await db.babies.where('_sync').equals('pending').primaryKeys()) as string[]
 					);
-					for (const sharedBaby of sharedBabies) {
+					for (const sharedBaby of sharedBabies as BabyRow[]) {
 						if (pendingIds.has(sharedBaby.id)) {
 							continue;
 						}
