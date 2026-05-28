@@ -3,6 +3,24 @@
 	<head>
 		<script>
 			(function () {
+				// Decode GitHub Pages SPA fallback URLs like /?/<route> back to real routes.
+				// Required companion to static/404.html redirect script.
+				if (window.location.search[1] === '/') {
+					var decoded = window.location.search
+						.slice(1)
+						.split('&')
+						.map(function (segment) {
+							return segment.replace(/~and~/g, '&');
+						})
+						.join('?');
+
+					window.history.replaceState(
+						null,
+						'',
+						window.location.pathname.slice(0, -1) + decoded + window.location.hash
+					);
+				}
+
 				var isLocalhost =
 					window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
