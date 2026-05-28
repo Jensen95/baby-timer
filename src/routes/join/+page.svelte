@@ -42,9 +42,10 @@
 		try {
 			const joinedFamilyId = await joinFamilyByCode(supabase, normalizedCode);
 			const family = await getFamily(supabase, joinedFamilyId);
-			if (family) {
-				await putLocalFamily({ id: family.id, name: family.name, created_at: family.created_at });
+			if (!family) {
+				throw new Error('Joined family could not be loaded.');
 			}
+			await putLocalFamily({ id: family.id, name: family.name, created_at: family.created_at });
 			success = true;
 			if (typeof window !== 'undefined') {
 				window.localStorage.removeItem('baby-timer:pending-join-code');

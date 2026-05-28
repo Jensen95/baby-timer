@@ -273,12 +273,16 @@ export async function joinFamilyByCode(client: Client, code: string): Promise<st
 	const familyId = data as string | null;
 	if (!familyId) {
 		captureAndThrow(
-			new Error('Internal error: join_family_by_code returned null instead of a family UUID.')
+			new Error(
+				'Failed to join family: no family ID returned. This indicates a database function issue.'
+			)
 		);
 	}
 
 	if (!UUID_PATTERN.test(familyId)) {
-		captureAndThrow(new Error('Internal error: join_family_by_code returned non-UUID value.'));
+		captureAndThrow(
+			new Error(`Internal error: join_family_by_code returned invalid UUID: ${familyId}`)
+		);
 	}
 
 	return familyId;
