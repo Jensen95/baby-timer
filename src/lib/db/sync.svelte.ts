@@ -1,6 +1,8 @@
 import { db } from './local';
 import { supabase } from '$lib/supabase';
 import { captureException } from '$lib/error-tracking';
+import { getUserFamilies } from './family';
+import { listBabies } from './babies';
 
 export const SYNC_KEY = Symbol('sync');
 
@@ -93,6 +95,31 @@ export function createSyncEngine() {
 					captureException(err);
 					anyError = true;
 				}
+			}
+
+			try {
+				const families = await getUserFamilies(supabase);
+				if (families.length > 0) {
+					const pendingIds = new Set(
+						(await db.babies.where('_sync').equals('pending').primaryKeys()) as string[]
+					);
+					const sharedBabyLists = await Promise.all(
+						families.map((family) => listBabies(supabase, family.id))
+					);
+					const syncedBabies = sharedBabyLists
+						.flat()
+						.filter((sharedBaby) => !pendingIds.has(sharedBaby.id))
+						.map((sharedBaby) => ({
+							...sharedBaby,
+							_sync: 'synced' as const
+						}));
+					if (syncedBabies.length > 0) {
+						await db.babies.bulkPut(syncedBabies);
+					}
+				}
+			} catch (syncError) {
+				captureException(syncError);
+				anyError = true;
 			}
 
 			if (anyError) {
