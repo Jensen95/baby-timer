@@ -285,6 +285,10 @@ export type Database = {
 					invited_by: string | null;
 				}>;
 			};
+			join_family_by_code: {
+				Args: { code_input: string };
+				Returns: string;
+			};
 			list_family_members_with_profiles: {
 				Args: { target_family_id: string };
 				Returns: Array<{

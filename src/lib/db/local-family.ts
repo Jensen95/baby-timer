@@ -8,5 +8,8 @@ export async function getLocalFamily(): Promise<LocalFamily | undefined> {
 }
 
 export async function putLocalFamily(family: LocalFamily): Promise<void> {
-	await db.families.put(family);
+	await db.transaction('rw', db.families, async () => {
+		await db.families.clear();
+		await db.families.put(family);
+	});
 }
