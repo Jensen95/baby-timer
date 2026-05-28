@@ -6,7 +6,8 @@
 	import { SESSION_KEY } from '$lib/auth/context';
 	import type { SessionStore } from '$lib/auth/context';
 	import { supabase } from '$lib/supabase';
-	import { joinFamilyByCode } from '$lib/db/family';
+	import { getFamily, joinFamilyByCode } from '$lib/db/family';
+	import { putLocalFamily } from '$lib/db/local-family';
 	import Button from '$lib/components/Button.svelte';
 	import { t } from '@sveltia/i18n';
 
@@ -39,7 +40,12 @@
 		joining = true;
 		error = null;
 		try {
-			await joinFamilyByCode(supabase, normalizedCode);
+			const joinedFamilyId = await joinFamilyByCode(supabase, normalizedCode);
+			const family = await getFamily(supabase, joinedFamilyId);
+			if (!family) {
+				throw new Error('Joined family could not be loaded.');
+			}
+			await putLocalFamily({ id: family.id, name: family.name, created_at: family.created_at });
 			success = true;
 			if (typeof window !== 'undefined') {
 				window.localStorage.removeItem('baby-timer:pending-join-code');

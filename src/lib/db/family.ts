@@ -10,6 +10,9 @@ type ListFamilyMemberDetailsArgs =
 	Database['public']['Functions']['list_family_members_with_profiles']['Args'];
 type AddFamilyMemberByEmailArgs =
 	Database['public']['Functions']['add_family_member_by_email']['Args'];
+type JoinFamilyByCodeArgs = Database['public']['Functions']['join_family_by_code']['Args'];
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export type MemberStatus = 'joined' | 'pending' | 'invited';
 
@@ -261,10 +264,26 @@ export async function revokeFamilyInviteCode(
 	if (error) captureAndThrow(error);
 }
 
-export async function joinFamilyByCode(client: Client, code: string): Promise<void> {
-	const { error } = await client.rpc('join_family_by_code', {
-		code_input: code
-	} as never);
+export async function joinFamilyByCode(client: Client, code: string): Promise<string> {
+	const args: JoinFamilyByCodeArgs = { code_input: code };
+	const { data, error } = await client.rpc('join_family_by_code', args as never);
 
 	if (error) captureAndThrow(error);
+
+	const familyId = data as string | null;
+	if (!familyId) {
+		captureAndThrow(
+			new Error(
+				'Failed to join family: no family ID returned. This indicates a database function issue.'
+			)
+		);
+	}
+
+	if (!UUID_PATTERN.test(familyId)) {
+		captureAndThrow(
+			new Error(`Internal error: join_family_by_code returned invalid UUID: ${familyId}`)
+		);
+	}
+
+	return familyId;
 }
