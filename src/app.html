@@ -17,7 +17,7 @@
 					window.history.replaceState(
 						null,
 						'',
-						window.location.pathname.slice(0, -1) + decoded + window.location.hash
+						window.location.pathname.replace(/\/$/, '') + decoded + window.location.hash
 					);
 				}
 
