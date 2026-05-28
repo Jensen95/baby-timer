@@ -168,7 +168,9 @@ begin
 end;
 $$;
 
-create or replace function public.join_family_by_code(code_input text)
+drop function if exists public.join_family_by_code(text);
+
+create function public.join_family_by_code(code_input text)
 returns uuid
 language plpgsql
 security definer
