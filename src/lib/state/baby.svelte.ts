@@ -36,6 +36,9 @@ export function createBabyState() {
 					selectedBabyId = babies[0].id;
 					writeStoredBabyId(selectedBabyId);
 				}
+			} else if (selectedBabyId !== null) {
+				selectedBabyId = null;
+				writeStoredBabyId(null);
 			}
 		} finally {
 			loading = false;

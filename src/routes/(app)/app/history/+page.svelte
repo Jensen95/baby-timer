@@ -1,13 +1,10 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
 	import { t } from '@sveltia/i18n';
-	import { SESSION_KEY } from '$lib/auth/context';
-	import type { SessionStore } from '$lib/auth/context';
 	import { SYNC_KEY } from '$lib/db/sync.svelte';
 	import type { SyncEngineStore } from '$lib/db/sync.svelte';
 	import { BABY_STATE_KEY } from '$lib/state/baby.svelte';
 	import type { BabyState } from '$lib/state/baby.svelte';
-	import { supabase } from '$lib/supabase';
 	import {
 		listFeedingSessionsLocal,
 		updateFeedingLocal,
@@ -24,8 +21,6 @@
 		updateDiaperChangeLocal,
 		deleteDiaperChangeLocal
 	} from '$lib/db/local-diaper-change';
-	import { getLocalFamily, putLocalFamily } from '$lib/db/local-family';
-	import { getUserFamilies } from '$lib/db/family';
 	import type { LocalSession } from '$lib/sessions/local-session';
 	import type { FeedingSide } from '$lib/sessions/feeding';
 	import type { HeadSide } from '$lib/sessions/sleep';
@@ -33,51 +28,21 @@
 	import SessionRow from '$lib/components/SessionRow.svelte';
 	import SessionEditSheet from '$lib/components/SessionEditSheet.svelte';
 
-	const session = getContext<SessionStore>(SESSION_KEY);
 	const sync = getContext<SyncEngineStore>(SYNC_KEY);
 	const babyState = getContext<BabyState>(BABY_STATE_KEY);
 
-	let familyId = $state<string | null>(null);
 	let loading = $state(true);
 	let error = $state<string | null>(null);
 	let sessions = $state<LocalSession[]>([]);
 	let editingSession = $state<LocalSession | null>(null);
 
 	$effect(() => {
-		(async () => {
-			try {
-				if (session.user) {
-					let localFamily = await getLocalFamily();
-					if (!localFamily) {
-						const families = await getUserFamilies(supabase);
-						if (families.length > 0) {
-							await putLocalFamily({
-								id: families[0].id,
-								name: families[0].name,
-								created_at: families[0].created_at
-							});
-							localFamily = {
-								id: families[0].id,
-								name: families[0].name,
-								created_at: families[0].created_at
-							};
-						}
-					}
-					familyId = localFamily?.id ?? null;
-				} else {
-					familyId = null;
-				}
-			} catch (e) {
-				error = e instanceof Error ? e.message : 'Failed to load';
-			} finally {
-				loading = false;
-			}
-		})();
-	});
-
-	$effect(() => {
 		const babyId = babyState.selectedBabyId;
-		if (!babyId) return;
+		if (!babyId) {
+			sessions = [];
+			loading = false;
+			return;
+		}
 		loadHistory(babyId);
 	});
 
