@@ -271,8 +271,12 @@ export async function joinFamilyByCode(client: Client, code: string): Promise<st
 	if (error) captureAndThrow(error);
 
 	const familyId = data as string | null;
-	if (!familyId || !UUID_PATTERN.test(familyId)) {
-		captureAndThrow(new Error('Failed to resolve joined family.'));
+	if (!familyId) {
+		captureAndThrow(new Error('No family ID returned from join operation.'));
+	}
+
+	if (!UUID_PATTERN.test(familyId)) {
+		captureAndThrow(new Error('Invalid family ID format returned from join operation.'));
 	}
 
 	return familyId;

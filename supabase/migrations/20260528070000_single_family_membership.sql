@@ -215,7 +215,7 @@ begin
 	values (target_family_id, auth.uid(), 'member', now())
 	on conflict (family_id, user_id)
 	do update
-	set joined_at = coalesce(public.family_members.joined_at, now());
+	set joined_at = coalesce(family_members.joined_at, now());
 
 	update public.family_invite_codes
 	set uses = uses + 1
