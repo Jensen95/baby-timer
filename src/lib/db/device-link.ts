@@ -37,58 +37,51 @@ export async function createDeviceLinkRequest(
 	deviceLabel: string | null,
 	ttlMinutes = 10
 ): Promise<DeviceLinkRequest> {
-	const { data, error } = await (client as any).rpc('create_device_link_request', {
-		device_label: deviceLabel,
-		ttl_minutes: ttlMinutes
-	} as never);
+	const { data, error } = await client.functions.invoke('api/device-link/create', {
+		body: { deviceLabel, ttlMinutes },
+		method: 'POST'
+	});
 
 	if (error) captureAndThrow(error);
-	const rows = (data as DeviceLinkRequest[] | null) ?? [];
-	if (!rows[0]) {
-		captureAndThrow(new Error('Failed to create device link request'));
-	}
-
-	return rows[0];
+	return data as DeviceLinkRequest;
 }
 
 export async function getDeviceLinkStatus(
 	client: Client,
 	pollToken: string
 ): Promise<DeviceLinkStatus> {
-	const { data, error } = await (client as any).rpc('get_device_link_status', {
-		input_poll_token: pollToken
-	} as never);
+	const { data, error } = await client.functions.invoke('api/device-link/status', {
+		body: { pollToken },
+		method: 'POST'
+	});
 
 	if (error) captureAndThrow(error);
-	const rows = (data as Omit<DeviceLinkStatus, 'status'>[] | null) ?? [];
-	if (!rows[0]) {
-		return {
-			status: 'not_found',
-			expires_at: null,
-			approved_at: null,
-			denied_at: null,
-			approved_by_user_id: null
-		};
-	}
-
-	return rows[0] as DeviceLinkStatus;
+	return (data ?? {
+		status: 'not_found',
+		expires_at: null,
+		approved_at: null,
+		denied_at: null,
+		approved_by_user_id: null
+	}) as DeviceLinkStatus;
 }
 
 export async function approveDeviceLinkByQr(
 	client: Client,
 	approvalQrToken: string
 ): Promise<void> {
-	const { error } = await (client as any).rpc('approve_device_link_by_qr', {
-		input_approval_qr_token: approvalQrToken
-	} as never);
+	const { error } = await client.functions.invoke('api/device-link/approve-qr', {
+		body: { approvalQrToken },
+		method: 'POST'
+	});
 
 	if (error) captureAndThrow(error);
 }
 
 export async function approveDeviceLinkByCode(client: Client, userCode: string): Promise<void> {
-	const { error } = await (client as any).rpc('approve_device_link_by_code', {
-		input_user_code: userCode
-	} as never);
+	const { error } = await client.functions.invoke('api/device-link/approve-code', {
+		body: { userCode },
+		method: 'POST'
+	});
 
 	if (error) captureAndThrow(error);
 }
@@ -97,9 +90,10 @@ export async function consumeDeviceLinkRequest(
 	client: Client,
 	pollToken: string
 ): Promise<ConsumedDeviceLink> {
-	const { data, error } = await (client as any).rpc('consume_device_link_request', {
-		input_poll_token: pollToken
-	} as never);
+	const { data, error } = await client.functions.invoke('api/device-link/consume', {
+		body: { pollToken },
+		method: 'POST'
+	});
 
 	if (error) captureAndThrow(error);
 	return (data ?? { status: 'not_found' }) as ConsumedDeviceLink;

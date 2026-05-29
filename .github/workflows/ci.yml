@@ -90,9 +90,19 @@ jobs:
       - name: E2E tests
         run: npm run test:integration
 
+  edge-functions:
+    needs: install
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - run: deno test supabase/functions/_shared/
+
   ci:
     if: always()
-    needs: [lint, typecheck, unit, e2e]
+    needs: [lint, typecheck, unit, e2e, edge-functions]
     runs-on: ubuntu-latest
     steps:
       - name: All checks passed

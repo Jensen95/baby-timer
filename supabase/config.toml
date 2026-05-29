@@ -8,3 +8,9 @@ verify_jwt = false
 
 [functions.device-link-exchange]
 verify_jwt = false
+
+[functions.api]
+verify_jwt = false
+
+[functions.auth-user-created]
+verify_jwt = false
