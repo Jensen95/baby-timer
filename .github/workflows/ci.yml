@@ -93,12 +93,20 @@ jobs:
   edge-functions:
     needs: install
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: supabase/functions
     steps:
       - uses: actions/checkout@v6
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
-      - run: deno test supabase/functions/_shared/
+      - name: Format check
+        run: deno fmt --check
+      - name: Lint
+        run: deno lint
+      - name: Unit tests
+        run: deno test _shared/
 
   ci:
     if: always()
