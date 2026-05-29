@@ -8,7 +8,7 @@
 	import type { SyncEngineStore } from '$lib/db/sync.svelte';
 	import { BABY_STATE_KEY } from '$lib/state/baby.svelte';
 	import type { BabyState } from '$lib/state/baby.svelte';
-	import { ensureLocalFamilyForUser } from '$lib/db/local-family';
+	import { ensureLocalFamilyForUser, resolveLocalFamilyForUser } from '$lib/db/local-family';
 	import { supabase } from '$lib/supabase';
 	import ActiveTimerBar from '$lib/components/ActiveTimerBar.svelte';
 	import QuickActionBar from '$lib/components/QuickActionBar.svelte';
@@ -34,6 +34,25 @@
 
 		window.addEventListener('baby-timer:signed-in', handleSignedIn);
 		return () => window.removeEventListener('baby-timer:signed-in', handleSignedIn);
+	});
+
+	// For an already-authenticated session (page reload, no fresh sign-in event),
+	// resolve the family and start watching it for live Realtime updates.
+	$effect(() => {
+		const userId = session.user?.id;
+		if (!userId) {
+			sync.unwatch();
+			return;
+		}
+		let cancelled = false;
+		resolveLocalFamilyForUser(supabase, userId)
+			.then((family) => {
+				if (!cancelled && family) sync.watch(family.id);
+			})
+			.catch((e) => console.error('Realtime watch setup failed:', e));
+		return () => {
+			cancelled = true;
+		};
 	});
 </script>
 
