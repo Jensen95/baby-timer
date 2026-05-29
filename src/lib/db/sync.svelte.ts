@@ -25,6 +25,7 @@ export function createSyncEngine() {
 	let syncing = $state(false);
 	let lastSyncedAt = $state<Date | null>(null);
 	let error = $state<string | null>(null);
+	let revision = $state(0);
 	let channel: RealtimeChannel | null = null;
 	let watchedFamilyId: string | null = null;
 	const babiesRetryState = new Map<string, { attempts: number; nextAllowedAt: number }>();
@@ -207,9 +208,11 @@ export function createSyncEngine() {
 			if (payload.eventType === 'DELETE') {
 				const id = (payload.old as { id?: string }).id;
 				if (id) await localTables[table].delete(id);
+				revision++;
 				return;
 			}
 			await applyRemoteRow(table, payload.new as Record<string, unknown>);
+			revision++;
 		} catch (e) {
 			captureException(e);
 		}
@@ -228,6 +231,7 @@ export function createSyncEngine() {
 				await applyRemoteRow(table, row as Record<string, unknown>);
 			}
 		}
+		revision++;
 	}
 
 	// Subscribe to live changes for a family. Replaces interval polling: remote
@@ -324,6 +328,9 @@ export function createSyncEngine() {
 		},
 		get error() {
 			return error;
+		},
+		get revision() {
+			return revision;
 		},
 		syncNow,
 		migrateGuestData,

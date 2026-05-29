@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
 	import { t } from '@sveltia/i18n';
+	import { SYNC_KEY } from '$lib/db/sync.svelte';
+	import type { SyncEngineStore } from '$lib/db/sync.svelte';
 	import { BABY_STATE_KEY } from '$lib/state/baby.svelte';
 	import type { BabyState } from '$lib/state/baby.svelte';
 	import { db } from '$lib/db/local';
@@ -25,6 +27,7 @@
 		type SleepPositionBalance
 	} from '$lib/sessions/sleep-balance';
 
+	const sync = getContext<SyncEngineStore>(SYNC_KEY);
 	const babyState = getContext<BabyState>(BABY_STATE_KEY);
 
 	let activeTab = $state<'overview' | 'feeding' | 'sleep' | 'diaper'>('overview');
@@ -171,6 +174,7 @@
 
 	$effect(() => {
 		const babyId = babyState.selectedBabyId;
+		void sync.revision;
 		if (babyId) loadStats(babyId);
 	});
 

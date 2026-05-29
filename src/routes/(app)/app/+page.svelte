@@ -174,6 +174,7 @@
 
 	$effect(() => {
 		const id = babyId;
+		void sync.revision;
 		if (!id) {
 			recentSessions = [];
 			return;

@@ -38,6 +38,7 @@
 
 	$effect(() => {
 		const babyId = babyState.selectedBabyId;
+		void sync.revision;
 		if (!babyId) {
 			sessions = [];
 			loading = false;
