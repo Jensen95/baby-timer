@@ -15,8 +15,8 @@ app.use(
 	cors({
 		origin: '*',
 		allowHeaders: ['authorization', 'x-client-info', 'apikey', 'content-type'],
-		allowMethods: ['GET', 'POST', 'OPTIONS']
-	})
+		allowMethods: ['GET', 'POST', 'OPTIONS'],
+	}),
 );
 
 // Errors thrown from route handlers land here. AuthError carries an HTTP status;
@@ -38,9 +38,9 @@ export const openapi = fromHono(app, {
 		info: {
 			title: 'Baby Timer API',
 			version: '1.0.0',
-			description: 'Family, invite-code and device-link operations migrated out of Postgres RPCs.'
-		}
-	}
+			description: 'Family, invite-code and device-link operations migrated out of Postgres RPCs.',
+		},
+	},
 });
 
 app.get('/api/health', (c) => c.json({ status: 'ok' }));

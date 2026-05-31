@@ -28,7 +28,7 @@ export function bearerToken(req: Request): string {
 export function userClient(req: Request): SupabaseClient {
 	return createClient(SUPABASE_URL, ANON_KEY, {
 		global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } },
-		auth: { persistSession: false, autoRefreshToken: false }
+		auth: { persistSession: false, autoRefreshToken: false },
 	});
 }
 
@@ -39,7 +39,7 @@ export function userClient(req: Request): SupabaseClient {
  * guarded manually — there is no RLS safety net here.
  */
 export const serviceClient: SupabaseClient = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
-	auth: { persistSession: false, autoRefreshToken: false }
+	auth: { persistSession: false, autoRefreshToken: false },
 });
 
 /** Validates the bearer JWT and returns the user id. Throws AuthError(401). */
@@ -59,7 +59,7 @@ export async function getUserId(req: Request): Promise<string> {
 export async function assertFamilyOwner(
 	client: SupabaseClient,
 	familyId: string,
-	userId: string
+	userId: string,
 ): Promise<void> {
 	const { data, error } = await client
 		.from('family_members')
@@ -77,7 +77,7 @@ export async function assertFamilyOwner(
 export async function assertFamilyMember(
 	client: SupabaseClient,
 	familyId: string,
-	userId: string
+	userId: string,
 ): Promise<void> {
 	const { data, error } = await client
 		.from('family_members')
@@ -93,6 +93,6 @@ export async function assertFamilyMember(
 export function jsonResponse(body: unknown, status = 200): Response {
 	return new Response(JSON.stringify(body), {
 		status,
-		headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+		headers: { ...corsHeaders, 'Content-Type': 'application/json' },
 	});
 }

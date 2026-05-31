@@ -1,31 +1,31 @@
-import { OpenAPIRoute, contentJson } from 'chanfana';
+import { contentJson, OpenAPIRoute } from 'chanfana';
 import { z } from 'zod';
 import type { Context } from 'hono';
-import { getUserId, serviceClient, AuthError } from '../../../_shared/auth.ts';
+import { AuthError, getUserId, serviceClient } from '../../../_shared/auth.ts';
 import { shortCodeHash } from '../../../_shared/short-code.ts';
 
 export class JoinFamilyByCode extends OpenAPIRoute {
-	schema = {
+	override schema = {
 		request: {
 			body: contentJson(
 				z.object({
-					code: z.string()
-				})
-			)
+					code: z.string(),
+				}),
+			),
 		},
 		responses: {
 			'200': {
 				description: 'Joined family',
 				...contentJson(
 					z.object({
-						family_id: z.string()
-					})
-				)
-			}
-		}
+						family_id: z.string(),
+					}),
+				),
+			},
+		},
 	};
 
-	async handle(c: Context) {
+	override async handle(c: Context) {
 		const data = await this.getValidatedData<typeof this.schema>();
 		const req = c.req.raw;
 		const userId = await getUserId(req);
@@ -80,9 +80,9 @@ export class JoinFamilyByCode extends OpenAPIRoute {
 				family_id: familyId,
 				user_id: userId,
 				role: 'member',
-				joined_at: new Date().toISOString()
+				joined_at: new Date().toISOString(),
 			},
-			{ onConflict: 'family_id,user_id' }
+			{ onConflict: 'family_id,user_id' },
 		);
 
 		if (upsertErr) throw new AuthError(500, upsertErr.message);

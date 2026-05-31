@@ -1,19 +1,19 @@
-import { OpenAPIRoute, contentJson } from 'chanfana';
+import { contentJson, OpenAPIRoute } from 'chanfana';
 import { z } from 'zod';
 import type { Context } from 'hono';
-import { getUserId, userClient, assertFamilyOwner, AuthError } from '../../../_shared/auth.ts';
+import { assertFamilyOwner, AuthError, getUserId, userClient } from '../../../_shared/auth.ts';
 import { generateShortCode, shortCodeHash } from '../../../_shared/short-code.ts';
 
 export class CreateFamilyInviteCode extends OpenAPIRoute {
-	schema = {
+	override schema = {
 		request: {
 			body: contentJson(
 				z.object({
 					familyId: z.string().uuid(),
 					ttlMinutes: z.number().int().optional(),
-					maxUses: z.number().int().optional()
-				})
-			)
+					maxUses: z.number().int().optional(),
+				}),
+			),
 		},
 		responses: {
 			'200': {
@@ -22,14 +22,14 @@ export class CreateFamilyInviteCode extends OpenAPIRoute {
 					z.object({
 						code_id: z.string(),
 						code: z.string(),
-						expires_at: z.string()
-					})
-				)
-			}
-		}
+						expires_at: z.string(),
+					}),
+				),
+			},
+		},
 	};
 
-	async handle(c: Context) {
+	override async handle(c: Context) {
 		const data = await this.getValidatedData<typeof this.schema>();
 		const req = c.req.raw;
 		const userId = await getUserId(req);
@@ -55,7 +55,7 @@ export class CreateFamilyInviteCode extends OpenAPIRoute {
 					code_hint: code.slice(-4),
 					created_by: userId,
 					expires_at: expiresAt,
-					max_uses: effectiveMaxUses
+					max_uses: effectiveMaxUses,
 				})
 				.select('id, expires_at')
 				.single();

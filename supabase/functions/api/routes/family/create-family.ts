@@ -1,19 +1,19 @@
-import { OpenAPIRoute, contentJson } from 'chanfana';
+import { contentJson, OpenAPIRoute } from 'chanfana';
 import { z } from 'zod';
 import type { Context } from 'hono';
-import { getUserId, serviceClient, AuthError } from '../../../_shared/auth.ts';
+import { AuthError, getUserId, serviceClient } from '../../../_shared/auth.ts';
 
 export class CreateFamily extends OpenAPIRoute {
-	schema = {
+	override schema = {
 		request: {
 			body: contentJson(
 				z.object({
 					name: z
 						.string()
 						.min(1)
-						.transform((s) => s.trim())
-				})
-			)
+						.transform((s) => s.trim()),
+				}),
+			),
 		},
 		responses: {
 			'200': {
@@ -24,15 +24,15 @@ export class CreateFamily extends OpenAPIRoute {
 							id: z.string(),
 							name: z.string(),
 							created_by: z.string(),
-							created_at: z.string()
-						})
-					})
-				)
-			}
-		}
+							created_at: z.string(),
+						}),
+					}),
+				),
+			},
+		},
 	};
 
-	async handle(c: Context) {
+	override async handle(c: Context) {
 		const data = await this.getValidatedData<typeof this.schema>();
 		const req = c.req.raw;
 		const userId = await getUserId(req);
@@ -63,7 +63,7 @@ export class CreateFamily extends OpenAPIRoute {
 			family_id: family.id,
 			user_id: userId,
 			role: 'owner',
-			joined_at: new Date().toISOString()
+			joined_at: new Date().toISOString(),
 		});
 
 		if (memberInsertErr) throw new AuthError(500, memberInsertErr.message);

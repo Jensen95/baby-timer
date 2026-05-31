@@ -1,16 +1,16 @@
-import { OpenAPIRoute, contentJson } from 'chanfana';
+import { contentJson, OpenAPIRoute } from 'chanfana';
 import { z } from 'zod';
 import type { Context } from 'hono';
-import { userClient, AuthError } from '../../../_shared/auth.ts';
+import { AuthError, userClient } from '../../../_shared/auth.ts';
 
 export class ListActiveFamilyInviteCodes extends OpenAPIRoute {
-	schema = {
+	override schema = {
 		request: {
 			body: contentJson(
 				z.object({
-					familyId: z.string().uuid()
-				})
-			)
+					familyId: z.string().uuid(),
+				}),
+			),
 		},
 		responses: {
 			'200': {
@@ -24,16 +24,16 @@ export class ListActiveFamilyInviteCodes extends OpenAPIRoute {
 								created_at: z.string(),
 								expires_at: z.string(),
 								max_uses: z.number(),
-								uses: z.number()
-							})
-						)
-					})
-				)
-			}
-		}
+								uses: z.number(),
+							}),
+						),
+					}),
+				),
+			},
+		},
 	};
 
-	async handle(c: Context) {
+	override async handle(c: Context) {
 		const data = await this.getValidatedData<typeof this.schema>();
 		const req = c.req.raw;
 		const client = userClient(req);
@@ -61,7 +61,7 @@ export class ListActiveFamilyInviteCodes extends OpenAPIRoute {
 				created_at: r.created_at,
 				expires_at: r.expires_at,
 				max_uses: r.max_uses,
-				uses: r.uses
+				uses: r.uses,
 			}));
 
 		return c.json({ codes });

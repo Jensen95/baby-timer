@@ -1,31 +1,31 @@
-import { OpenAPIRoute, contentJson } from 'chanfana';
+import { contentJson, OpenAPIRoute } from 'chanfana';
 import { z } from 'zod';
 import type { Context } from 'hono';
-import { getUserId, serviceClient, AuthError } from '../../../_shared/auth.ts';
+import { AuthError, getUserId, serviceClient } from '../../../_shared/auth.ts';
 import { shortCodeHash } from '../../../_shared/short-code.ts';
 
 export class ApproveDeviceLinkByCode extends OpenAPIRoute {
-	schema = {
+	override schema = {
 		request: {
 			body: contentJson(
 				z.object({
-					userCode: z.string()
-				})
-			)
+					userCode: z.string(),
+				}),
+			),
 		},
 		responses: {
 			'200': {
 				description: 'Device link approved',
 				...contentJson(
 					z.object({
-						approved: z.boolean()
-					})
-				)
-			}
-		}
+						approved: z.boolean(),
+					}),
+				),
+			},
+		},
 	};
 
-	async handle(c: Context) {
+	override async handle(c: Context) {
 		const data = await this.getValidatedData<typeof this.schema>();
 		const req = c.req.raw;
 		const userId = await getUserId(req);
@@ -65,7 +65,7 @@ export class ApproveDeviceLinkByCode extends OpenAPIRoute {
 				requester_user_id: requesterUserId,
 				requester_family_id: requesterFamilyId,
 				attempt_count: attemptCount,
-				last_attempt_at: new Date().toISOString()
+				last_attempt_at: new Date().toISOString(),
 			})
 			.eq('user_code_hash', hash)
 			.is('approved_at', null)

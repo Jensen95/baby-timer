@@ -1,16 +1,16 @@
-import { OpenAPIRoute, contentJson } from 'chanfana';
+import { contentJson, OpenAPIRoute } from 'chanfana';
 import { z } from 'zod';
 import type { Context } from 'hono';
-import { serviceClient, AuthError } from '../../../_shared/auth.ts';
+import { AuthError, serviceClient } from '../../../_shared/auth.ts';
 
 export class GetDeviceLinkStatus extends OpenAPIRoute {
-	schema = {
+	override schema = {
 		request: {
 			body: contentJson(
 				z.object({
-					pollToken: z.string()
-				})
-			)
+					pollToken: z.string(),
+				}),
+			),
 		},
 		responses: {
 			'200': {
@@ -21,14 +21,14 @@ export class GetDeviceLinkStatus extends OpenAPIRoute {
 						expires_at: z.string().nullable(),
 						approved_at: z.string().nullable(),
 						denied_at: z.string().nullable(),
-						approved_by_user_id: z.string().nullable()
-					})
-				)
-			}
-		}
+						approved_by_user_id: z.string().nullable(),
+					}),
+				),
+			},
+		},
 	};
 
-	async handle(c: Context) {
+	override async handle(c: Context) {
 		const data = await this.getValidatedData<typeof this.schema>();
 		const { pollToken } = data.body;
 
@@ -47,7 +47,7 @@ export class GetDeviceLinkStatus extends OpenAPIRoute {
 				expires_at: null,
 				approved_at: null,
 				denied_at: null,
-				approved_by_user_id: null
+				approved_by_user_id: null,
 			});
 		}
 
@@ -69,7 +69,7 @@ export class GetDeviceLinkStatus extends OpenAPIRoute {
 			expires_at: row.expires_at,
 			approved_at: row.approved_at,
 			denied_at: row.denied_at,
-			approved_by_user_id: row.approved_by_user_id
+			approved_by_user_id: row.approved_by_user_id,
 		});
 	}
 }

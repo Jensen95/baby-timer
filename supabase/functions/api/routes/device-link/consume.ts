@@ -1,16 +1,16 @@
-import { OpenAPIRoute, contentJson } from 'chanfana';
+import { contentJson, OpenAPIRoute } from 'chanfana';
 import { z } from 'zod';
 import type { Context } from 'hono';
-import { serviceClient, AuthError } from '../../../_shared/auth.ts';
+import { AuthError, serviceClient } from '../../../_shared/auth.ts';
 
 export class ConsumeDeviceLinkRequest extends OpenAPIRoute {
-	schema = {
+	override schema = {
 		request: {
 			body: contentJson(
 				z.object({
-					pollToken: z.string()
-				})
-			)
+					pollToken: z.string(),
+				}),
+			),
 		},
 		responses: {
 			'200': {
@@ -19,21 +19,21 @@ export class ConsumeDeviceLinkRequest extends OpenAPIRoute {
 					z.object({
 						status: z.string(),
 						user_id: z.string().nullable().optional(),
-						approved_by_user_id: z.string().nullable().optional()
-					})
-				)
-			}
-		}
+						approved_by_user_id: z.string().nullable().optional(),
+					}),
+				),
+			},
+		},
 	};
 
-	async handle(c: Context) {
+	override async handle(c: Context) {
 		const data = await this.getValidatedData<typeof this.schema>();
 		const { pollToken } = data.body;
 
 		const { data: row, error: fetchError } = await serviceClient
 			.from('device_link_sessions')
 			.select(
-				'id, requester_user_id, approved_by_user_id, approved_at, consumed_at, denied_at, expires_at, attempt_count'
+				'id, requester_user_id, approved_by_user_id, approved_at, consumed_at, denied_at, expires_at, attempt_count',
 			)
 			.eq('poll_token', pollToken)
 			.limit(1)
@@ -51,7 +51,7 @@ export class ConsumeDeviceLinkRequest extends OpenAPIRoute {
 				.from('device_link_sessions')
 				.update({
 					attempt_count: row.attempt_count + 1,
-					last_attempt_at: new Date().toISOString()
+					last_attempt_at: new Date().toISOString(),
 				})
 				.eq('id', row.id);
 
@@ -70,7 +70,7 @@ export class ConsumeDeviceLinkRequest extends OpenAPIRoute {
 		return c.json({
 			status: 'approved',
 			user_id: row.requester_user_id,
-			approved_by_user_id: row.approved_by_user_id
+			approved_by_user_id: row.approved_by_user_id,
 		});
 	}
 }

@@ -3,7 +3,7 @@ import { captureException, flush, initErrorTracking } from '../_shared/error-tra
 
 const supabase = createClient(
 	Deno.env.get('SUPABASE_URL')!,
-	Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+	Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
 );
 
 initErrorTracking('daily-summary');
@@ -32,7 +32,7 @@ Deno.serve(async (req: Request) => {
 			captureException(babiesError);
 			return new Response(JSON.stringify({ error: babiesError.message }), {
 				status: 500,
-				headers: { 'Content-Type': 'application/json' }
+				headers: { 'Content-Type': 'application/json' },
 			});
 		}
 
@@ -41,7 +41,7 @@ Deno.serve(async (req: Request) => {
 		for (const baby of babies ?? []) {
 			const { data: summary, error: summaryError } = await supabase.rpc('daily_summary', {
 				p_baby_id: baby.id,
-				p_day: dayStr
+				p_day: dayStr,
 			});
 
 			if (summaryError) {
@@ -49,10 +49,9 @@ Deno.serve(async (req: Request) => {
 				continue;
 			}
 
-			const row =
-				Array.isArray(summary) && summary.length > 0
-					? summary[0]
-					: { feed_count: 0, feed_minutes: 0, sleep_count: 0, sleep_minutes: 0 };
+			const row = Array.isArray(summary) && summary.length > 0
+				? summary[0]
+				: { feed_count: 0, feed_minutes: 0, sleep_count: 0, sleep_minutes: 0 };
 
 			results.push({
 				babyId: baby.id,
@@ -61,24 +60,24 @@ Deno.serve(async (req: Request) => {
 				feedCount: row.feed_count,
 				feedMinutes: row.feed_minutes,
 				sleepCount: row.sleep_count,
-				sleepMinutes: row.sleep_minutes
+				sleepMinutes: row.sleep_minutes,
 			});
 
 			console.log(
 				`[${dayStr}] ${baby.name}: ${row.feed_count} feedings (${row.feed_minutes}min), ` +
-					`${row.sleep_count} sleeps (${row.sleep_minutes}min)`
+					`${row.sleep_count} sleeps (${row.sleep_minutes}min)`,
 			);
 		}
 
 		return new Response(JSON.stringify({ date: dayStr, results }), {
-			headers: { 'Content-Type': 'application/json' }
+			headers: { 'Content-Type': 'application/json' },
 		});
 	} catch (error) {
 		captureException(error);
 		await flush();
 		return new Response(JSON.stringify({ error: 'Unexpected error' }), {
 			status: 500,
-			headers: { 'Content-Type': 'application/json' }
+			headers: { 'Content-Type': 'application/json' },
 		});
 	}
 });

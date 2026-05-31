@@ -1,18 +1,18 @@
-import { OpenAPIRoute, contentJson } from 'chanfana';
+import { contentJson, OpenAPIRoute } from 'chanfana';
 import { z } from 'zod';
 import type { Context } from 'hono';
-import { bearerToken, serviceClient, AuthError } from '../../../_shared/auth.ts';
+import { AuthError, bearerToken, serviceClient } from '../../../_shared/auth.ts';
 import { generateShortCode, shortCodeHash } from '../../../_shared/short-code.ts';
 
 export class CreateDeviceLinkRequest extends OpenAPIRoute {
-	schema = {
+	override schema = {
 		request: {
 			body: contentJson(
 				z.object({
 					deviceLabel: z.string().nullable().optional(),
-					ttlMinutes: z.number().int().optional()
-				})
-			)
+					ttlMinutes: z.number().int().optional(),
+				}),
+			),
 		},
 		responses: {
 			'200': {
@@ -23,14 +23,14 @@ export class CreateDeviceLinkRequest extends OpenAPIRoute {
 						user_code: z.string(),
 						approval_qr_token: z.string(),
 						poll_token: z.string(),
-						expires_at: z.string()
-					})
-				)
-			}
-		}
+						expires_at: z.string(),
+					}),
+				),
+			},
+		},
 	};
 
-	async handle(c: Context) {
+	override async handle(c: Context) {
 		const data = await this.getValidatedData<typeof this.schema>();
 		const req = c.req.raw;
 		const { deviceLabel, ttlMinutes } = data.body;
@@ -70,7 +70,7 @@ export class CreateDeviceLinkRequest extends OpenAPIRoute {
 					device_label: deviceLabel ?? null,
 					user_code_hash: hash,
 					user_code_hint: code.slice(-4),
-					expires_at: expiresAt
+					expires_at: expiresAt,
 				})
 				.select('id, approval_qr_token, poll_token, expires_at')
 				.single();
@@ -85,7 +85,7 @@ export class CreateDeviceLinkRequest extends OpenAPIRoute {
 				user_code: code,
 				approval_qr_token: row.approval_qr_token,
 				poll_token: row.poll_token,
-				expires_at: row.expires_at
+				expires_at: row.expires_at,
 			});
 		}
 

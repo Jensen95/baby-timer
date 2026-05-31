@@ -4,7 +4,7 @@ import { captureException, flush, initErrorTracking } from '../_shared/error-tra
 
 const supabase = createClient(
 	Deno.env.get('SUPABASE_URL')!,
-	Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+	Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
 );
 
 initErrorTracking('device-link-exchange');
@@ -19,15 +19,15 @@ Deno.serve(async (req: Request) => {
 			return new Response('ok', {
 				headers: {
 					...corsHeaders,
-					'Access-Control-Allow-Methods': 'POST, OPTIONS'
-				}
+					'Access-Control-Allow-Methods': 'POST, OPTIONS',
+				},
 			});
 		}
 
 		if (req.method !== 'POST') {
 			return new Response('Method not allowed', {
 				status: 405,
-				headers: corsHeaders
+				headers: corsHeaders,
 			});
 		}
 
@@ -37,7 +37,7 @@ Deno.serve(async (req: Request) => {
 		} catch {
 			return new Response(JSON.stringify({ error: 'Invalid JSON' }), {
 				status: 400,
-				headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+				headers: { ...corsHeaders, 'Content-Type': 'application/json' },
 			});
 		}
 
@@ -45,7 +45,7 @@ Deno.serve(async (req: Request) => {
 		if (!pollToken) {
 			return new Response(JSON.stringify({ error: 'Missing pollToken' }), {
 				status: 400,
-				headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+				headers: { ...corsHeaders, 'Content-Type': 'application/json' },
 			});
 		}
 
@@ -59,54 +59,54 @@ Deno.serve(async (req: Request) => {
 			captureException(sessionError);
 			return new Response(JSON.stringify({ error: sessionError.message }), {
 				status: 500,
-				headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+				headers: { ...corsHeaders, 'Content-Type': 'application/json' },
 			});
 		}
 
 		if (!sessionRow) {
 			return new Response(JSON.stringify({ status: 'not_found' }), {
 				status: 404,
-				headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+				headers: { ...corsHeaders, 'Content-Type': 'application/json' },
 			});
 		}
 
 		if (sessionRow.consumed_at) {
 			return new Response(JSON.stringify({ status: 'consumed' }), {
 				status: 409,
-				headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+				headers: { ...corsHeaders, 'Content-Type': 'application/json' },
 			});
 		}
 
 		if (sessionRow.denied_at) {
 			return new Response(JSON.stringify({ status: 'denied' }), {
 				status: 409,
-				headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+				headers: { ...corsHeaders, 'Content-Type': 'application/json' },
 			});
 		}
 
 		if (!sessionRow.approved_at) {
 			return new Response(JSON.stringify({ status: 'pending' }), {
 				status: 409,
-				headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+				headers: { ...corsHeaders, 'Content-Type': 'application/json' },
 			});
 		}
 
 		if (new Date(sessionRow.expires_at).getTime() <= Date.now()) {
 			return new Response(JSON.stringify({ status: 'expired' }), {
 				status: 409,
-				headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+				headers: { ...corsHeaders, 'Content-Type': 'application/json' },
 			});
 		}
 
 		if (!sessionRow.requester_user_id) {
 			return new Response(JSON.stringify({ error: 'Missing requester_user_id' }), {
 				status: 500,
-				headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+				headers: { ...corsHeaders, 'Content-Type': 'application/json' },
 			});
 		}
 
 		const { data: requesterUser, error: requesterError } = await supabase.auth.admin.getUserById(
-			sessionRow.requester_user_id
+			sessionRow.requester_user_id,
 		);
 
 		if (requesterError || !requesterUser.user?.email) {
@@ -117,8 +117,8 @@ Deno.serve(async (req: Request) => {
 				JSON.stringify({ error: requesterError?.message ?? 'User lookup failed' }),
 				{
 					status: 500,
-					headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-				}
+					headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+				},
 			);
 		}
 
@@ -129,8 +129,8 @@ Deno.serve(async (req: Request) => {
 			type: 'magiclink',
 			email: requesterUser.user.email,
 			options: {
-				redirectTo
-			}
+				redirectTo,
+			},
 		});
 
 		if (linkError || !linkData.properties?.action_link) {
@@ -141,8 +141,8 @@ Deno.serve(async (req: Request) => {
 				JSON.stringify({ error: linkError?.message ?? 'Failed to generate link' }),
 				{
 					status: 500,
-					headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-				}
+					headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+				},
 			);
 		}
 
@@ -157,22 +157,22 @@ Deno.serve(async (req: Request) => {
 			captureException(consumeError);
 			return new Response(JSON.stringify({ error: consumeError.message }), {
 				status: 500,
-				headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+				headers: { ...corsHeaders, 'Content-Type': 'application/json' },
 			});
 		}
 
 		return new Response(
 			JSON.stringify({ status: 'approved', actionLink: linkData.properties.action_link }),
 			{
-				headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-			}
+				headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+			},
 		);
 	} catch (error) {
 		captureException(error);
 		await flush();
 		return new Response(JSON.stringify({ error: 'Unexpected error' }), {
 			status: 500,
-			headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+			headers: { ...corsHeaders, 'Content-Type': 'application/json' },
 		});
 	}
 });

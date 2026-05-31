@@ -1,31 +1,31 @@
-import { OpenAPIRoute, contentJson } from 'chanfana';
+import { contentJson, OpenAPIRoute } from 'chanfana';
 import { z } from 'zod';
 import type { Context } from 'hono';
-import { getUserId, userClient, assertFamilyOwner, AuthError } from '../../../_shared/auth.ts';
+import { assertFamilyOwner, AuthError, getUserId, userClient } from '../../../_shared/auth.ts';
 
 export class RevokeFamilyInviteCode extends OpenAPIRoute {
-	schema = {
+	override schema = {
 		request: {
 			body: contentJson(
 				z.object({
 					familyId: z.string().uuid(),
-					codeId: z.string().uuid()
-				})
-			)
+					codeId: z.string().uuid(),
+				}),
+			),
 		},
 		responses: {
 			'200': {
 				description: 'Invite code revoked',
 				...contentJson(
 					z.object({
-						revoked: z.literal(true)
-					})
-				)
-			}
-		}
+						revoked: z.literal(true),
+					}),
+				),
+			},
+		},
 	};
 
-	async handle(c: Context) {
+	override async handle(c: Context) {
 		const data = await this.getValidatedData<typeof this.schema>();
 		const req = c.req.raw;
 		const userId = await getUserId(req);
