@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import mjml2html from 'npm:mjml@^5';
-import nodemailer from 'npm:nodemailer@^8';
+import mjml2html from 'mjml';
+import nodemailer from 'nodemailer';
 import { corsHeaders } from '../_shared/cors.ts';
 import { captureException, flush, initErrorTracking } from '../_shared/error-tracking.ts';
 
@@ -97,7 +97,6 @@ function buildInviteEmailHtml(args: { familyName: string; magicLink: string }) {
 
 	return html;
 }
-
 async function sendInviteEmail(args: {
 	inviteeEmail: string;
 	familyName: string;

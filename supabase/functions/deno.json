@@ -5,7 +5,9 @@
 		"hono/": "npm:/hono@^4.12.23/",
 		"chanfana": "npm:chanfana@^3.3.0",
 		"zod": "npm:zod@^4.4.3",
-		"@supabase/supabase-js": "npm:@supabase/supabase-js@^2.50.0"
+		"@supabase/supabase-js": "npm:@supabase/supabase-js@^2.50.0",
+		"mjml": "npm:mjml@^5",
+		"nodemailer": "npm:nodemailer@^8"
 	},
 	"fmt": {
 		"useTabs": true,
