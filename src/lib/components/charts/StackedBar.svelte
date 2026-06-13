@@ -57,30 +57,17 @@
 				<rect x={seg.x} y="0" width={seg.width} {height} fill={seg.color} />
 			{/each}
 		</g>
-		{#if showLabels}
-			{#each layout as seg (seg.label)}
-				{#if seg.width > 15}
-					<text
-						x={seg.x + seg.width / 2}
-						y={height / 2}
-						text-anchor="middle"
-						dominant-baseline="central"
-						font-size="11"
-						font-weight="bold"
-						fill="var(--on-color)"
-					>
-						{seg.percent}%
-					</text>
-				{/if}
-			{/each}
-		{/if}
 	</svg>
-	<div class="legend">
+	<div class="legend" class:legend-with-pct={showLabels}>
 		{#each layout as seg (seg.label)}
 			<div class="legend-item">
 				<span class="swatch" style="background: {seg.color}"></span>
 				<span class="legend-label">{seg.label}</span>
-				<span class="legend-value">{seg.value}</span>
+				{#if showLabels}
+					<span class="legend-pct">{seg.percent}%</span>
+				{:else}
+					<span class="legend-value">{seg.value}</span>
+				{/if}
 			</div>
 		{/each}
 	</div>
@@ -93,10 +80,6 @@
 		width: 100%;
 	}
 
-	svg text {
-		font-family: var(--font-body);
-	}
-
 	.legend {
 		display: flex;
 		flex-wrap: wrap;
@@ -104,12 +87,21 @@
 		margin-top: var(--space-3);
 	}
 
+	.legend-with-pct {
+		flex-direction: column;
+		gap: var(--space-2);
+	}
+
 	.legend-item {
 		display: flex;
 		align-items: center;
-		gap: var(--space-1);
+		gap: var(--space-2);
 		font-size: var(--font-size-2);
 		color: var(--text-2);
+	}
+
+	.legend-with-pct .legend-item {
+		gap: var(--space-2);
 	}
 
 	.swatch {
@@ -120,8 +112,20 @@
 		flex-shrink: 0;
 	}
 
+	.legend-label {
+		flex: 1;
+	}
+
 	.legend-value {
 		font-weight: var(--fw-semibold);
 		color: var(--text);
+	}
+
+	.legend-pct {
+		font-weight: var(--fw-semibold);
+		color: var(--text);
+		font-variant-numeric: tabular-nums;
+		min-width: 3rem;
+		text-align: right;
 	}
 </style>
