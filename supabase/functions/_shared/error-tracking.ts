@@ -1,4 +1,4 @@
-import * as Sentry from 'npm:@sentry/deno';
+import * as Sentry from 'npm:@sentry/deno@^10';
 
 let initializedForFunction: string | null = null;
 let enabled = false;
@@ -16,7 +16,7 @@ export function initErrorTracking(functionName: string) {
 		dsn,
 		environment: Deno.env.get('ENVIRONMENT') ?? Deno.env.get('SUPABASE_ENV') ?? 'production',
 		release: Deno.env.get('RELEASE_SHA') || undefined,
-		serverName: functionName
+		serverName: functionName,
 	});
 
 	enabled = true;

@@ -1,3 +1,5 @@
+import type { Table } from 'dexie';
+import type { RealtimeChannel, RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 import { db } from './local';
 import { supabase } from '$lib/supabase';
 import { captureException } from '$lib/error-tracking';
@@ -6,12 +8,35 @@ import { listBabies } from './babies';
 
 export const SYNC_KEY = Symbol('sync');
 
+// Tables shared across a family that we both push (local → remote) and watch
+// (remote → local) via Realtime. `babies` is listed first so it is back-filled
+// before sessions that reference it.
+const WATCHED_TABLES = [
+	'babies',
+	'feeding_sessions',
+	'sleep_sessions',
+	'breast_pump_sessions',
+	'diaper_change_sessions'
+] as const;
+
+type WatchedTable = (typeof WATCHED_TABLES)[number];
+
 export function createSyncEngine() {
 	let syncing = $state(false);
 	let lastSyncedAt = $state<Date | null>(null);
 	let error = $state<string | null>(null);
-	let intervalId: ReturnType<typeof setInterval> | null = null;
+	let revision = $state(0);
+	let channel: RealtimeChannel | null = null;
+	let watchedFamilyId: string | null = null;
 	const babiesRetryState = new Map<string, { attempts: number; nextAllowedAt: number }>();
+
+	const localTables: Record<WatchedTable, Table<{ id: string; _sync: 'pending' | 'synced' }>> = {
+		babies: db.babies,
+		feeding_sessions: db.feeding_sessions,
+		sleep_sessions: db.sleep_sessions,
+		breast_pump_sessions: db.breast_pump_sessions,
+		diaper_change_sessions: db.diaper_change_sessions
+	};
 
 	function canSyncBabyNow(id: string): boolean {
 		const retry = babiesRetryState.get(id);
@@ -162,6 +187,89 @@ export function createSyncEngine() {
 		}
 	}
 
+	// Apply a single remote row into the local cache. Generated columns (e.g.
+	// duration_seconds) are never mirrored locally. A locally pending row is left
+	// untouched so an unsynced local edit is not clobbered by an older remote copy.
+	async function applyRemoteRow(table: WatchedTable, raw: Record<string, unknown>) {
+		const row = { ...raw };
+		delete row.duration_seconds;
+		const id = row.id as string | undefined;
+		if (!id) return;
+		const existing = await localTables[table].get(id);
+		if (existing && existing._sync === 'pending') return;
+		await localTables[table].put({ ...(row as { id: string }), _sync: 'synced' });
+	}
+
+	async function applyRemoteChange(
+		table: WatchedTable,
+		payload: RealtimePostgresChangesPayload<Record<string, unknown>>
+	) {
+		try {
+			if (payload.eventType === 'DELETE') {
+				const id = (payload.old as { id?: string }).id;
+				if (id) await localTables[table].delete(id);
+				revision++;
+				return;
+			}
+			await applyRemoteRow(table, payload.new as Record<string, unknown>);
+			revision++;
+		} catch (e) {
+			captureException(e);
+		}
+	}
+
+	// Catch-up fetch run right after (re)subscribing, to pull rows created while
+	// this device was offline or before the channel was established.
+	async function initialPull(familyId: string) {
+		for (const table of WATCHED_TABLES) {
+			const { data, error: err } = await supabase.from(table).select('*').eq('family_id', familyId);
+			if (err) {
+				captureException(err);
+				continue;
+			}
+			for (const row of data ?? []) {
+				await applyRemoteRow(table, row as Record<string, unknown>);
+			}
+		}
+		revision++;
+	}
+
+	// Subscribe to live changes for a family. Replaces interval polling: remote
+	// writes from other devices/members stream straight into the local cache.
+	function watch(familyId: string) {
+		if (watchedFamilyId === familyId && channel) return;
+		unwatch();
+		watchedFamilyId = familyId;
+
+		let ch = supabase.channel(`family-sync:${familyId}`);
+		for (const table of WATCHED_TABLES) {
+			ch = ch.on(
+				'postgres_changes',
+				{ event: '*', schema: 'public', table, filter: `family_id=eq.${familyId}` },
+				(payload) =>
+					applyRemoteChange(
+						table,
+						payload as RealtimePostgresChangesPayload<Record<string, unknown>>
+					)
+			);
+		}
+		ch.subscribe((status) => {
+			if (status === 'SUBSCRIBED') {
+				initialPull(familyId);
+				syncNow();
+			}
+		});
+		channel = ch;
+	}
+
+	function unwatch() {
+		if (channel) {
+			supabase.removeChannel(channel);
+			channel = null;
+		}
+		watchedFamilyId = null;
+	}
+
 	async function migrateGuestData(userId: string, familyId: string) {
 		const guestBabies = await db.babies.filter((b) => b.family_id === null).toArray();
 		for (const baby of guestBabies) {
@@ -194,18 +302,21 @@ export function createSyncEngine() {
 		}
 
 		await syncNow();
+		watch(familyId);
 	}
 
 	function start() {
 		syncNow();
-		intervalId = setInterval(syncNow, 30_000);
+		if (typeof window !== 'undefined') {
+			window.addEventListener('online', syncNow);
+		}
 	}
 
 	function stop() {
-		if (intervalId) {
-			clearInterval(intervalId);
-			intervalId = null;
+		if (typeof window !== 'undefined') {
+			window.removeEventListener('online', syncNow);
 		}
+		unwatch();
 	}
 
 	return {
@@ -218,8 +329,13 @@ export function createSyncEngine() {
 		get error() {
 			return error;
 		},
+		get revision() {
+			return revision;
+		},
 		syncNow,
 		migrateGuestData,
+		watch,
+		unwatch,
 		start,
 		stop
 	};

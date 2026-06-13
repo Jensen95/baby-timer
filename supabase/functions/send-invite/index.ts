@@ -1,12 +1,12 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import mjml2html from 'npm:mjml';
-import nodemailer from 'npm:nodemailer';
+import mjml2html from 'npm:mjml@^5';
+import nodemailer from 'npm:nodemailer@^8';
 import { corsHeaders } from '../_shared/cors.ts';
 import { captureException, flush, initErrorTracking } from '../_shared/error-tracking.ts';
 
 const supabase = createClient(
 	Deno.env.get('SUPABASE_URL')!,
-	Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+	Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
 );
 
 initErrorTracking('send-invite');
@@ -48,7 +48,7 @@ function buildInviteEmailText(args: { familyName: string; magicLink: string }) {
 		'Use this link to accept the invite:',
 		args.magicLink,
 		'',
-		'If the button does not work, copy and paste the link into your browser.'
+		'If the button does not work, copy and paste the link into your browser.',
 	].join('\n');
 }
 
@@ -110,8 +110,8 @@ async function sendInviteEmail(args: {
 		secure: smtp.secure,
 		auth: {
 			user: smtp.user,
-			pass: smtp.pass
-		}
+			pass: smtp.pass,
+		},
 	});
 	const text = buildInviteEmailText(args);
 	const html = buildInviteEmailHtml(args);
@@ -121,7 +121,7 @@ async function sendInviteEmail(args: {
 		to: args.inviteeEmail,
 		subject: `You're invited to join ${args.familyName}`,
 		text,
-		html
+		html,
 	});
 }
 
@@ -131,15 +131,15 @@ Deno.serve(async (req: Request) => {
 			return new Response('ok', {
 				headers: {
 					...corsHeaders,
-					'Access-Control-Allow-Methods': 'POST, OPTIONS'
-				}
+					'Access-Control-Allow-Methods': 'POST, OPTIONS',
+				},
 			});
 		}
 
 		if (req.method !== 'POST') {
 			return new Response('Method not allowed', {
 				status: 405,
-				headers: corsHeaders
+				headers: corsHeaders,
 			});
 		}
 
@@ -149,7 +149,7 @@ Deno.serve(async (req: Request) => {
 		} catch {
 			return new Response('Invalid JSON', {
 				status: 400,
-				headers: corsHeaders
+				headers: corsHeaders,
 			});
 		}
 
@@ -158,7 +158,7 @@ Deno.serve(async (req: Request) => {
 		if (!familyId || !inviteeEmail) {
 			return new Response('Missing required fields', {
 				status: 400,
-				headers: corsHeaders
+				headers: corsHeaders,
 			});
 		}
 
@@ -168,15 +168,15 @@ Deno.serve(async (req: Request) => {
 			type: 'magiclink',
 			email: inviteeEmail,
 			options: {
-				redirectTo: `${Deno.env.get('APP_URL') ?? 'https://your-app.github.io'}/app/family`
-			}
+				redirectTo: `${Deno.env.get('APP_URL') ?? 'https://your-app.github.io'}/app/family`,
+			},
 		});
 
 		if (magicLinkError) {
 			captureException(magicLinkError);
 			return new Response(
 				JSON.stringify({ success: true, emailSent: false, error: magicLinkError.message }),
-				{ headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+				{ headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
 			);
 		}
 
@@ -186,7 +186,7 @@ Deno.serve(async (req: Request) => {
 		if (!magicLink) {
 			return new Response(
 				JSON.stringify({ success: true, emailSent: false, error: 'Missing invite link' }),
-				{ headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+				{ headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
 			);
 		}
 
@@ -194,7 +194,7 @@ Deno.serve(async (req: Request) => {
 			await sendInviteEmail({
 				inviteeEmail,
 				familyName,
-				magicLink
+				magicLink,
 			});
 		} catch (error) {
 			captureException(error);
@@ -203,9 +203,9 @@ Deno.serve(async (req: Request) => {
 					success: true,
 					emailSent: false,
 					magicLink,
-					error: error instanceof Error ? error.message : 'Failed to send email'
+					error: error instanceof Error ? error.message : 'Failed to send email',
 				}),
-				{ headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+				{ headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
 			);
 		}
 
@@ -214,9 +214,9 @@ Deno.serve(async (req: Request) => {
 				success: true,
 				emailSent: true,
 				magicLinkGenerated: true,
-				magicLink
+				magicLink,
 			}),
-			{ headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+			{ headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
 		);
 	} catch (error) {
 		captureException(error);
@@ -225,12 +225,12 @@ Deno.serve(async (req: Request) => {
 			JSON.stringify({
 				success: false,
 				emailSent: false,
-				error: error instanceof Error ? error.message : 'Unexpected error'
+				error: error instanceof Error ? error.message : 'Unexpected error',
 			}),
 			{
 				status: 500,
-				headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-			}
+				headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+			},
 		);
 	}
 });

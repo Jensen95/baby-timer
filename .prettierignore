@@ -2,3 +2,7 @@
 package-lock.json
 pnpm-lock.yaml
 yarn.lock
+
+# Deno edge functions are formatted and linted by Deno's own tooling
+# (see supabase/functions/deno.json + the edge-functions CI job).
+supabase/functions/

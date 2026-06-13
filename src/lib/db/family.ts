@@ -10,8 +10,6 @@ type ListFamilyMemberDetailsArgs =
 	Database['public']['Functions']['list_family_members_with_profiles']['Args'];
 type AddFamilyMemberByEmailArgs =
 	Database['public']['Functions']['add_family_member_by_email']['Args'];
-type JoinFamilyByCodeArgs = Database['public']['Functions']['join_family_by_code']['Args'];
-
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export type MemberStatus = 'joined' | 'pending' | 'invited';
@@ -85,10 +83,13 @@ export async function getUserFamilies(client: Client): Promise<Family[]> {
 }
 
 export async function createFamily(client: Client, name: string): Promise<Family> {
-	const { data, error } = await client.rpc('create_family', { family_name: name } as any);
+	const { data, error } = await client.functions.invoke('api/family/create', {
+		body: { name },
+		method: 'POST'
+	});
 
 	if (error) captureAndThrow(error);
-	return data as Family;
+	return (data as { family: Family }).family;
 }
 
 export async function listFamilyMembers(client: Client, familyId: string): Promise<FamilyMember[]> {
@@ -224,31 +225,26 @@ export async function createFamilyInviteCode(
 	ttlMinutes = 60,
 	maxUses = 25
 ): Promise<CreatedFamilyInviteCode> {
-	const { data, error } = await client.rpc('create_family_invite_code', {
-		target_family_id: familyId,
-		ttl_minutes: ttlMinutes,
-		max_uses: maxUses
-	} as never);
+	const { data, error } = await client.functions.invoke('api/family/invite-code/create', {
+		body: { familyId, ttlMinutes, maxUses },
+		method: 'POST'
+	});
 
 	if (error) captureAndThrow(error);
-	const rows = (data as CreatedFamilyInviteCode[] | null) ?? [];
-	if (!rows[0]) {
-		captureAndThrow(new Error('Failed to create invite code'));
-	}
-
-	return rows[0];
+	return data as CreatedFamilyInviteCode;
 }
 
 export async function listActiveFamilyInviteCodes(
 	client: Client,
 	familyId: string
 ): Promise<FamilyInviteCode[]> {
-	const { data, error } = await client.rpc('list_active_family_invite_codes', {
-		target_family_id: familyId
-	} as never);
+	const { data, error } = await client.functions.invoke('api/family/invite-code/list', {
+		body: { familyId },
+		method: 'POST'
+	});
 
 	if (error) captureAndThrow(error);
-	return (data ?? []) as FamilyInviteCode[];
+	return (data as { codes: FamilyInviteCode[] } | null)?.codes ?? [];
 }
 
 export async function revokeFamilyInviteCode(
@@ -256,21 +252,23 @@ export async function revokeFamilyInviteCode(
 	familyId: string,
 	codeId: string
 ): Promise<void> {
-	const { error } = await client.rpc('revoke_family_invite_code', {
-		target_family_id: familyId,
-		target_code_id: codeId
-	} as never);
+	const { error } = await client.functions.invoke('api/family/invite-code/revoke', {
+		body: { familyId, codeId },
+		method: 'POST'
+	});
 
 	if (error) captureAndThrow(error);
 }
 
 export async function joinFamilyByCode(client: Client, code: string): Promise<string> {
-	const args: JoinFamilyByCodeArgs = { code_input: code };
-	const { data, error } = await client.rpc('join_family_by_code', args as never);
+	const { data, error } = await client.functions.invoke('api/family/join-by-code', {
+		body: { code },
+		method: 'POST'
+	});
 
 	if (error) captureAndThrow(error);
 
-	const familyId = data as string | null;
+	const familyId = (data as { family_id: string } | null)?.family_id ?? null;
 	if (!familyId) {
 		captureAndThrow(
 			new Error(

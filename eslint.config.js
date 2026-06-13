@@ -37,6 +37,13 @@ export default [
 		}
 	},
 	{
-		ignores: ['build/', '.svelte-kit/', 'dist/', '**/*.svelte.ts', '.claude/worktrees/']
+		ignores: [
+			'build/',
+			'.svelte-kit/',
+			'dist/',
+			'**/*.svelte.ts',
+			'.claude/worktrees/',
+			'supabase/functions/'
+		]
 	}
 ];
