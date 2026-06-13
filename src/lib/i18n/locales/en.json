@@ -79,6 +79,7 @@
 		"deviceLinkApproveManualCta": "Approve with code",
 		"deviceLinkApproveSuccess": "Device sign-in approved.",
 		"deviceLinkApproveFailed": "Failed to approve this sign-in request.",
+		"backToApp": "Back to app",
 		"or": "or",
 		"continueWithoutAccount": "Continue without an account",
 		"signingOut": "Signing out..."

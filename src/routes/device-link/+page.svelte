@@ -91,6 +91,9 @@
 		{/if}
 		{#if success}
 			<p class="success">{t('auth.deviceLinkApproveSuccess')}</p>
+			<Button variant="primary" size="sm" onclick={() => goto(resolve('/app'))}>
+				{t('auth.backToApp')}
+			</Button>
 		{/if}
 	</div>
 </div>

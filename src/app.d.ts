@@ -13,6 +13,7 @@ declare module '$env/static/public' {
 	export const PUBLIC_SUPABASE_URL: string;
 	export const PUBLIC_SUPABASE_ANON_KEY: string;
 	export const PUBLIC_BUGSINK_DSN: string;
+	export const PUBLIC_APP_REDIRECT_URL: string;
 }
 
 export {};

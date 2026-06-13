@@ -79,6 +79,7 @@
 		"deviceLinkApproveManualCta": "Godkend med kode",
 		"deviceLinkApproveSuccess": "Enhedslogin godkendt.",
 		"deviceLinkApproveFailed": "Kunne ikke godkende denne login-anmodning.",
+		"backToApp": "Tilbage til appen",
 		"or": "eller",
 		"continueWithoutAccount": "Fortsæt uden konto",
 		"signingOut": "Logger ud..."

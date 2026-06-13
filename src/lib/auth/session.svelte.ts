@@ -1,7 +1,9 @@
 import type { Session, User } from '@supabase/supabase-js';
 import { resolve } from '$app/paths';
+import { PUBLIC_APP_REDIRECT_URL } from '$env/static/public';
 import { supabase } from '$lib/supabase';
 import { captureException, setTrackingUser } from '$lib/error-tracking';
+import { resolveRedirectBase } from '$lib/auth/redirect';
 
 export function createSession() {
 	let session = $state<Session | null>(null);
@@ -58,7 +60,7 @@ export function createSession() {
 			const { error } = await supabase.auth.signInWithOtp({
 				email,
 				options: {
-					emailRedirectTo: `${window.location.origin}${redirectPath}`,
+					emailRedirectTo: `${resolveRedirectBase(PUBLIC_APP_REDIRECT_URL, window.location.origin)}${redirectPath}`,
 					...(normalizedDisplayName
 						? {
 								data: {

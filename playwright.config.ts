@@ -7,7 +7,8 @@ export default defineConfig({
 		reuseExistingServer: !process.env.CI,
 		env: {
 			PUBLIC_SUPABASE_URL: process.env.PUBLIC_SUPABASE_URL ?? 'https://placeholder.supabase.co',
-			PUBLIC_SUPABASE_ANON_KEY: process.env.PUBLIC_SUPABASE_ANON_KEY ?? 'placeholder-key'
+			PUBLIC_SUPABASE_ANON_KEY: process.env.PUBLIC_SUPABASE_ANON_KEY ?? 'placeholder-key',
+			PUBLIC_APP_REDIRECT_URL: process.env.PUBLIC_APP_REDIRECT_URL ?? ''
 		}
 	},
 	testDir: 'tests',
