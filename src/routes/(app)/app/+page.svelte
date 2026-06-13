@@ -127,8 +127,10 @@
 	let diaperContent = $state<DiaperContent>('poop');
 
 	let pumpCompleteOpen = $state(false);
+	let pumpYieldMode = $state<'per-side' | 'total-only'>('per-side');
 	let pumpYieldLeft = $state('');
 	let pumpYieldRight = $state('');
+	let pumpYieldTotal = $state('');
 	let pumpStopping = $state(false);
 
 	let babyId = $derived(babyState.selectedBabyId);
@@ -250,6 +252,7 @@
 					side: s.side,
 					yield_left_ml: s.yield_left_ml,
 					yield_right_ml: s.yield_right_ml,
+					yield_total_ml: s.yield_total_ml,
 					note: s.note,
 					_sync: s._sync
 				})),
@@ -382,8 +385,10 @@
 	}
 
 	async function handleStopPump() {
+		pumpYieldMode = 'per-side';
 		pumpYieldLeft = '';
 		pumpYieldRight = '';
+		pumpYieldTotal = '';
 		pumpCompleteOpen = true;
 	}
 
@@ -408,9 +413,14 @@
 		if (!babyId || pumpStopping) return;
 		pumpStopping = true;
 		try {
-			const left = parseOptionalYield(pumpYieldLeft);
-			const right = parseOptionalYield(pumpYieldRight);
-			await stopPumpTimer(babyId, left, right);
+			if (pumpYieldMode === 'total-only') {
+				const total = parseOptionalYield(pumpYieldTotal);
+				await stopPumpTimer(babyId, undefined, undefined, total);
+			} else {
+				const left = parseOptionalYield(pumpYieldLeft);
+				const right = parseOptionalYield(pumpYieldRight);
+				await stopPumpTimer(babyId, left, right, undefined);
+			}
 			pumpCompleteOpen = false;
 			await refresh();
 		} catch (e) {
@@ -457,6 +467,7 @@
 					ended_at: updated.ended_at,
 					yield_left_ml: updated.yield_left_ml ?? null,
 					yield_right_ml: updated.yield_right_ml ?? null,
+					yield_total_ml: updated.yield_total_ml ?? null,
 					_sync: 'pending'
 				});
 			} else {
@@ -662,29 +673,56 @@
 >
 	<div class="yield-fields">
 		<div class="field">
-			<label class="sheet-label" for="pump-yield-left">{t('track.leftYield')}</label>
-			<input
-				id="pump-yield-left"
-				class="number-input"
-				type="number"
-				min="0"
-				step="1"
-				placeholder="optional"
-				bind:value={pumpYieldLeft}
+			<span class="sheet-label">{t('track.yieldMode')}</span>
+			<OptionGrid
+				options={[
+					{ value: 'per-side', label: t('track.yieldPerSide') },
+					{ value: 'total-only', label: t('track.yieldTotalOnly') }
+				]}
+				value={pumpYieldMode}
+				columns={2}
+				onchange={(v) => (pumpYieldMode = v as 'per-side' | 'total-only')}
 			/>
 		</div>
-		<div class="field">
-			<label class="sheet-label" for="pump-yield-right">{t('track.rightYield')}</label>
-			<input
-				id="pump-yield-right"
-				class="number-input"
-				type="number"
-				min="0"
-				step="1"
-				placeholder="optional"
-				bind:value={pumpYieldRight}
-			/>
-		</div>
+		{#if pumpYieldMode === 'per-side'}
+			<div class="field">
+				<label class="sheet-label" for="pump-yield-left">{t('track.leftYield')}</label>
+				<input
+					id="pump-yield-left"
+					class="number-input"
+					type="number"
+					min="0"
+					step="1"
+					placeholder="optional"
+					bind:value={pumpYieldLeft}
+				/>
+			</div>
+			<div class="field">
+				<label class="sheet-label" for="pump-yield-right">{t('track.rightYield')}</label>
+				<input
+					id="pump-yield-right"
+					class="number-input"
+					type="number"
+					min="0"
+					step="1"
+					placeholder="optional"
+					bind:value={pumpYieldRight}
+				/>
+			</div>
+		{:else}
+			<div class="field">
+				<label class="sheet-label" for="pump-yield-total">{t('track.totalYield')}</label>
+				<input
+					id="pump-yield-total"
+					class="number-input"
+					type="number"
+					min="0"
+					step="1"
+					placeholder="optional"
+					bind:value={pumpYieldTotal}
+				/>
+			</div>
+		{/if}
 	</div>
 	{#snippet footer()}
 		<Button variant="primary" class="full" loading={pumpStopping} onclick={confirmPumpComplete}>

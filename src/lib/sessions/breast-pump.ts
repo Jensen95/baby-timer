@@ -10,6 +10,7 @@ export interface BreastPumpFormState {
 	endedAt: Date;
 	yieldLeftMl?: number | null;
 	yieldRightMl?: number | null;
+	yieldTotalMl?: number | null;
 	note?: string;
 }
 
@@ -33,6 +34,7 @@ export function buildBreastPumpPayload(form: BreastPumpFormState): Insert<'breas
 		ended_at: form.endedAt.toISOString(),
 		yield_left_ml: normalizeYield(form.yieldLeftMl),
 		yield_right_ml: normalizeYield(form.yieldRightMl),
+		yield_total_ml: normalizeYield(form.yieldTotalMl),
 		note: form.note ?? null
 	};
 }

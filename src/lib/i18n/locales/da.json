@@ -108,6 +108,10 @@
 		"contents": "Indhold",
 		"leftYield": "Venstre udbytte (ml)",
 		"rightYield": "Højre udbytte (ml)",
+		"totalYield": "Samlet udbytte (ml)",
+		"yieldMode": "Udbytteregistrering",
+		"yieldPerSide": "Per side",
+		"yieldTotalOnly": "Kun total",
 		"options": {
 			"left": "Venstre",
 			"right": "Højre",
@@ -157,6 +161,10 @@
 		"contents": "Indhold",
 		"leftYield": "Venstre udbytte (ml)",
 		"rightYield": "Højre udbytte (ml)",
+		"totalYield": "Samlet udbytte (ml)",
+		"yieldMode": "Udbytteregistrering",
+		"yieldPerSide": "Per side",
+		"yieldTotalOnly": "Kun total",
 		"deleteConfirm": "Slet denne session?",
 		"errors": {
 			"startRequired": "Starttidspunkt er påkrævet og skal være en gyldig dato.",

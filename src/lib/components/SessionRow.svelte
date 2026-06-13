@@ -171,11 +171,15 @@
 			const side = session.side ?? 'both';
 			const sideLbl = t(`track.options.${side}`);
 			const parts: string[] = [sideLbl];
-			if (session.yield_left_ml != null && session.yield_left_ml > 0) {
-				parts.push(`L: ${session.yield_left_ml}ml`);
-			}
-			if (session.yield_right_ml != null && session.yield_right_ml > 0) {
-				parts.push(`R: ${session.yield_right_ml}ml`);
+			if (session.yield_total_ml != null && session.yield_total_ml > 0) {
+				parts.push(`Total: ${session.yield_total_ml}ml`);
+			} else {
+				if (session.yield_left_ml != null && session.yield_left_ml > 0) {
+					parts.push(`L: ${session.yield_left_ml}ml`);
+				}
+				if (session.yield_right_ml != null && session.yield_right_ml > 0) {
+					parts.push(`R: ${session.yield_right_ml}ml`);
+				}
 			}
 			return parts.join(' · ');
 		}

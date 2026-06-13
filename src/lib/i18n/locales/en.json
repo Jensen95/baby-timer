@@ -108,6 +108,10 @@
 		"contents": "Contents",
 		"leftYield": "Left yield (ml)",
 		"rightYield": "Right yield (ml)",
+		"totalYield": "Total yield (ml)",
+		"yieldMode": "Yield entry",
+		"yieldPerSide": "Per side",
+		"yieldTotalOnly": "Total only",
 		"options": {
 			"left": "Left",
 			"right": "Right",
@@ -157,6 +161,10 @@
 		"contents": "Contents",
 		"leftYield": "Left yield (ml)",
 		"rightYield": "Right yield (ml)",
+		"totalYield": "Total yield (ml)",
+		"yieldMode": "Yield entry",
+		"yieldPerSide": "Per side",
+		"yieldTotalOnly": "Total only",
 		"deleteConfirm": "Delete this session?",
 		"errors": {
 			"startRequired": "Start time is required and must be a valid date.",

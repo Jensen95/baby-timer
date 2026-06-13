@@ -191,6 +191,7 @@ export async function startPumpTimer(
 		ended_at: null,
 		yield_left_ml: null,
 		yield_right_ml: null,
+		yield_total_ml: null,
 		note: null,
 		created_at: now,
 		_sync: 'pending'
@@ -202,7 +203,8 @@ export async function startPumpTimer(
 export async function stopPumpTimer(
 	babyId: string,
 	yieldLeft?: number,
-	yieldRight?: number
+	yieldRight?: number,
+	yieldTotal?: number
 ): Promise<void> {
 	const timer = getActiveTimer(babyId, 'pump');
 	if (!timer) return;
@@ -210,6 +212,7 @@ export async function stopPumpTimer(
 		ended_at: new Date().toISOString(),
 		yield_left_ml: yieldLeft ?? null,
 		yield_right_ml: yieldRight ?? null,
+		yield_total_ml: yieldTotal ?? null,
 		_sync: 'pending'
 	});
 	removeTimer(babyId, 'pump');
