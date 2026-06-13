@@ -99,6 +99,13 @@ async function mockSupabaseRest(page: Page) {
 	});
 }
 
+// The dashboard "Add a baby" empty-state link only renders after the app has
+// successfully opened and queried the Dexie DB, so waiting for it guarantees the
+// object stores exist before we seed (avoids racing the app's own db.open()).
+async function waitForAppReady(page: Page) {
+	await expect(page.getByRole('link', { name: 'Add a baby' })).toBeVisible({ timeout: 10_000 });
+}
+
 async function seedSharedBabyLocally(page: Page) {
 	await page.evaluate(async (baby) => {
 		const idb = await new Promise<IDBDatabase>((resolve, reject) => {
@@ -126,7 +133,7 @@ test.describe('Family event sharing', () => {
 		// `networkidle` is unusable here — the authenticated Realtime websocket
 		// retries forever — so wait for the app shell to finish its initial load.
 		await page.goto('/app');
-		await expect(page.locator('.loading-msg')).not.toBeVisible({ timeout: 10_000 });
+		await waitForAppReady(page);
 		await seedSharedBabyLocally(page);
 
 		await page.reload();

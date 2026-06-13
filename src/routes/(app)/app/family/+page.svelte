@@ -74,25 +74,34 @@
 
 	$effect(() => {
 		const userId = session.user?.id;
-		if (!userId) {
-			loading = false;
-			return;
-		}
 
 		(async () => {
+			// Offline-first: resolve the locally cached family and babies BEFORE any
+			// network call. Previously the first thing this effect did was a network
+			// RPC (getPendingMemberships); offline that threw before the local family
+			// was ever read, so the user lost their family and babies until reload
+			// with connectivity. Local reads always run and never get clobbered by a
+			// failed network enrichment.
+			const localFamily = await getLocalFamily();
+			if (localFamily) {
+				familyId = localFamily.id;
+				currentFamilyName = localFamily.name;
+			}
+			babies = await listBabiesLocal(familyId);
+
+			if (!userId) {
+				loading = false;
+				return;
+			}
+
+			// Network enrichment (pending invites, member list, invite codes, and
+			// first-time family resolution). Best-effort: a failure here must not
+			// clear the locally resolved family/babies set above.
 			try {
 				const pendingMemberships = await getPendingMemberships(supabase);
 				pendingInvites = pendingMemberships;
 
-				let localFamily = await getLocalFamily();
-				if (localFamily) {
-					familyId = localFamily.id;
-					currentFamilyName = localFamily.name;
-					members = await listFamilyMemberDetails(supabase, localFamily.id);
-					if (members.some((member) => member.user_id === userId && member.role === 'owner')) {
-						activeInviteCodes = await listActiveFamilyInviteCodes(supabase, localFamily.id);
-					}
-				} else {
+				if (!familyId) {
 					const families = await getUserFamilies(supabase);
 					const joinedFamily = families.find(
 						(f) => !pendingMemberships.some((p) => p.family_id === f.id)
@@ -105,14 +114,16 @@
 							name: joinedFamily.name,
 							created_at: joinedFamily.created_at
 						});
-						members = await listFamilyMemberDetails(supabase, joinedFamily.id);
-						if (members.some((member) => member.user_id === userId && member.role === 'owner')) {
-							activeInviteCodes = await listActiveFamilyInviteCodes(supabase, joinedFamily.id);
-						}
+						babies = await listBabiesLocal(familyId);
 					}
 				}
 
-				babies = await listBabiesLocal(familyId);
+				if (familyId) {
+					members = await listFamilyMemberDetails(supabase, familyId);
+					if (members.some((member) => member.user_id === userId && member.role === 'owner')) {
+						activeInviteCodes = await listActiveFamilyInviteCodes(supabase, familyId);
+					}
+				}
 			} catch (e) {
 				error = e instanceof Error ? e.message : 'Failed to load';
 			} finally {
