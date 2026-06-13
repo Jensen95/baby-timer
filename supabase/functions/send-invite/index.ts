@@ -1,5 +1,4 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import mjml2html from 'npm:mjml@^5';
 import nodemailer from 'npm:nodemailer@^8';
 import { corsHeaders } from '../_shared/cors.ts';
 import { captureException, flush, initErrorTracking } from '../_shared/error-tracking.ts';
@@ -55,47 +54,54 @@ function buildInviteEmailText(args: { familyName: string; magicLink: string }) {
 function buildInviteEmailHtml(args: { familyName: string; magicLink: string }) {
 	const familyName = escapeHtml(args.familyName);
 	const magicLink = escapeHtml(args.magicLink);
-	const template = `
-		<mjml>
-			<mj-head>
-				<mj-preview>Join ${familyName} in Baby Timer</mj-preview>
-				<mj-attributes>
-					<mj-all font-family="Arial, Helvetica, sans-serif" color="#1f2937" />
-					<mj-text font-size="16px" line-height="24px" />
-					<mj-button background-color="#1f4b3f" color="#ffffff" border-radius="10px" font-size="16px" font-weight="600" />
-				</mj-attributes>
-			</mj-head>
-			<mj-body background-color="#f6f1eb" width="600px">
-				<mj-section padding="32px 16px 12px">
-					<mj-column>
-						<mj-text align="center" font-size="13px" color="#6b7280" letter-spacing="1px" text-transform="uppercase">Baby Timer</mj-text>
-						<mj-text align="center" font-size="28px" line-height="36px" font-weight="700" color="#102a43">You're invited to join ${familyName}</mj-text>
-						<mj-text align="center" color="#52606d">Tap the button below to accept the invite and open your family space.</mj-text>
-					</mj-column>
-				</mj-section>
-				<mj-section padding="0 16px 16px">
-					<mj-column background-color="#fffdf9" border-radius="16px" padding="28px">
-						<mj-text align="center" font-size="18px" font-weight="700" color="#102a43">Join link</mj-text>
-						<mj-button href="${magicLink}" align="center">Accept invitation</mj-button>
-						<mj-text align="center" color="#52606d" font-size="14px">If the button doesn't open, use this link:</mj-text>
-						<mj-text align="center" font-size="13px" color="#1f4b3f" line-height="20px"><a href="${magicLink}" style="color:#1f4b3f;word-break:break-all;">${magicLink}</a></mj-text>
-					</mj-column>
-				</mj-section>
-				<mj-section padding="0 16px 32px">
-					<mj-column>
-						<mj-text align="center" color="#829ab1" font-size="12px">This invite was sent from Baby Timer.</mj-text>
-					</mj-column>
-				</mj-section>
-			</mj-body>
-		</mjml>
-	`;
-	const { html, errors } = mjml2html(template, { validationLevel: 'soft' });
-
-	if (errors?.length) {
-		console.warn('MJML validation warnings:', errors);
-	}
-
-	return html;
+	return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>You're invited to join ${familyName}</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f6f1eb;font-family:Arial,Helvetica,sans-serif;color:#1f2937;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f6f1eb;padding:32px 0;">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
+          <tr>
+            <td style="padding:32px 16px 12px;text-align:center;">
+              <p style="margin:0 0 8px;font-size:13px;color:#6b7280;letter-spacing:1px;text-transform:uppercase;">Baby Timer</p>
+              <h1 style="margin:0 0 12px;font-size:28px;line-height:36px;font-weight:700;color:#102a43;">You're invited to join ${familyName}</h1>
+              <p style="margin:0;color:#52606d;">Tap the button below to accept the invite and open your family space.</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:0 16px 16px;">
+              <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#fffdf9;border-radius:16px;padding:28px;">
+                <tr>
+                  <td style="text-align:center;padding-bottom:16px;">
+                    <h2 style="margin:0 0 16px;font-size:18px;font-weight:700;color:#102a43;">Join link</h2>
+                    <a href="${magicLink}" style="display:inline-block;background-color:#1f4b3f;color:#ffffff;text-decoration:none;border-radius:10px;font-size:16px;font-weight:600;padding:12px 24px;">Accept invitation</a>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="text-align:center;padding-top:16px;">
+                    <p style="margin:0 0 8px;color:#52606d;font-size:14px;">If the button doesn't open, use this link:</p>
+                    <p style="margin:0;font-size:13px;line-height:20px;"><a href="${magicLink}" style="color:#1f4b3f;word-break:break-all;">${magicLink}</a></p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:0 16px 32px;text-align:center;">
+              <p style="margin:0;color:#829ab1;font-size:12px;">This invite was sent from Baby Timer.</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
 }
 
 async function sendInviteEmail(args: {
