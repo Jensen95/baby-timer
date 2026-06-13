@@ -6,7 +6,9 @@
     "npm:chanfana@^3.3.0": "3.3.0",
     "npm:hono@^4.12.23": "4.12.23",
     "npm:mjml@*": "5.3.0",
+    "npm:mjml@5": "5.3.0",
     "npm:nodemailer@*": "8.0.9",
+    "npm:nodemailer@8": "8.0.9",
     "npm:zod@^4.4.3": "4.4.3"
   },
   "npm": {
@@ -1518,6 +1520,8 @@
       "npm:@supabase/supabase-js@^2.50.0",
       "npm:chanfana@^3.3.0",
       "npm:hono@^4.12.23",
+      "npm:mjml@5",
+      "npm:nodemailer@8",
       "npm:zod@^4.4.3"
     ]
   }
