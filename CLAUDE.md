@@ -99,6 +99,21 @@ Realtime is RLS-filtered per row, so the socket must be authenticated
 (`supabase.realtime.setAuth(token)`) or every change is dropped as `anon`.
 `npm run test:supabase` is the regression guard (two real members, one family).
 
+### Reproducing RLS/Realtime bugs locally
+
+Mocks won't catch them — use the real stack. Start Docker (`sudo dockerd &` in
+this sandbox), then `supabase start -x edge-runtime,studio,imgproxy,storage-api,vector,supavisor,pooler`
+— edge-runtime hits an rlimit error in the sandbox, and db/auth/rest/realtime are
+all `test:supabase` needs.
+
+### Integration tests live outside `src`
+
+`tests-integration/` (run via `npm run test:supabase`) has its own
+`vitest.integration.config.ts` **and** a standalone `tsconfig.json`. Don't make it
+extend the root tsconfig — that extends `.svelte-kit/tsconfig.json`, which oxc
+cannot resolve for files outside `src` (build fails with "Tsconfig not found").
+The separate config is deliberate.
+
 ## Database Conventions
 
 - All tables are in the `public` schema with RLS enabled
@@ -117,6 +132,11 @@ Test **pure business logic functions**, not component internals or Supabase API 
 - ✅ Timer start/stop state transitions
 - ❌ "the button renders with class X"
 - ❌ "Supabase.from().insert() was called"
+
+Two cross-cutting rules learned the hard way:
+
+- Offline-first hides remote write failures from the author (Dexie still shows their own data). Never accept single-account "works for me" as proof of sharing/sync — validate cross-account (that is what `test:supabase`'s two-member fixture is for).
+- ⚠️ Don't assert on a not-yet-synced or empty state as if it were correct — a test that waits for "empty" can lock in the very bug you later fix (fixing it then "breaks" the test). Assert on the synced/populated outcome.
 
 ## Agent delegation
 
