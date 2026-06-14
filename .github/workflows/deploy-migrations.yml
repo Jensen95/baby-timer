@@ -1,0 +1,51 @@
+# Deploy Supabase database migrations to the production project.
+#
+# This is the missing half of the deploy pipeline: edge functions (deploy-functions.yml)
+# and the static frontend (deploy.yml) ship automatically, but nothing ever applied
+# `supabase/migrations/**` to the hosted database. RLS policies and — crucially —
+# table GRANTs added by a migration therefore never reached production, so a fix that
+# passed locally (where `supabase start` runs every migration) silently did nothing
+# live. Run `supabase db push` on every migration change so the schema can't drift.
+#
+# Requires repo secrets:
+#   SUPABASE_ACCESS_TOKEN  – personal access token (already used by deploy-functions)
+#   SUPABASE_PROJECT_REF   – project ref           (already used by deploy-functions)
+#   SUPABASE_DB_PASSWORD   – database password for the linked project
+
+name: Deploy Database Migrations
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/migrations/**'
+      - 'supabase/config.toml'
+  workflow_dispatch:
+
+# Never let two migration pushes race against the same database.
+concurrency:
+  group: 'supabase-migrations'
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Link project
+        run: supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
+
+      - name: Push migrations
+        run: supabase db push

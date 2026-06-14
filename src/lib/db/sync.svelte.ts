@@ -27,6 +27,13 @@ export function createSyncEngine() {
 	let revision = $state(0);
 	let channel: RealtimeChannel | null = null;
 	let watchedFamilyId: string | null = null;
+	let realtimeConnected = $state(false);
+	let pollTimer: ReturnType<typeof setInterval> | null = null;
+	// Only used when Realtime is unavailable. Realtime pushes changes live, so a
+	// healthy socket needs no polling at all; this is the degraded-mode fallback
+	// and a 30s cadence is plenty (the old code effectively re-pulled on every
+	// reconnect, which hammered the DB roughly once a second on a flaky socket).
+	const FALLBACK_POLL_MS = 30_000;
 	const babiesRetryState = new Map<string, { attempts: number; nextAllowedAt: number }>();
 
 	const localTables: Record<WatchedTable, Table<{ id: string; _sync: 'pending' | 'synced' }>> = {
@@ -176,17 +183,35 @@ export function createSyncEngine() {
 		}
 	}
 
+	// Shallow value-equality for two cache rows. Used to skip a no-op `put` (and
+	// the reactive `revision` bump it would trigger) when a remote row is byte-for-
+	// byte what we already hold — the root cause of the stats page re-rendering on
+	// every sync pass even though nothing changed.
+	function rowsEqual(a: Record<string, unknown>, b: Record<string, unknown>): boolean {
+		const aKeys = Object.keys(a);
+		if (aKeys.length !== Object.keys(b).length) return false;
+		return aKeys.every((k) => a[k] === b[k]);
+	}
+
 	// Apply a single remote row into the local cache. Generated columns (e.g.
 	// duration_seconds) are never mirrored locally. A locally pending row is left
 	// untouched so an unsynced local edit is not clobbered by an older remote copy.
-	async function applyRemoteRow(table: WatchedTable, raw: Record<string, unknown>) {
+	// Returns true only when the cache actually changed, so callers can avoid
+	// bumping `revision` (and re-rendering the UI) for a no-op pull.
+	async function applyRemoteRow(
+		table: WatchedTable,
+		raw: Record<string, unknown>
+	): Promise<boolean> {
 		const row = { ...raw };
 		delete row.duration_seconds;
 		const id = row.id as string | undefined;
-		if (!id) return;
+		if (!id) return false;
 		const existing = await localTables[table].get(id);
-		if (existing && existing._sync === 'pending') return;
-		await localTables[table].put({ ...(row as { id: string }), _sync: 'synced' });
+		if (existing && existing._sync === 'pending') return false;
+		const next = { ...(row as { id: string }), _sync: 'synced' as const };
+		if (existing && rowsEqual(existing, next)) return false;
+		await localTables[table].put(next);
+		return true;
 	}
 
 	async function applyRemoteChange(
@@ -196,12 +221,13 @@ export function createSyncEngine() {
 		try {
 			if (payload.eventType === 'DELETE') {
 				const id = (payload.old as { id?: string }).id;
-				if (id) await localTables[table].delete(id);
-				revision++;
+				if (id && (await localTables[table].get(id))) {
+					await localTables[table].delete(id);
+					revision++;
+				}
 				return;
 			}
-			await applyRemoteRow(table, payload.new as Record<string, unknown>);
-			revision++;
+			if (await applyRemoteRow(table, payload.new as Record<string, unknown>)) revision++;
 		} catch (e) {
 			captureException(e);
 		}
@@ -211,6 +237,7 @@ export function createSyncEngine() {
 	// cache. Used by syncNow (so sharing works without Realtime) and as the
 	// catch-up fetch right after (re)subscribing to the Realtime channel.
 	async function pullFamilyTables(familyId: string) {
+		let changed = false;
 		for (const table of WATCHED_TABLES) {
 			const { data, error: err } = await supabase.from(table).select('*').eq('family_id', familyId);
 			if (err) {
@@ -218,10 +245,10 @@ export function createSyncEngine() {
 				continue;
 			}
 			for (const row of data ?? []) {
-				await applyRemoteRow(table, row as Record<string, unknown>);
+				if (await applyRemoteRow(table, row as Record<string, unknown>)) changed = true;
 			}
 		}
-		revision++;
+		if (changed) revision++;
 	}
 
 	// Subscribe to live changes for a family. Replaces interval polling: remote
@@ -264,15 +291,45 @@ export function createSyncEngine() {
 		}
 		ch.subscribe((status) => {
 			if (status === 'SUBSCRIBED') {
-				// syncNow pulls every family table itself; this is just the
-				// post-(re)subscribe catch-up for rows missed while disconnected.
+				// Socket is live: Realtime now streams every change, so the fallback
+				// poll is not needed. Do one catch-up pull for rows missed while we
+				// were disconnected, then rely on push.
+				realtimeConnected = true;
+				stopFallbackPolling();
 				syncNow();
+			} else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+				// Socket is down. supabase-js keeps retrying the subscription on its
+				// own; we must NOT re-pull on every transient drop (that is the
+				// "pulling every second" storm). Instead fall back to a single slow
+				// periodic pull until Realtime recovers.
+				realtimeConnected = false;
+				startFallbackPolling();
 			}
 		});
 		channel = ch;
 	}
 
+	function startFallbackPolling() {
+		if (pollTimer !== null || typeof window === 'undefined') return;
+		pollTimer = setInterval(() => {
+			if (realtimeConnected) {
+				stopFallbackPolling();
+				return;
+			}
+			syncNow();
+		}, FALLBACK_POLL_MS);
+	}
+
+	function stopFallbackPolling() {
+		if (pollTimer !== null) {
+			clearInterval(pollTimer);
+			pollTimer = null;
+		}
+	}
+
 	function unwatch() {
+		stopFallbackPolling();
+		realtimeConnected = false;
 		if (channel) {
 			supabase.removeChannel(channel);
 			channel = null;

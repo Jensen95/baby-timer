@@ -163,6 +163,36 @@ afterAll(async () => {
 });
 
 describe('cross-member event sharing', () => {
+	it('every joined family member sees the family babies (REST pull path)', async () => {
+		// A family owns the babies; any member must see them. This is the other half
+		// of the reported bug ("babies are not shared") and the catch-up path a fresh
+		// sign-in on a new device takes: an empty local cache pulling over REST.
+		const { data: ownerView, error: ownerErr } = await clientA
+			.from('babies')
+			.select('*')
+			.eq('family_id', familyId);
+		expect(ownerErr, 'owner could not read babies').toBeNull();
+		expect(ownerView?.map((b) => b.id)).toContain(babyId);
+
+		const { data: memberView, error: memberErr } = await clientB
+			.from('babies')
+			.select('*')
+			.eq('family_id', familyId);
+		expect(memberErr, 'member B could not read babies').toBeNull();
+		expect(
+			memberView?.map((b) => b.id),
+			'member B saw none of the family babies'
+		).toContain(babyId);
+
+		// Outsider isolation: a member of another family must see nothing.
+		const { data: outsiderView, error: outsiderErr } = await clientC
+			.from('babies')
+			.select('*')
+			.eq('family_id', familyId);
+		expect(outsiderErr).toBeNull();
+		expect(outsiderView?.length, 'outsider leaked babies').toBe(0);
+	});
+
 	it('member B reads every event type member A created (REST pull path)', async () => {
 		// Member A logs each kind of event, exactly like the app's sync upsert.
 		for (const table of SESSION_TABLES) {
