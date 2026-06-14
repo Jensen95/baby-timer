@@ -226,10 +226,29 @@ export function createSyncEngine() {
 
 	// Subscribe to live changes for a family. Replaces interval polling: remote
 	// writes from other devices/members stream straight into the local cache.
-	function watch(familyId: string) {
+	async function watch(familyId: string) {
 		if (watchedFamilyId === familyId && channel) return;
 		unwatch();
 		watchedFamilyId = familyId;
+
+		// Realtime postgres_changes is RLS-filtered per row: without the member's
+		// JWT on the socket every change is evaluated as `anon` and silently
+		// dropped, so events authored by other members never arrive. supabase-js
+		// only auto-applies the token on SIGNED_IN / TOKEN_REFRESHED — NOT on
+		// INITIAL_SESSION (a page reload that restores an existing session), which
+		// is the common case here. Set it explicitly before subscribing.
+		try {
+			const {
+				data: { session }
+			} = await supabase.auth.getSession();
+			if (session?.access_token) {
+				await supabase.realtime.setAuth(session.access_token);
+			}
+		} catch (e) {
+			captureException(e);
+		}
+		// A concurrent watch()/unwatch() may have superseded us during the await.
+		if (watchedFamilyId !== familyId) return;
 
 		let ch = supabase.channel(`family-sync:${familyId}`);
 		for (const table of WATCHED_TABLES) {
@@ -293,7 +312,7 @@ export function createSyncEngine() {
 		}
 
 		await syncNow();
-		watch(familyId);
+		await watch(familyId);
 	}
 
 	function start() {

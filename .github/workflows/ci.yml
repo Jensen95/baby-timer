@@ -90,6 +90,34 @@ jobs:
       - name: E2E tests
         run: npm run test:integration
 
+  supabase-integration:
+    needs: install
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: 'npm'
+      - run: npm ci
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Start Supabase
+        # Realtime + auth + rest + db are required; the rest are not needed for the
+        # cross-member event-sharing tests and only slow startup down.
+        run: supabase start -x studio,imgproxy,storage-api,vector,supavisor,pooler,edge-runtime
+      - name: Cross-member integration tests
+        run: |
+          eval "$(supabase status -o env)"
+          export SUPABASE_URL="$API_URL"
+          export SUPABASE_ANON_KEY="$ANON_KEY"
+          export SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY"
+          npm run test:supabase
+      - name: Stop Supabase
+        if: always()
+        run: supabase stop --no-backup
+
   edge-functions:
     needs: install
     runs-on: ubuntu-latest
@@ -112,7 +140,7 @@ jobs:
 
   ci:
     if: always()
-    needs: [lint, typecheck, unit, e2e, edge-functions]
+    needs: [lint, typecheck, unit, e2e, supabase-integration, edge-functions]
     runs-on: ubuntu-latest
     steps:
       - name: All checks passed

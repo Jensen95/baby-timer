@@ -102,10 +102,30 @@ async function mockSupabaseRest(page: Page) {
 	});
 }
 
-// The dashboard "Add a baby" empty-state link only renders after the app has
-// opened and queried the Dexie DB, so it's a safe signal that the stores exist.
+// Wait until the app's Dexie object stores exist before we seed via raw
+// IndexedDB. We can't key off the "Add a baby" empty state anymore — the mocked
+// REST returns a baby that now syncs in and auto-selects on first load — and the
+// loading message detaches before db.open() finishes its upgrade, so polling the
+// store names directly is the only race-free signal.
 async function waitForAppReady(page: Page) {
-	await expect(page.getByRole('link', { name: 'Add a baby' })).toBeVisible({ timeout: 10_000 });
+	await expect
+		.poll(
+			() =>
+				page.evaluate(
+					() =>
+						new Promise<boolean>((resolve) => {
+							const req = indexedDB.open('baby-timer');
+							req.onsuccess = () => {
+								const names = Array.from(req.result.objectStoreNames);
+								req.result.close();
+								resolve(names.includes('babies') && names.includes('feeding_sessions'));
+							};
+							req.onerror = () => resolve(false);
+						})
+				),
+			{ timeout: 10_000 }
+		)
+		.toBe(true);
 }
 
 async function seedBabyAndFeedings(page: Page) {

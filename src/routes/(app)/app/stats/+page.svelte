@@ -61,8 +61,8 @@
 		return new Date(dateStr + 'T12:00:00').toLocaleDateString([], { weekday: 'short' });
 	}
 
-	async function loadStats(babyId: string) {
-		loading = true;
+	async function loadStats(babyId: string, showSpinner: boolean) {
+		if (showSpinner) loading = true;
 		error = null;
 		try {
 			const { start, end, days: dayList } = getLast7DayRange();
@@ -172,10 +172,18 @@
 		}
 	}
 
+	// Refreshing on every sync revision must NOT blank the page: show the loading
+	// spinner only on the initial load / baby switch, then refresh data in place.
+	// Otherwise each realtime event (or sync pass) re-shows the spinner and the
+	// charts visibly flicker.
+	let statsBabyId: string | null = null;
 	$effect(() => {
 		const babyId = babyState.selectedBabyId;
 		void sync.revision;
-		if (babyId) loadStats(babyId);
+		if (!babyId) return;
+		const showSpinner = babyId !== statsBabyId;
+		statsBabyId = babyId;
+		loadStats(babyId, showSpinner);
 	});
 
 	let feedingBarData = $derived(
