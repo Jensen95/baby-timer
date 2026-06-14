@@ -154,24 +154,32 @@
 		loaded = true;
 		pageLoading = false;
 		const userId = session.user?.id;
-		if (!userId) {
-			babyState.loadBabies(null).catch((e: unknown) => {
-				error = e instanceof Error ? e.message : 'Failed to load babies';
-			});
-			return;
-		}
+		if (!userId) return;
 		(async () => {
 			try {
 				const localFamily = await resolveLocalFamilyForUser(supabase, userId);
-				const fid = localFamily?.id ?? null;
-				familyId = fid;
-				babyState.loadBabies(fid).catch((e: unknown) => {
-					error = e instanceof Error ? e.message : 'Failed to load babies';
-				});
+				familyId = localFamily?.id ?? null;
 			} catch (e) {
 				error = e instanceof Error ? e.message : 'Failed to load data';
 			}
 		})();
+	});
+
+	// Reload babies whenever the resolved family or the sync revision changes. A
+	// member whose family data (babies included) arrives via the first background
+	// sync — after this page has already rendered — must pick up the newly synced
+	// baby and select it; otherwise the dashboard stays on the empty state and no
+	// events ever show, which looks like "events aren't shared".
+	$effect(() => {
+		void sync.revision;
+		if (session.loading) return;
+		const userId = session.user?.id;
+		// For an authenticated user, wait until the family is resolved so we don't
+		// momentarily load the guest (family_id = null) set.
+		if (userId && familyId === null) return;
+		babyState.loadBabies(userId ? familyId : null).catch((e: unknown) => {
+			error = e instanceof Error ? e.message : 'Failed to load babies';
+		});
 	});
 
 	$effect(() => {

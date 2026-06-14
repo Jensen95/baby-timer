@@ -24,7 +24,8 @@ npm run dev
 | `npm run lint`                                                         | Prettier check + ESLint            |
 | `npm run format`                                                       | Auto-format all files              |
 | `npm run test:unit`                                                    | Vitest unit tests                  |
-| `npm run test:integration`                                             | Playwright E2E                     |
+| `npm run test:integration`                                             | Playwright E2E (hermetic, mocked)  |
+| `npm run test:supabase`                                                | Integration tests vs real Supabase |
 | `supabase db push`                                                     | Push migrations to Supabase        |
 | `supabase gen types typescript --local > src/lib/db/database.types.ts` | Regen DB types                     |
 
@@ -83,6 +84,20 @@ We use `supabase.auth.getUser()` (validates JWT with Supabase server) for securi
 ### Database types
 
 `src/lib/db/database.types.ts` is the TypeScript representation of the Supabase schema. When you add a migration, update this file too (or run `supabase gen types typescript --local` if the local stack is running).
+
+### RLS needs GRANTs too (cross-member sharing)
+
+RLS only _restricts_ access — it never _grants_ it. A new `public` table needs
+**both** a permissive RLS policy **and** a table-level `GRANT` to `authenticated`
+(and `service_role`) before PostgREST or Realtime can touch it. Supabase's
+implicit default privileges do **not** include select/insert/update/delete on the
+current Postgres images, so a policy-only table returns "permission denied" — and
+because the app is offline-first, the author still sees their own rows from Dexie
+while other family members see nothing. `20260614120000_grant_table_privileges.sql`
+grants DML and sets matching default privileges; keep new tables covered.
+Realtime is RLS-filtered per row, so the socket must be authenticated
+(`supabase.realtime.setAuth(token)`) or every change is dropped as `anon`.
+`npm run test:supabase` is the regression guard (two real members, one family).
 
 ## Database Conventions
 

@@ -99,11 +99,11 @@ async function mockSupabaseRest(page: Page) {
 	});
 }
 
-// The dashboard "Add a baby" empty-state link only renders after the app has
-// successfully opened and queried the Dexie DB, so waiting for it guarantees the
-// object stores exist before we seed (avoids racing the app's own db.open()).
+// Wait until the dashboard has finished its initial load (the loading message
+// detaches once the page effect runs), which guarantees the app has opened the
+// Dexie DB and its object stores exist before we seed (avoids racing db.open()).
 async function waitForAppReady(page: Page) {
-	await expect(page.getByRole('link', { name: 'Add a baby' })).toBeVisible({ timeout: 10_000 });
+	await expect(page.locator('.loading-msg')).not.toBeVisible({ timeout: 10_000 });
 }
 
 // Seed the shared family + baby into the local cache so the dashboard resolves

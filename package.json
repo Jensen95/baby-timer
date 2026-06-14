@@ -14,6 +14,7 @@
 		"format:functions": "deno fmt --config supabase/functions/deno.json supabase/functions/",
 		"format:functions:check": "deno fmt --check --config supabase/functions/deno.json supabase/functions/",
 		"test:integration": "playwright test",
+		"test:supabase": "vitest run --config vitest.integration.config.ts",
 		"test:unit": "vitest",
 		"prepare": "husky"
 	},
