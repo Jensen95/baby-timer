@@ -10,6 +10,7 @@ export interface LocalSession {
 	has_pee?: boolean;
 	yield_left_ml?: number | null;
 	yield_right_ml?: number | null;
+	yield_total_ml?: number | null;
 	note?: string | null;
 	_sync?: 'pending' | 'synced';
 }

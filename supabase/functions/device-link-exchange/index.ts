@@ -11,6 +11,7 @@ initErrorTracking('device-link-exchange');
 
 type ExchangePayload = {
 	pollToken?: string;
+	redirectTo?: string;
 };
 
 Deno.serve(async (req: Request) => {
@@ -48,6 +49,8 @@ Deno.serve(async (req: Request) => {
 				headers: { ...corsHeaders, 'Content-Type': 'application/json' },
 			});
 		}
+
+		const clientRedirectTo = payload.redirectTo?.trim() || null;
 
 		const { data: sessionRow, error: sessionError } = await supabase
 			.from('device_link_sessions')
@@ -123,7 +126,7 @@ Deno.serve(async (req: Request) => {
 		}
 
 		const appUrl = Deno.env.get('APP_URL') ?? 'https://your-app.github.io';
-		const redirectTo = `${appUrl}/app`;
+		const redirectTo = clientRedirectTo ?? `${appUrl}/app`;
 
 		const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
 			type: 'magiclink',

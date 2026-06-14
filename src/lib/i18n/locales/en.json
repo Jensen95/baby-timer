@@ -79,6 +79,7 @@
 		"deviceLinkApproveManualCta": "Approve with code",
 		"deviceLinkApproveSuccess": "Device sign-in approved.",
 		"deviceLinkApproveFailed": "Failed to approve this sign-in request.",
+		"backToApp": "Back to app",
 		"or": "or",
 		"continueWithoutAccount": "Continue without an account",
 		"signingOut": "Signing out..."
@@ -108,6 +109,10 @@
 		"contents": "Contents",
 		"leftYield": "Left yield (ml)",
 		"rightYield": "Right yield (ml)",
+		"totalYield": "Total yield (ml)",
+		"yieldMode": "Yield entry",
+		"yieldPerSide": "Per side",
+		"yieldTotalOnly": "Total only",
 		"options": {
 			"left": "Left",
 			"right": "Right",
@@ -157,6 +162,10 @@
 		"contents": "Contents",
 		"leftYield": "Left yield (ml)",
 		"rightYield": "Right yield (ml)",
+		"totalYield": "Total yield (ml)",
+		"yieldMode": "Yield entry",
+		"yieldPerSide": "Per side",
+		"yieldTotalOnly": "Total only",
 		"deleteConfirm": "Delete this session?",
 		"errors": {
 			"startRequired": "Start time is required and must be a valid date.",

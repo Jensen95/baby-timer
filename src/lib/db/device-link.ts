@@ -101,11 +101,17 @@ export async function consumeDeviceLinkRequest(
 
 export async function exchangeDeviceLinkRequest(
 	client: Client,
-	pollToken: string
+	pollToken: string,
+	redirectBase?: string
 ): Promise<DeviceLinkExchangeResult> {
+	const body: Record<string, string> = { pollToken };
+	if (redirectBase) {
+		body.redirectTo = `${redirectBase}/app`;
+	}
+
 	const { data, error } = await client.functions.invoke('device-link-exchange', {
 		method: 'POST',
-		body: { pollToken }
+		body
 	});
 
 	if (error) captureAndThrow(error);

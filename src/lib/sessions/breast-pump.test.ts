@@ -23,6 +23,7 @@ describe('buildBreastPumpPayload', () => {
 		expect(payload.ended_at).toBe('2024-01-01T10:20:00.000Z');
 		expect(payload.yield_left_ml).toBe(40);
 		expect(payload.yield_right_ml).toBe(35);
+		expect(payload.yield_total_ml).toBeNull();
 		expect(payload.note).toBeNull();
 	});
 
@@ -30,6 +31,27 @@ describe('buildBreastPumpPayload', () => {
 		const payload = buildBreastPumpPayload({ ...base, side: 'left' });
 		expect(payload.yield_left_ml).toBeNull();
 		expect(payload.yield_right_ml).toBeNull();
+		expect(payload.yield_total_ml).toBeNull();
+	});
+
+	it('records total-only amount with sides as null', () => {
+		const payload = buildBreastPumpPayload({
+			...base,
+			side: 'both',
+			yieldTotalMl: 75
+		});
+		expect(payload.yield_left_ml).toBeNull();
+		expect(payload.yield_right_ml).toBeNull();
+		expect(payload.yield_total_ml).toBe(75);
+	});
+
+	it('rounds non-integer total yield', () => {
+		const payload = buildBreastPumpPayload({
+			...base,
+			side: 'both',
+			yieldTotalMl: 74.7
+		});
+		expect(payload.yield_total_ml).toBe(75);
 	});
 
 	it('throws when end precedes start', () => {
@@ -48,6 +70,16 @@ describe('buildBreastPumpPayload', () => {
 				...base,
 				side: 'both',
 				yieldLeftMl: -1
+			})
+		).toThrow(/yield/);
+	});
+
+	it('throws for negative total yield', () => {
+		expect(() =>
+			buildBreastPumpPayload({
+				...base,
+				side: 'both',
+				yieldTotalMl: -5
 			})
 		).toThrow(/yield/);
 	});

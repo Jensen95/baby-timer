@@ -4,7 +4,6 @@ import { db } from './local';
 import { supabase } from '$lib/supabase';
 import { captureException } from '$lib/error-tracking';
 import { getUserFamilies } from './family';
-import { listBabies } from './babies';
 
 export const SYNC_KEY = Symbol('sync');
 
@@ -148,25 +147,15 @@ export function createSyncEngine() {
 				}
 			}
 
+			// Pull every family-shared table (babies AND session events) from the
+			// database into the local cache. This runs on every sync — app load,
+			// reconnect, after a push — so a member sees data created by other
+			// members regardless of whether the Realtime websocket ever connects.
+			// (Realtime is only a live-update optimisation layered on top.)
 			try {
 				const families = await getUserFamilies(supabase);
-				if (families.length > 0) {
-					const pendingIds = new Set(
-						(await db.babies.where('_sync').equals('pending').primaryKeys()) as string[]
-					);
-					const sharedBabyLists = await Promise.all(
-						families.map((family) => listBabies(supabase, family.id))
-					);
-					const syncedBabies = sharedBabyLists
-						.flat()
-						.filter((sharedBaby) => !pendingIds.has(sharedBaby.id))
-						.map((sharedBaby) => ({
-							...sharedBaby,
-							_sync: 'synced' as const
-						}));
-					if (syncedBabies.length > 0) {
-						await db.babies.bulkPut(syncedBabies);
-					}
+				for (const family of families) {
+					await pullFamilyTables(family.id);
 				}
 			} catch (syncError) {
 				captureException(syncError);
@@ -218,9 +207,10 @@ export function createSyncEngine() {
 		}
 	}
 
-	// Catch-up fetch run right after (re)subscribing, to pull rows created while
-	// this device was offline or before the channel was established.
-	async function initialPull(familyId: string) {
+	// Pull every watched table for a family from the database into the local
+	// cache. Used by syncNow (so sharing works without Realtime) and as the
+	// catch-up fetch right after (re)subscribing to the Realtime channel.
+	async function pullFamilyTables(familyId: string) {
 		for (const table of WATCHED_TABLES) {
 			const { data, error: err } = await supabase.from(table).select('*').eq('family_id', familyId);
 			if (err) {
@@ -255,7 +245,8 @@ export function createSyncEngine() {
 		}
 		ch.subscribe((status) => {
 			if (status === 'SUBSCRIBED') {
-				initialPull(familyId);
+				// syncNow pulls every family table itself; this is just the
+				// post-(re)subscribe catch-up for rows missed while disconnected.
 				syncNow();
 			}
 		});

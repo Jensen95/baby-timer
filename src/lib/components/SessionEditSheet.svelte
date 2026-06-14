@@ -22,8 +22,10 @@
 	let editStartedAt = $state('');
 	let editEndedAt = $state('');
 	let editSide = $state('');
+	let editYieldMode = $state<'per-side' | 'total-only'>('per-side');
 	let editYieldLeftMl = $state('');
 	let editYieldRightMl = $state('');
+	let editYieldTotalMl = $state('');
 
 	let saving = $state(false);
 	let deleting = $state(false);
@@ -59,8 +61,10 @@
 			editStartedAt = '';
 			editEndedAt = '';
 			editSide = '';
+			editYieldMode = 'per-side';
 			editYieldLeftMl = '';
 			editYieldRightMl = '';
+			editYieldTotalMl = '';
 			validationError = null;
 			confirmDelete = false;
 			return;
@@ -74,8 +78,23 @@
 		} else {
 			editSide = session.side ?? '';
 		}
-		editYieldLeftMl = session.yield_left_ml != null ? String(session.yield_left_ml) : '';
-		editYieldRightMl = session.yield_right_ml != null ? String(session.yield_right_ml) : '';
+		if (session.type === 'breast_pump') {
+			if (session.yield_total_ml != null) {
+				editYieldMode = 'total-only';
+				editYieldTotalMl = String(session.yield_total_ml);
+				editYieldLeftMl = '';
+				editYieldRightMl = '';
+			} else {
+				editYieldMode = 'per-side';
+				editYieldLeftMl = session.yield_left_ml != null ? String(session.yield_left_ml) : '';
+				editYieldRightMl = session.yield_right_ml != null ? String(session.yield_right_ml) : '';
+				editYieldTotalMl = '';
+			}
+		} else {
+			editYieldLeftMl = session.yield_left_ml != null ? String(session.yield_left_ml) : '';
+			editYieldRightMl = session.yield_right_ml != null ? String(session.yield_right_ml) : '';
+			editYieldTotalMl = '';
+		}
 		validationError = null;
 		confirmDelete = false;
 	});
@@ -106,8 +125,17 @@
 		{ value: 'both', label: t('track.options.both') }
 	]);
 
-	const showYieldLeft = $derived(editSide === 'left' || editSide === 'both');
-	const showYieldRight = $derived(editSide === 'right' || editSide === 'both');
+	const YIELD_MODE_OPTIONS = $derived([
+		{ value: 'per-side', label: t('sessions.yieldPerSide') },
+		{ value: 'total-only', label: t('sessions.yieldTotalOnly') }
+	]);
+
+	const showYieldLeft = $derived(
+		editYieldMode === 'per-side' && (editSide === 'left' || editSide === 'both')
+	);
+	const showYieldRight = $derived(
+		editYieldMode === 'per-side' && (editSide === 'right' || editSide === 'both')
+	);
 
 	async function handleSave() {
 		if (!session) return;
@@ -131,10 +159,15 @@
 
 		let yieldLeftMl: number | null = null;
 		let yieldRightMl: number | null = null;
+		let yieldTotalMl: number | null = null;
 		if (session.type === 'breast_pump') {
 			try {
-				yieldLeftMl = parseOptionalYield(editYieldLeftMl);
-				yieldRightMl = parseOptionalYield(editYieldRightMl);
+				if (editYieldMode === 'total-only') {
+					yieldTotalMl = parseOptionalYield(editYieldTotalMl);
+				} else {
+					yieldLeftMl = parseOptionalYield(editYieldLeftMl);
+					yieldRightMl = parseOptionalYield(editYieldRightMl);
+				}
 			} catch (e) {
 				validationError = e instanceof Error ? e.message : t('sessions.errors.yieldInvalid');
 				return;
@@ -175,6 +208,7 @@
 				side: editSide as PumpSide,
 				yield_left_ml: yieldLeftMl,
 				yield_right_ml: yieldRightMl,
+				yield_total_ml: yieldTotalMl,
 				_sync: 'pending'
 			};
 		}
@@ -318,31 +352,54 @@
 						onchange={(v) => (editSide = v as string)}
 					/>
 				</div>
-				{#if showYieldLeft}
+				<div class="field">
+					<span class="field-label">{t('sessions.yieldMode')}</span>
+					<OptionGrid
+						options={YIELD_MODE_OPTIONS}
+						value={editYieldMode}
+						columns={2}
+						onchange={(v) => (editYieldMode = v as 'per-side' | 'total-only')}
+					/>
+				</div>
+				{#if editYieldMode === 'total-only'}
 					<div class="field">
-						<label class="field-label" for="edit-yield-left">{t('sessions.leftYield')}</label>
+						<label class="field-label" for="edit-yield-total">{t('sessions.totalYield')}</label>
 						<input
-							id="edit-yield-left"
+							id="edit-yield-total"
 							class="number-input"
 							type="number"
 							min="0"
 							step="1"
-							bind:value={editYieldLeftMl}
+							bind:value={editYieldTotalMl}
 						/>
 					</div>
-				{/if}
-				{#if showYieldRight}
-					<div class="field">
-						<label class="field-label" for="edit-yield-right">{t('sessions.rightYield')}</label>
-						<input
-							id="edit-yield-right"
-							class="number-input"
-							type="number"
-							min="0"
-							step="1"
-							bind:value={editYieldRightMl}
-						/>
-					</div>
+				{:else}
+					{#if showYieldLeft}
+						<div class="field">
+							<label class="field-label" for="edit-yield-left">{t('sessions.leftYield')}</label>
+							<input
+								id="edit-yield-left"
+								class="number-input"
+								type="number"
+								min="0"
+								step="1"
+								bind:value={editYieldLeftMl}
+							/>
+						</div>
+					{/if}
+					{#if showYieldRight}
+						<div class="field">
+							<label class="field-label" for="edit-yield-right">{t('sessions.rightYield')}</label>
+							<input
+								id="edit-yield-right"
+								class="number-input"
+								type="number"
+								min="0"
+								step="1"
+								bind:value={editYieldRightMl}
+							/>
+						</div>
+					{/if}
 				{/if}
 			{/if}
 

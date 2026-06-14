@@ -2,6 +2,7 @@
 	import { getContext } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import { PUBLIC_APP_REDIRECT_URL } from '$env/static/public';
 	import { SESSION_KEY } from '$lib/auth/context';
 	import type { SessionStore } from '$lib/auth/context';
 	import { supabase } from '$lib/supabase';
@@ -13,6 +14,7 @@
 		type DeviceLinkRequest,
 		type DeviceLinkStatus
 	} from '$lib/db/device-link';
+	import { resolveRedirectBase } from '$lib/auth/redirect';
 	import { t } from '@sveltia/i18n';
 	import Button from '$lib/components/Button.svelte';
 	import QrCode from '$lib/components/QrCode.svelte';
@@ -75,7 +77,15 @@
 				lastPolledAt = new Date().toISOString();
 
 				if (status.status === 'approved') {
-					const exchange = await exchangeDeviceLinkRequest(supabase, deviceRequest.poll_token);
+					const redirectBase = resolveRedirectBase(
+						PUBLIC_APP_REDIRECT_URL,
+						typeof window !== 'undefined' ? window.location.origin : undefined
+					);
+					const exchange = await exchangeDeviceLinkRequest(
+						supabase,
+						deviceRequest.poll_token,
+						redirectBase
+					);
 					if (exchange.status === 'approved' && exchange.actionLink) {
 						window.location.assign(exchange.actionLink);
 						return;

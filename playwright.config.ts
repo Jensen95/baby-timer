@@ -6,8 +6,15 @@ export default defineConfig({
 		port: 4173,
 		reuseExistingServer: !process.env.CI,
 		env: {
-			PUBLIC_SUPABASE_URL: process.env.PUBLIC_SUPABASE_URL ?? 'https://placeholder.supabase.co',
-			PUBLIC_SUPABASE_ANON_KEY: process.env.PUBLIC_SUPABASE_ANON_KEY ?? 'placeholder-key'
+			// E2E is hermetic: all Supabase traffic is mocked via page.route, so the
+			// build must use the PLACEHOLDER url, never a real (secret) one. supabase-js
+			// derives its auth storage key from the url host (`sb-<label>-auth-token`),
+			// so tests that seed a session in localStorage rely on this being constant
+			// (`sb-placeholder-auth-token`). Inheriting a real secret URL in CI would
+			// change the key and break session seeding.
+			PUBLIC_SUPABASE_URL: 'https://placeholder.supabase.co',
+			PUBLIC_SUPABASE_ANON_KEY: 'placeholder-key',
+			PUBLIC_APP_REDIRECT_URL: process.env.PUBLIC_APP_REDIRECT_URL ?? ''
 		}
 	},
 	testDir: 'tests',

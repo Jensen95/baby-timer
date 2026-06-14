@@ -42,6 +42,7 @@ export interface LocalBreastPump {
 	ended_at: string | null;
 	yield_left_ml: number | null;
 	yield_right_ml: number | null;
+	yield_total_ml: number | null;
 	note: string | null;
 	created_at: string;
 	_sync: 'pending' | 'synced';

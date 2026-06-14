@@ -32,6 +32,13 @@ const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$
 
 const bugsinkAuthToken = process.env.BUGSINK_AUTH_TOKEN?.trim();
 
+// PUBLIC_APP_REDIRECT_URL is an OPTIONAL build-time override for the post-login
+// redirect base. SvelteKit's `$env/static/public` only exports public vars that
+// exist at build time, so default it to '' when unset — otherwise the static
+// import breaks the build in environments that don't set it (e.g. CI `npm run
+// build`). Empty means callers fall back to `window.location.origin`.
+process.env.PUBLIC_APP_REDIRECT_URL = process.env.PUBLIC_APP_REDIRECT_URL ?? '';
+
 export default defineConfig(({ command, mode }) => {
 	const env = loadEnv(mode, process.cwd(), '');
 	const npmLifecycleEvent = process.env.npm_lifecycle_event;
