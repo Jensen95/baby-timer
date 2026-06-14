@@ -204,13 +204,19 @@ describe('cross-member event sharing', () => {
 		});
 		await sleep(750); // let the subscription bind before we write
 
-		const { error } = await clientA
-			.from('feeding_sessions')
-			.insert(eventPayload('feeding_sessions', babyId, familyId));
-		expect(error).toBeNull();
-
-		const deadline = Date.now() + 12_000;
-		while (received.length === 0 && Date.now() < deadline) await sleep(200);
+		// Right after `supabase start` the Postgres → Realtime WAL stream can take a
+		// few seconds to go live even though the socket reports SUBSCRIBED, so the
+		// first insert may be missed. Re-insert until an event is delivered (each is
+		// a fresh row); once streaming is live the next insert arrives immediately.
+		const deadline = Date.now() + 25_000;
+		while (received.length === 0 && Date.now() < deadline) {
+			const { error } = await clientA
+				.from('feeding_sessions')
+				.insert(eventPayload('feeding_sessions', babyId, familyId));
+			expect(error).toBeNull();
+			const waitUntil = Date.now() + 2_000;
+			while (received.length === 0 && Date.now() < waitUntil) await sleep(150);
+		}
 		await clientB.removeChannel(channel);
 
 		expect(received.length, 'member B never received member A event via Realtime').toBeGreaterThan(

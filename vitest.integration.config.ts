@@ -10,7 +10,7 @@ export default defineConfig({
 		environment: 'node',
 		// Spinning up auth users + waiting on Realtime delivery is slower than a unit
 		// test; give each test room without being flaky.
-		testTimeout: 30_000,
+		testTimeout: 40_000,
 		hookTimeout: 30_000,
 		// Two members mutate the same family; run serially for deterministic state.
 		fileParallelism: false
