@@ -99,11 +99,30 @@ async function mockSupabaseRest(page: Page) {
 	});
 }
 
-// Wait until the dashboard has finished its initial load (the loading message
-// detaches once the page effect runs), which guarantees the app has opened the
-// Dexie DB and its object stores exist before we seed (avoids racing db.open()).
+// Wait until the app's Dexie object stores exist before we seed via raw
+// IndexedDB. The "Add a baby" empty state no longer reliably shows (the mocked
+// REST returns a baby that syncs in and auto-selects on first load), and the
+// loading message detaches before db.open() finishes its upgrade, so polling the
+// store names directly is the only race-free signal.
 async function waitForAppReady(page: Page) {
-	await expect(page.locator('.loading-msg')).not.toBeVisible({ timeout: 10_000 });
+	await expect
+		.poll(
+			() =>
+				page.evaluate(
+					() =>
+						new Promise<boolean>((resolve) => {
+							const req = indexedDB.open('baby-timer');
+							req.onsuccess = () => {
+								const names = Array.from(req.result.objectStoreNames);
+								req.result.close();
+								resolve(names.includes('babies') && names.includes('feeding_sessions'));
+							};
+							req.onerror = () => resolve(false);
+						})
+				),
+			{ timeout: 10_000 }
+		)
+		.toBe(true);
 }
 
 // Seed the shared family + baby into the local cache so the dashboard resolves
