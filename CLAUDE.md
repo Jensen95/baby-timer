@@ -114,6 +114,18 @@ extend the root tsconfig — that extends `.svelte-kit/tsconfig.json`, which oxc
 cannot resolve for files outside `src` (build fails with "Tsconfig not found").
 The separate config is deliberate.
 
+### Migrations must actually be deployed (they are not part of the app build)
+
+A correct migration that passes `test:supabase` still does **nothing** in production
+until it is applied to the hosted database. `supabase start` runs every migration
+locally, which masks this — a fix "works on my machine / in CI" yet the live RLS
+policy or GRANT never lands. The frontend (`deploy.yml`) and edge functions
+(`deploy-functions.yml`) auto-deploy on push to `main`; **migrations now do too** via
+`deploy-migrations.yml` (`supabase db push`, triggered on `supabase/migrations/**`).
+If you ever see "the SQL fix didn't take effect," confirm that workflow ran green —
+do not assume merging the migration deployed it. (This was the real cause of the
+"events/babies not shared" regression: the GRANT migration was merged but never pushed.)
+
 ## Database Conventions
 
 - All tables are in the `public` schema with RLS enabled
