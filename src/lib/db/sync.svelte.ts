@@ -5,7 +5,11 @@ import { supabase } from '$lib/supabase';
 import { captureException } from '$lib/error-tracking';
 import { getUserFamilies, type Family } from './family';
 import { getLocalFamily } from './local-family';
-import { resolveSyncFamilyId } from './sync-helpers';
+import {
+	resolveSyncFamilyId,
+	babyReadyForSessionPush,
+	isForeignKeyViolation
+} from './sync-helpers';
 
 export const SYNC_KEY = Symbol('sync');
 
@@ -50,6 +54,28 @@ export function createSyncEngine() {
 		diaper_change_sessions: db.diaper_change_sessions
 	};
 
+	// The family-shared session tables, all of which carry a baby_id foreign key.
+	// `babies` is excluded — it is the parent these reference.
+	const SESSION_TABLES = [
+		'feeding_sessions',
+		'sleep_sessions',
+		'breast_pump_sessions',
+		'diaper_change_sessions'
+	] as const;
+	type SessionTable = (typeof SESSION_TABLES)[number];
+	type LocalSessionRow = {
+		id: string;
+		baby_id: string;
+		family_id: string | null;
+		_sync: 'pending' | 'synced';
+	};
+	const sessionTables: Record<SessionTable, Table<LocalSessionRow>> = {
+		feeding_sessions: db.feeding_sessions,
+		sleep_sessions: db.sleep_sessions,
+		breast_pump_sessions: db.breast_pump_sessions,
+		diaper_change_sessions: db.diaper_change_sessions
+	};
+
 	function canSyncBabyNow(id: string): boolean {
 		const retry = babiesRetryState.get(id);
 		return !retry || Date.now() >= retry.nextAllowedAt;
@@ -67,6 +93,54 @@ export function createSyncEngine() {
 			attempts,
 			nextAllowedAt: Date.now() + delayMs
 		});
+	}
+
+	// Push all pending rows of one session table. A session carries a baby_id
+	// foreign key, so — unlike the babies push — it must wait for its parent baby
+	// to be confirmed in the remote DB before it can be sent, or Postgres rejects
+	// it with 23503 ("Key is not present in table babies"). The babies loop in
+	// syncNow runs first and pushes every pending baby; here we (1) hold back any
+	// session whose baby has not yet synced, and (2) if a push still hits a FK
+	// violation (the baby was marked synced locally but never actually landed
+	// remotely), re-queue that baby so the next pass re-pushes it. Returns true if
+	// any row errored.
+	async function pushPendingSessions(
+		table: SessionTable,
+		activeFamilyId: string | null
+	): Promise<boolean> {
+		let anyError = false;
+		const pending = await sessionTables[table].where('_sync').equals('pending').toArray();
+		for (const row of pending) {
+			const familyId = resolveSyncFamilyId(row.family_id, activeFamilyId);
+			if (!familyId) {
+				continue;
+			}
+			if (row.family_id !== familyId) {
+				await sessionTables[table].update(row.id, { family_id: familyId });
+			}
+			const baby = await db.babies.get(row.baby_id);
+			if (!babyReadyForSessionPush(baby)) {
+				// Parent baby not synced yet; retry this session on a later pass once
+				// the babies loop has pushed it. Avoids a guaranteed FK violation.
+				continue;
+			}
+			const { _sync, ...payload } = { ...row, family_id: familyId };
+			const { error: err } = await supabase.from(table).upsert(payload as any);
+			if (!err) {
+				await sessionTables[table].update(row.id, { _sync: 'synced' });
+			} else {
+				if (isForeignKeyViolation(err) && baby) {
+					// The baby was marked synced locally but the FK still failed — it
+					// never reached the remote DB. Re-queue it (and clear its backoff)
+					// so the next pass re-pushes the baby before retrying this session.
+					await db.babies.update(baby.id, { _sync: 'pending' });
+					markBabySyncSuccess(baby.id);
+				}
+				captureException(err);
+				anyError = true;
+			}
+		}
+		return anyError;
 	}
 
 	async function syncNow() {
@@ -121,79 +195,11 @@ export function createSyncEngine() {
 				}
 			}
 
-			const pendingFeedings = await db.feeding_sessions.where('_sync').equals('pending').toArray();
-			for (const feeding of pendingFeedings) {
-				const familyId = resolveSyncFamilyId(feeding.family_id, activeFamilyId);
-				if (!familyId) {
-					continue;
-				}
-				if (feeding.family_id !== familyId) {
-					await db.feeding_sessions.update(feeding.id, { family_id: familyId });
-				}
-				const { _sync, ...payload } = { ...feeding, family_id: familyId };
-				const { error: err } = await supabase.from('feeding_sessions').upsert(payload as any);
-				if (!err) await db.feeding_sessions.update(feeding.id, { _sync: 'synced' });
-				else {
-					captureException(err);
-					anyError = true;
-				}
-			}
-
-			const pendingSleeps = await db.sleep_sessions.where('_sync').equals('pending').toArray();
-			for (const sleep of pendingSleeps) {
-				const familyId = resolveSyncFamilyId(sleep.family_id, activeFamilyId);
-				if (!familyId) {
-					continue;
-				}
-				if (sleep.family_id !== familyId) {
-					await db.sleep_sessions.update(sleep.id, { family_id: familyId });
-				}
-				const { _sync, ...payload } = { ...sleep, family_id: familyId };
-				const { error: err } = await supabase.from('sleep_sessions').upsert(payload as any);
-				if (!err) await db.sleep_sessions.update(sleep.id, { _sync: 'synced' });
-				else {
-					captureException(err);
-					anyError = true;
-				}
-			}
-
-			const pendingPumps = await db.breast_pump_sessions.where('_sync').equals('pending').toArray();
-			for (const pump of pendingPumps) {
-				const familyId = resolveSyncFamilyId(pump.family_id, activeFamilyId);
-				if (!familyId) {
-					continue;
-				}
-				if (pump.family_id !== familyId) {
-					await db.breast_pump_sessions.update(pump.id, { family_id: familyId });
-				}
-				const { _sync, ...payload } = { ...pump, family_id: familyId };
-				const { error: err } = await supabase.from('breast_pump_sessions').upsert(payload as any);
-				if (!err) await db.breast_pump_sessions.update(pump.id, { _sync: 'synced' });
-				else {
-					captureException(err);
-					anyError = true;
-				}
-			}
-
-			const pendingDiaperChanges = await db.diaper_change_sessions
-				.where('_sync')
-				.equals('pending')
-				.toArray();
-			for (const diaperChange of pendingDiaperChanges) {
-				const familyId = resolveSyncFamilyId(diaperChange.family_id, activeFamilyId);
-				if (!familyId) {
-					continue;
-				}
-				if (diaperChange.family_id !== familyId) {
-					await db.diaper_change_sessions.update(diaperChange.id, { family_id: familyId });
-				}
-				const { _sync, ...payload } = { ...diaperChange, family_id: familyId };
-				const { error: err } = await supabase.from('diaper_change_sessions').upsert(payload as any);
-				if (!err) await db.diaper_change_sessions.update(diaperChange.id, { _sync: 'synced' });
-				else {
-					captureException(err);
-					anyError = true;
-				}
+			// Sessions are pushed only after the babies loop above, and each one waits
+			// for its own parent baby to be synced (see pushPendingSessions), so a
+			// session never reaches the DB before the baby it references.
+			for (const table of SESSION_TABLES) {
+				if (await pushPendingSessions(table, activeFamilyId)) anyError = true;
 			}
 
 			// Pull every family-shared table (babies AND session events) from the
