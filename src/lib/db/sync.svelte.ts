@@ -3,7 +3,9 @@ import type { RealtimeChannel, RealtimePostgresChangesPayload } from '@supabase/
 import { db } from './local';
 import { supabase } from '$lib/supabase';
 import { captureException } from '$lib/error-tracking';
-import { getUserFamilies } from './family';
+import { getUserFamilies, type Family } from './family';
+import { getLocalFamily } from './local-family';
+import { resolveSyncFamilyId } from './sync-helpers';
 
 export const SYNC_KEY = Symbol('sync');
 
@@ -27,6 +29,10 @@ export function createSyncEngine() {
 	let revision = $state(0);
 	let channel: RealtimeChannel | null = null;
 	let watchedFamilyId: string | null = null;
+	// Set synchronously at the top of watch() so a second, overlapping watch() for
+	// the same family bails out instead of building a duplicate channel (which
+	// throws "cannot add postgres_changes callbacks ... after subscribe()").
+	let subscribingFamilyId: string | null = null;
 	let realtimeConnected = $state(false);
 	let pollTimer: ReturnType<typeof setInterval> | null = null;
 	// Only used when Realtime is unavailable. Realtime pushes changes live, so a
@@ -75,15 +81,35 @@ export function createSyncEngine() {
 
 			let anyError = false;
 
+			// Resolve the families this user belongs to once, and pick the active one.
+			// Used to (1) adopt orphaned local rows (family_id === null) into the
+			// active family before pushing and (2) pull shared rows back down. Without
+			// the adoption, a baby created before its family was known is skipped on
+			// every pass and never reaches the DB — and a child session created later
+			// (with a valid family_id) then fails its baby_id foreign key, because the
+			// parent baby was never synced.
+			let families: Family[] = [];
+			try {
+				families = await getUserFamilies(supabase);
+			} catch (e) {
+				captureException(e);
+				anyError = true;
+			}
+			const activeFamilyId = (await getLocalFamily())?.id ?? families[0]?.id ?? null;
+
 			const pendingBabies = await db.babies.where('_sync').equals('pending').toArray();
 			for (const baby of pendingBabies) {
-				if (!baby.family_id) {
+				const familyId = resolveSyncFamilyId(baby.family_id, activeFamilyId);
+				if (!familyId) {
 					continue;
+				}
+				if (baby.family_id !== familyId) {
+					await db.babies.update(baby.id, { family_id: familyId });
 				}
 				if (!canSyncBabyNow(baby.id)) {
 					continue;
 				}
-				const { _sync, ...payload } = baby;
+				const { _sync, ...payload } = { ...baby, family_id: familyId };
 				const { error: err } = await supabase.from('babies').upsert(payload as any);
 				if (!err) {
 					await db.babies.update(baby.id, { _sync: 'synced' });
@@ -97,10 +123,14 @@ export function createSyncEngine() {
 
 			const pendingFeedings = await db.feeding_sessions.where('_sync').equals('pending').toArray();
 			for (const feeding of pendingFeedings) {
-				if (!feeding.family_id) {
+				const familyId = resolveSyncFamilyId(feeding.family_id, activeFamilyId);
+				if (!familyId) {
 					continue;
 				}
-				const { _sync, ...payload } = feeding;
+				if (feeding.family_id !== familyId) {
+					await db.feeding_sessions.update(feeding.id, { family_id: familyId });
+				}
+				const { _sync, ...payload } = { ...feeding, family_id: familyId };
 				const { error: err } = await supabase.from('feeding_sessions').upsert(payload as any);
 				if (!err) await db.feeding_sessions.update(feeding.id, { _sync: 'synced' });
 				else {
@@ -111,10 +141,14 @@ export function createSyncEngine() {
 
 			const pendingSleeps = await db.sleep_sessions.where('_sync').equals('pending').toArray();
 			for (const sleep of pendingSleeps) {
-				if (!sleep.family_id) {
+				const familyId = resolveSyncFamilyId(sleep.family_id, activeFamilyId);
+				if (!familyId) {
 					continue;
 				}
-				const { _sync, ...payload } = sleep;
+				if (sleep.family_id !== familyId) {
+					await db.sleep_sessions.update(sleep.id, { family_id: familyId });
+				}
+				const { _sync, ...payload } = { ...sleep, family_id: familyId };
 				const { error: err } = await supabase.from('sleep_sessions').upsert(payload as any);
 				if (!err) await db.sleep_sessions.update(sleep.id, { _sync: 'synced' });
 				else {
@@ -125,10 +159,14 @@ export function createSyncEngine() {
 
 			const pendingPumps = await db.breast_pump_sessions.where('_sync').equals('pending').toArray();
 			for (const pump of pendingPumps) {
-				if (!pump.family_id) {
+				const familyId = resolveSyncFamilyId(pump.family_id, activeFamilyId);
+				if (!familyId) {
 					continue;
 				}
-				const { _sync, ...payload } = pump;
+				if (pump.family_id !== familyId) {
+					await db.breast_pump_sessions.update(pump.id, { family_id: familyId });
+				}
+				const { _sync, ...payload } = { ...pump, family_id: familyId };
 				const { error: err } = await supabase.from('breast_pump_sessions').upsert(payload as any);
 				if (!err) await db.breast_pump_sessions.update(pump.id, { _sync: 'synced' });
 				else {
@@ -142,10 +180,14 @@ export function createSyncEngine() {
 				.equals('pending')
 				.toArray();
 			for (const diaperChange of pendingDiaperChanges) {
-				if (!diaperChange.family_id) {
+				const familyId = resolveSyncFamilyId(diaperChange.family_id, activeFamilyId);
+				if (!familyId) {
 					continue;
 				}
-				const { _sync, ...payload } = diaperChange;
+				if (diaperChange.family_id !== familyId) {
+					await db.diaper_change_sessions.update(diaperChange.id, { family_id: familyId });
+				}
+				const { _sync, ...payload } = { ...diaperChange, family_id: familyId };
 				const { error: err } = await supabase.from('diaper_change_sessions').upsert(payload as any);
 				if (!err) await db.diaper_change_sessions.update(diaperChange.id, { _sync: 'synced' });
 				else {
@@ -160,7 +202,6 @@ export function createSyncEngine() {
 			// members regardless of whether the Realtime websocket ever connects.
 			// (Realtime is only a live-update optimisation layered on top.)
 			try {
-				const families = await getUserFamilies(supabase);
 				for (const family of families) {
 					await pullFamilyTables(family.id);
 				}
@@ -254,59 +295,80 @@ export function createSyncEngine() {
 	// Subscribe to live changes for a family. Replaces interval polling: remote
 	// writes from other devices/members stream straight into the local cache.
 	async function watch(familyId: string) {
-		if (watchedFamilyId === familyId && channel) return;
+		// Bail if we already watch (or are mid-subscribe for) this family. The
+		// `channel` is only assigned at the very end, so without the
+		// `subscribingFamilyId` guard two overlapping calls (the layout effect can
+		// fire more than once before the first await resolves) both get past the
+		// `channel` check and build a second channel for the same topic. The reused,
+		// already-subscribed channel then throws "cannot add postgres_changes
+		// callbacks ... after subscribe()" when listeners are attached.
+		if (watchedFamilyId === familyId && (channel || subscribingFamilyId === familyId)) return;
+		subscribingFamilyId = familyId;
 		unwatch();
 		watchedFamilyId = familyId;
 
-		// Realtime postgres_changes is RLS-filtered per row: without the member's
-		// JWT on the socket every change is evaluated as `anon` and silently
-		// dropped, so events authored by other members never arrive. supabase-js
-		// only auto-applies the token on SIGNED_IN / TOKEN_REFRESHED — NOT on
-		// INITIAL_SESSION (a page reload that restores an existing session), which
-		// is the common case here. Set it explicitly before subscribing.
 		try {
+			// Realtime postgres_changes is RLS-filtered per row: without the member's
+			// JWT on the socket every change is evaluated as `anon` and silently
+			// dropped, so events authored by other members never arrive. supabase-js
+			// only auto-applies the token on SIGNED_IN / TOKEN_REFRESHED — NOT on
+			// INITIAL_SESSION (a page reload that restores an existing session), which
+			// is the common case here. Set it explicitly before subscribing.
 			const {
 				data: { session }
 			} = await supabase.auth.getSession();
+			// A concurrent watch()/unwatch() may have superseded us during the await.
+			if (watchedFamilyId !== familyId) return;
 			if (session?.access_token) {
 				await supabase.realtime.setAuth(session.access_token);
 			}
+			if (watchedFamilyId !== familyId) return;
+
+			// Defensive: drop any stale channel left on the client for this topic
+			// before creating a fresh one, so we never attach listeners to an
+			// already-subscribed channel.
+			const topic = `family-sync:${familyId}`;
+			for (const existing of supabase.getChannels()) {
+				if (existing.topic === topic || existing.topic === `realtime:${topic}`) {
+					supabase.removeChannel(existing);
+				}
+			}
+
+			let ch = supabase.channel(topic);
+			for (const table of WATCHED_TABLES) {
+				ch = ch.on(
+					'postgres_changes',
+					{ event: '*', schema: 'public', table, filter: `family_id=eq.${familyId}` },
+					(payload) =>
+						applyRemoteChange(
+							table,
+							payload as RealtimePostgresChangesPayload<Record<string, unknown>>
+						)
+				);
+			}
+			ch.subscribe((status) => {
+				if (status === 'SUBSCRIBED') {
+					// Socket is live: Realtime now streams every change, so the fallback
+					// poll is not needed. Do one catch-up pull for rows missed while we
+					// were disconnected, then rely on push.
+					realtimeConnected = true;
+					stopFallbackPolling();
+					syncNow();
+				} else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+					// Socket is down. supabase-js keeps retrying the subscription on its
+					// own; we must NOT re-pull on every transient drop (that is the
+					// "pulling every second" storm). Instead fall back to a single slow
+					// periodic pull until Realtime recovers.
+					realtimeConnected = false;
+					startFallbackPolling();
+				}
+			});
+			channel = ch;
 		} catch (e) {
 			captureException(e);
+		} finally {
+			if (subscribingFamilyId === familyId) subscribingFamilyId = null;
 		}
-		// A concurrent watch()/unwatch() may have superseded us during the await.
-		if (watchedFamilyId !== familyId) return;
-
-		let ch = supabase.channel(`family-sync:${familyId}`);
-		for (const table of WATCHED_TABLES) {
-			ch = ch.on(
-				'postgres_changes',
-				{ event: '*', schema: 'public', table, filter: `family_id=eq.${familyId}` },
-				(payload) =>
-					applyRemoteChange(
-						table,
-						payload as RealtimePostgresChangesPayload<Record<string, unknown>>
-					)
-			);
-		}
-		ch.subscribe((status) => {
-			if (status === 'SUBSCRIBED') {
-				// Socket is live: Realtime now streams every change, so the fallback
-				// poll is not needed. Do one catch-up pull for rows missed while we
-				// were disconnected, then rely on push.
-				realtimeConnected = true;
-				stopFallbackPolling();
-				syncNow();
-			} else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
-				// Socket is down. supabase-js keeps retrying the subscription on its
-				// own; we must NOT re-pull on every transient drop (that is the
-				// "pulling every second" storm). Instead fall back to a single slow
-				// periodic pull until Realtime recovers.
-				realtimeConnected = false;
-				startFallbackPolling();
-			}
-		});
-		channel = ch;
 	}
 
 	function startFallbackPolling() {
