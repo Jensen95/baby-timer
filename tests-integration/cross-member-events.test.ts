@@ -277,3 +277,61 @@ describe('cross-member event sharing', () => {
 		}
 	});
 });
+
+describe('authenticated member write path (babies + their sessions actually persist)', () => {
+	// The production failure: babies and sessions created in the app never reached
+	// Postgres at all (the DB had families/members but zero babies/sessions). The
+	// root cause was client-side — a baby created before its family was known kept
+	// family_id = null and the offline sync skipped it forever, so a child session
+	// written afterwards failed its baby_id foreign key ("Key is not present in
+	// table babies"). The rest of this suite seeds the baby with the *service-role*
+	// client, so it never exercised a member writing a baby through the same
+	// authenticated PostgREST path the app uses. This block does, end to end.
+	let memberBabyId: string;
+
+	it('a member creates a baby through their own authenticated client and it is persisted', async () => {
+		const { data, error } = await clientA
+			.from('babies')
+			.insert({ family_id: familyId, name: 'Member-authored baby' })
+			.select()
+			.single();
+		expect(error, 'member A could not create a baby via the authenticated write path').toBeNull();
+		expect(data?.id, 'baby insert returned no row').toBeTruthy();
+		memberBabyId = data!.id;
+
+		// Must really be in the table, not just echoed back to the writer.
+		const { data: persisted, error: readErr } = await admin
+			.from('babies')
+			.select('id')
+			.eq('id', memberBabyId)
+			.maybeSingle();
+		expect(readErr).toBeNull();
+		expect(persisted?.id, 'baby was not persisted to the database').toBe(memberBabyId);
+	});
+
+	it('a second family member sees that member-created baby', async () => {
+		const { data, error } = await clientB
+			.from('babies')
+			.select('id')
+			.eq('id', memberBabyId)
+			.maybeSingle();
+		expect(error).toBeNull();
+		expect(data?.id, 'member B did not see the baby member A created').toBe(memberBabyId);
+	});
+
+	it('every session type writes for that baby with no foreign-key violation, and is shared', async () => {
+		for (const table of SESSION_TABLES) {
+			const { error: writeErr } = await clientA
+				.from(table)
+				.insert(eventPayload(table, memberBabyId, familyId));
+			// A 23503 here is the exact production symptom: the parent baby missing.
+			expect(writeErr, `member A could not write ${table} for a member-created baby`).toBeNull();
+
+			const { data, error } = await clientB.from(table).select('id').eq('baby_id', memberBabyId);
+			expect(error).toBeNull();
+			expect(data?.length, `member B saw no ${table} for the member-created baby`).toBeGreaterThan(
+				0
+			);
+		}
+	});
+});
